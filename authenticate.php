@@ -1,114 +1,122 @@
 <?php
+/*
+	File:		authenticate.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Contains the user authentication logic.
+	Author:		TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+//I wish to rewrite this mess eventually.
 $menuhide = true;
-require_once 'globals_nonauth.php';
-
-// Configuration
-define('MAX_ATTEMPTS', 5);
-define('LOCKOUT_TIME', 900); // 15 minutes
-
-// Helper Functions
-function getClientIP(): string {
-    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+$CurrentTime = time();
+require_once('globals_nonauth.php');
+$IP = $db->escape($_SERVER['REMOTE_ADDR']);
+$email = (array_key_exists('email', $_POST) && is_string($_POST['email'])) ? $_POST['email'] : '';
+$password = (array_key_exists('password', $_POST) && is_string($_POST['password'])) ? $_POST['password'] : '';
+if (!isset($_POST['verf']) || !checkCSRF('login', stripslashes($_POST['verf']))) {
+    die("<h3>{$set['WebsiteName']} Error</h3> CSRF Check failed. Please submit the form quicker next time.");
 }
-
-function isLockedOut($ip): bool {
-    global $db;
-    $ipEscaped = $db->escape($ip);
-    $timeWindow = time() - LOCKOUT_TIME;
-    $query = "SELECT COUNT(*) FROM login_attempts WHERE ip = '{$ipEscaped}' AND timestamp > {$timeWindow}";
-    $result = $db->query($query);
-    $count = $db->fetch_single($result);
-    return $count >= MAX_ATTEMPTS;
+$QuarterHour = (time() - 900);
+$FTMQuery = $db->query("SELECT `timestamp`
+                      FROM `login_attempts`
+                      WHERE `ip` = '{$IP}'
+                      AND `timestamp` > {$QuarterHour}");
+//User has failed to login 3 or more times within the last 15 minutes.
+if ($db->num_rows($FTMQuery) >= 3) {
+    die("<h3>{$set['WebsiteName']} Error</h3> You cannot attempt to log in anymore for the next 15 minutes.");
 }
+//Password or email address not specifed.
+if (empty($email) || empty($password)) {
+    //Log login attempt.
+    $db->query("INSERT INTO `login_attempts`
+              (`ip`, `userid`, `timestamp`)
+              VALUES
+              ('{$IP}', '0', '{$CurrentTime}');");
+    die("<h3>{$set['WebsiteName']} Error</h3> Invalid Email and/or Password.<br /> <a href='login.php'>Back</a>");
 
-function logLoginAttempt($ip, $userId): void {
-    global $db, $api;
-    $db->easy_insert('login_attempts', [
-        'ip' => $ip,
-        'userid' => $userId,
-        'timestamp' => time()
-    ]);
-    $api->GameAddNotification($userId, "There was a recent failed attempt to log into your account. Please change your password immediately. However, if this was you, ignore this.");
 }
+$form_email = $db->escape(stripslashes($email));
+$raw_password = stripslashes($password);
+$uq = $db->query("SELECT `userid`,`password`
+                FROM `users`
+                WHERE `email` = '$form_email' LIMIT 1");
+$UQ = $db->query("SELECT `userid`,`password`
+                FROM `users`
+                WHERE `email` = '$form_email' LIMIT 1");
 
-function clearLoginAttempts($userId): void {
-    global $db;
-    $userId = (int) $userId;
-    $db->query("DELETE FROM login_attempts WHERE userid = {$userId}");
+$userid = $db->fetch_row($uq);
+$QHQuery = $db->query("SELECT `timestamp`
+                      FROM `login_attempts`
+                      WHERE `userid` = '{$userid['userid']}'
+                      AND `timestamp` > {$QuarterHour}");
+//Account has failed to login 3 times in the past 15 minutes.
+if ($db->num_rows($QHQuery) >= 3) {
+    die("<h3>{$set['WebsiteName']} Error</h3> You cannot attempt to log in anymore for the next 15 minutes.");
 }
+//User does not exist.
+if ($db->num_rows($UQ) == 0) {
+    $db->free_result($uq);
+    //Log the login attempt.
+    $db->query("INSERT INTO `login_attempts` (`ip`, `userid`, `timestamp`) VALUES ('{$IP}', '0', '{$CurrentTime}');");
+    die("<h3>{$set['WebsiteName']} Error</h3> Invalid Email and/or Password.<br /> <a href='login.php'>Back</a>");
+} //User exists...
+else {
+    $mem = $db->fetch_row($UQ);
+    $db->free_result($UQ);
+    //Verify user's password, then log them in.
+    $login_failed = false;
+    $login_failed = !(checkUserPassword($raw_password, $mem['password']));
+    //Login failed
+    if ($login_failed) {
+        //Log login attempt.
+        $db->query("INSERT INTO `login_attempts` (`ip`, `userid`, `timestamp`) VALUES ('{$IP}', '{$mem['userid']}', '{$CurrentTime}');");
+        addNotification($mem['userid'], "Someone has just recently attempted to gain access to your account and failed.
+		    If this was you, you do not need to do anything. However, if this was not, you should change your password
+		    immediately!");
+        die("<h3>{$set['WebsiteName']} Error</h3> Invalid Email and/or Password.<br /> <a href='login.php'>Back</a>");
 
-function authenticateUser($email, $password) {
-    global $db;
-    $emailEscaped = $db->escape(strtolower(trim($email)));
-    $result = $db->query("SELECT `userid`, `password`, `user_level` FROM `users` WHERE email = '{$emailEscaped}' LIMIT 1");
-    if ($db->num_rows($result)) {
-        $user = $db->fetch_row($result);
-        if (verify_user_password($password, $user['password'], $user['userid'])) {
-            return ['userid' => $user['userid'],
-                    'user_level' => $user['user_level']
-            ];
-        }
     }
-    return null;
+    session_regenerate_id();
+    $_SESSION['loggedin'] = 1;
+    $_SESSION['userid'] = $mem['userid'];
+    $_SESSION['last_login'] = time();
+    $db->query("UPDATE `users`
+              SET `loginip` = '{$IP}',
+              `last_login` = '{$CurrentTime}',
+              `laston` = '{$CurrentTime}'
+               WHERE `userid` = {$mem['userid']}");
+    $encpsw = encodePassword($raw_password);
+    $e_encpsw = $db->escape($encpsw);
+    //Update user's password as an extra security mesaure.
+    $db->query("UPDATE `users` SET `password` = '{$e_encpsw}' WHERE `userid` = {$_SESSION['userid']}");
+    //Remove login attempts for this account.
+    $db->query("DELETE FROM `login_attempts` WHERE `userid` = {$_SESSION['userid']}");
+    $loggedin_url = 'loggedin.php';
+    //Log that the user logged in successfully.
+    $api->game->addLog($_SESSION['userid'], 'login', "Successfully logged in.");
+    //Delete password recovery attempts from DB if they exist for this user.
+    $db->query("DELETE FROM `pw_recovery` WHERE `pwr_email` = '{$form_email}'");
+    header("Location: {$loggedin_url}");
+    exit;
 }
-
-// Main Logic
-$ip = getClientIP();
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = (array_key_exists('email', $_POST) && is_string($_POST['email'])) ? $_POST['email'] : '';
-    $password = (array_key_exists('password', $_POST) && is_string($_POST['password'])) ? $_POST['password'] : '';
-    
-    if (empty($email) || empty($password)) {
-        die("Please provide both email and password.");
-    }
-    
-    if (isLockedOut($ip)) {
-        die("Too many login attempts. Please try again later.");
-    }
-    
-    $user = authenticateUser($email, $password);
-    
-    if ($user) {
-        session_regenerate_id(true);
-        $_SESSION['userid'] = $user['userid'];
-        $uade=$db->query("/*qc=on*/SELECT * FROM `user_settings` WHERE `userid` = {$user['userid']}");
-        if ($db->num_rows($uade) == 0)
-        {
-            $randomPhrase = randomizer();
-            $db->query("INSERT INTO `user_settings` (`userid`, `security_key`) VALUES ('{$user['userid']}', '{$randomPhrase}')");
-        }
-        $_SESSION['loggedin'] = 1;
-        $_SESSION['last_login'] = time();
-        setcookie('login_expire', time() + 604800, time() + 604800);
-        $invis=$db->fetch_single($db->query("/*qc=on*/SELECT `invis` FROM `user_settings` WHERE `userid` = {$user['userid']}"));
-        if ($invis < time())
-        {
-            $db->query("UPDATE `users`
-              SET `loginip` = '{$ip}',
-              `last_login` = '" . time() . "',
-              `laston` = '" . time() . "'
-               WHERE `userid` = {$user['userid']}");
-        }
-        else
-        {
-            $db->query("UPDATE `users`
-              SET `loginip` = '{$ip}'
-               WHERE `userid` = {$user['userid']}");
-        }
-        
-        clearLoginAttempts($user['userid']);
-        if (Random(1,10) == 6)
-        {
-            $encpsw = encode_password($password,$user['user_level']);
-            $e_encpsw = $db->escape($encpsw);
-            $db->query("UPDATE `users` SET `password` = '{$e_encpsw}' WHERE `userid` = {$user['userid']}");
-        }
-        header("Location: loggedin.php");
-        exit;
-    } else {
-        logLoginAttempt($ip, 0); // Log failed attempt
-        die("Login failed."); // Vague error to prevent info leaks
-    }
-}
-?>

@@ -1,14 +1,36 @@
 <?php
 /*
-	File: staff/staff_promo.php
-	Created: 9/09/2017 at 2:32PM Eastern Time
-	Info: Allows admins to create/edit/delete promotion codes that can be used at registration.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine
+	File: 		staff/staff_promo.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to add or remove registration promotion codes.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('sglobals.php');
 //User is not an admin, so redirect them back to the main index.
-if (!$api->UserMemberLevelGet($userid, 'admin')) {
+if (!$api->user->getStaffLevel($userid, 'admin')) {
     alert('danger', "Uh Oh!", "You do not have permission to be here!", true, 'index.php');
     die($h->endpage());
 }
@@ -28,9 +50,16 @@ switch ($_GET['action']) {
         viewpromo();
         break;
     default:
-        alert('danger', "Uh Oh!", "Please select a valid action to perform.", true, 'index.php');
-        die($h->endpage());
+        menu();
         break;;
+}
+function menu()
+{
+	global $h;
+	echo "<h3>Promo Code Staff Menu</h3><hr />
+    <a href='?action=addpromo' class='btn btn-primary'>Create Promo Code</a><br /><br />
+    <a href='?action=viewpromo' class='btn btn-primary'>View Promo Codes</a><br /><br />";
+	$h->endpage();
 }
 //Function for adding a promo code to the game.
 function add()
@@ -43,7 +72,7 @@ function add()
         $code = (isset($_POST['code'])) ? $db->escape(strip_tags(stripslashes($_POST['code']))) : '';
         $item = (isset($_POST['item']) && is_numeric($_POST['item'])) ? abs(intval($_POST['item'])) : 0;
         //User has failed the CSRF check
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_promo_add', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_promo_add', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form
             quickly next time.");
             die($h->endpage());
@@ -59,13 +88,13 @@ function add()
             die($h->endpage());
         }
         //Check that the item actually exists, and if it doesn't, stop the creation of this promo code.
-        $q1 = $db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$item}");
+        $q1 = $db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$item}");
         if ($db->num_rows($q1) == 0) {
             alert('danger', "Uh Oh!", "Please select an existing item to give.");
             die($h->endpage());
         }
         //Check that the promo code entered is not in use, and stop creation if it is.
-        $q2 = $db->query("/*qc=on*/SELECT `promo_id` FROM `promo_codes` WHERE `promo_code` = '{$code}'");
+        $q2 = $db->query("SELECT `promo_id` FROM `promo_codes` WHERE `promo_code` = '{$code}'");
         if ($db->num_rows($q2) > 0) {
             alert('danger', "Uh Oh!", "Please specify an unused name for this promo code..");
             die($h->endpage());
@@ -74,12 +103,12 @@ function add()
         $db->query("INSERT INTO `promo_codes`
                     (`promo_code`, `promo_item`, `promo_use`)
                     VALUES  ('{$code}', {$item}, 0)");
-        $api->SystemLogsAdd($userid, 'staff', "Added Promotion Code '{$code}'.'");
+        $api->game->addLog($userid, 'staff', "Added Promotion Code '{$code}'.'");
         alert('success', "Success!", "You have successfully added Promotion Code '{$code}' to the game.", true, "index.php");
         $h->endpage();
     } else {
         //Create the form
-        $csrf = request_csrf_html('staff_promo_add');
+        $csrf = getHtmlCSRF('staff_promo_add');
         echo "<form method='post'>";
         echo "<table class='table table-bordered'>
         <tr>
@@ -100,7 +129,7 @@ function add()
                 Promo Item
             </th>
             <td>
-                " . item_dropdown() . "
+                " . dropdownItem() . "
             </td>
         </tr>
         <tr>
@@ -125,7 +154,7 @@ function deletepromo()
         //Sanitize and validate that the promo code is a number.
         $code = (isset($_GET['promo']) && is_numeric($_GET['promo'])) ? abs(intval($_GET['promo'])) : 0;
         //User has failed the CSRF check
-        if (!isset($_GET['verf']) || !verify_csrf_code('staff_promo_delete', stripslashes($_GET['verf']))) {
+        if (!isset($_GET['verf']) || !checkCSRF('staff_promo_delete', stripslashes($_GET['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form
             quickly next time.");
             die($h->endpage());
@@ -136,7 +165,7 @@ function deletepromo()
             die($h->endpage());
         }
         //Make sure the promotion code to be deleted actually exists.
-        $q = $db->query("/*qc=on*/SELECT `promo_code` FROM `promo_codes` WHERE `promo_id` = {$code}");
+        $q = $db->query("SELECT `promo_code` FROM `promo_codes` WHERE `promo_id` = {$code}");
         if ($db->num_rows($q) == 0) {
             alert('danger', "Uh Oh!", "You are trying to delete an invalid or non-existent promotion code.");
             die($h->endpage());
@@ -145,7 +174,7 @@ function deletepromo()
         $r = $db->fetch_single($q);
         $db->query("DELETE FROM `promo_codes` WHERE `promo_id` = {$code}");
         alert("success", "Success!", "You have successfully deleted the {$r} promotion code.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Deleted the {$r} promotion code.");
+        $api->game->addLog($userid, 'staff', "Deleted the {$r} promotion code.");
         $h->endpage();
     } else {
         alert('danger', "Uh Oh!", "Please select the promotion code you wish to delete.", true, '?action=viewpromo');
@@ -158,7 +187,7 @@ function viewpromo()
 {
     echo "<h3>View Promo Codes</h3><hr />";
     global $db, $h, $api;
-    $q = $db->query("/*qc=on*/SELECT * FROM `promo_codes`");
+    $q = $db->query("SELECT * FROM `promo_codes`");
     if ($db->num_rows($q) == 0) {
         alert('danger', "Uh Oh!", "There aren't any promotion codes in game.", true, 'index.php');
         die($h->endpage());
@@ -179,7 +208,7 @@ function viewpromo()
             </th>
         </tr>";
         //Request CSRF Code
-        $csrf = request_csrf_code('staff_promo_delete');
+        $csrf = getCodeCSRF('staff_promo_delete');
         while ($r = $db->fetch_row($q)) {
             echo "
             <tr>
@@ -187,7 +216,7 @@ function viewpromo()
                     {$r['promo_code']}
                 </td>
                 <td>
-                    " . $api->SystemItemIDtoName($r['promo_item']) . "
+                    " . $api->game->getItemNameFromID($r['promo_item']) . "
                 </td>
                 <td>
                     " . number_format($r['promo_use']) . "

@@ -1,15 +1,36 @@
 <?php
 /*
 	File:		staff.php
-	Created: 	4/5/2016 at 12:27AM Eastern Time
-	Info: 		Lists the game staff, and give a friendly link to message
-				them.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Shows the list of in-game staff members, such as 
+				Admins, Web Developers, Forum Moderators and Assistants.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require("globals.php");
 $staff = array();
-$q = $db->query("/*qc=on*/SELECT `vip_days`, `username`, `userid`, `primary_currency`, `level`, `fedjail`, `vipcolor`, `display_pic`, `laston`, `user_level`
+$q = $db->query("SELECT `userid`, `laston`, `username`, `user_level`
  				 FROM `users`
  				 WHERE `user_level` IN('Admin', 'Forum Moderator', 'Assistant')
  				 ORDER BY `userid` ASC");
@@ -17,162 +38,91 @@ while ($r = $db->fetch_row($q)) {
     $staff[$r['userid']] = $r;
 }
 $db->free_result($q);
-echo "
-<div class='card'>
-	<div class='card-header'>
-		<h3>
-			Admins
-		</h3>
-	</div>
-</div>";
-foreach ($staff as $r) 
-{
-    if ($r['user_level'] == 'Admin') 
-	{
-		$r['username'] = parseUsername($r['userid']);
-		$un = $api->SystemUserIDtoName($r['userid']);
-		$displaypic = "<img src='" . parseDisplayPic($r['userid']) . "' height='75' alt='{$un}&#39;s Display picture.' title='{$un}&#39;s Display picture'>";
-		$active = parseActivity($r['userid']);
-		echo "
-		<div class='card'>
-			<div class='card-body'>
-				<div class='row'>
-					<div class='col-sm-2'>
-						{$displaypic}
-					</div>
-					<div class='col-sm-2'>
-						<a href='profile.php?user={$r['userid']}'>{$r['username']}</a> [{$r['userid']}]
-					</div>
-					<div class='col-sm'>
-						<div class='row'>
-							<div class='col'>
-								Level<br />
-								" . shortNumberParse($r['level']) . "<br />
-							</div>
-							<div class='col hidden-sm-down'>
-								Copper Coins<br />
-								" . shortNumberParse($r['primary_currency']) . "
-							</div>
-							<div class='col'>
-								{$active}
-							</div>
-							<div class='col'>
-								<a href='inbox.php?action=compose&user={$r['userid']}'>Send Message</a>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>";
+echo "<h3>Admins</h3>
+<table class='table table-bordered table-hover table-striped'>
+	<tr>
+		<th>
+			User
+		</th>
+		<th>
+			Last Seen
+		</th>
+		<th>
+			Contact
+		</th>
+	</tr>";
+foreach ($staff as $r) {
+    if ($r['user_level'] == 'Admin') {
+        echo "<tr>
+				<td>
+					<a href='profile.php?user={$r['userid']}'>{$r['username']}</a> [{$r['userid']}]
+				</td>
+				<td>
+					" . dateTimeParse($r['laston']) . "
+				</td>
+				<td>
+					<a href='inbox.php?action=compose&user={$r['userid']}'>Send {$r['username']} Message</a>
+				</td>
+				</tr>";
     }
 }
-echo "<br />
-<div class='card'>
-	<div class='card-header'>
-		<h3>
-			Assistants
-		</h3>
-	</div>
-</div>";
-foreach ($staff as $r) 
-{
-    if ($r['user_level'] == 'Assistant') 
-	{
-        $r['username'] = parseUsername($r['userid']);
-		$un = $api->SystemUserIDtoName($r['userid']);
-		$displaypic = "<img src='" . parseDisplayPic($r['userid']) . "' height='75' alt='{$un}&#39;s Display picture.' title='{$un}&#39;s Display picture'>";
-		
-		$active = 0;
-		if ($r['laston'] > time() - 300)
-		    $active = 1;
-	    elseif (($r['laston'] < time() - 300) && ($r['laston'] > time() - 900))
-	       $active = 2;
-		if ($active == 1)
-		    $activityBadge = createSuccessBadge("Active now!");
-	    elseif ($active == 2)
-		    $activityBadge = createWarningBadge("Idle");
-	    else
-	        $activityBadge = createDangerBadge("Offline");
-		echo "
-		<div class='card'>
-			<div class='card-body'>
-				<div class='row'>
-					<div class='col-sm-2'>
-						{$displaypic}
-					</div>
-					<div class='col-sm-2'>
-						<a href='profile.php?user={$r['userid']}'>{$r['username']}</a> [{$r['userid']}]
-					</div>
-					<div class='col-sm'>
-						<div class='row'>
-							<div class='col'>
-								Level<br />
-								" . shortNumberParse($r['level']) . "<br />
-							</div>
-							<div class='col hidden-sm-down'>
-								Copper Coins<br />
-								" . shortNumberParse($r['primary_currency']) . "
-							</div>
-							<div class='col'>
-								{$activityBadge}
-							</div>
-							<div class='col'>
-								<a href='inbox.php?action=compose&user={$r['userid']}'>Send Message</a>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>";
+echo '</table>';
+echo "<h3>Assistants</h3>
+<table class='table table-bordered table-hover table-striped'>
+	<tr>
+		<th>
+			User
+		</th>
+		<th>
+			Last Seen
+		</th>
+		<th>
+			Contact
+		</th>
+	</tr>";
+foreach ($staff as $r) {
+    if ($r['user_level'] == 'Assistant') {
+        echo "<tr>
+				<td>
+					<a href='profile.php?user={$r['userid']}'>{$r['username']}</a> [{$r['userid']}]
+				</td>
+				<td>
+					" . dateTimeParse($r['laston']) . "
+				</td>
+				<td>
+					<a href='inbox.php?action=compose&user={$r['userid']}'>Send {$r['username']} Message</a>
+				</td>
+				</tr>";
     }
 }
-echo "<br />
-<div class='card'>
-	<div class='card-header'>
-		<h3>
-			Forum Moderators
-		</h3>
-	</div>
-</div>";
-foreach ($staff as $r) 
-{
-    if ($r['user_level'] == 'Forum Moderator') 
-	{
-        $r['username'] = parseUsername($r['userid']);
-		$un = $api->SystemUserIDtoName($r['userid']);
-		$displaypic = "<img src='" . parseDisplayPic($r['userid']) . "' height='75' alt='{$un}&#39;s Display picture.' title='{$un}&#39;s Display picture'>";
-		$active = ($r['laston'] > time() - 300) ? "<span class='text-success'>Online</span>" : "<span class='text-danger'>Offline</span>";
-		echo "
-		<div class='card'>
-			<div class='card-body'>
-				<div class='row'>
-					<div class='col-sm-2'>
-						{$displaypic}
-					</div>
-					<div class='col-sm-2'>
-						<a href='profile.php?user={$r['userid']}'>{$r['username']}</a> [{$r['userid']}]
-					</div>
-					<div class='col-sm'>
-						<div class='row'>
-							<div class='col'>
-								Level<br />
-								" . shortNumberParse($r['level']) . "<br />
-							</div>
-							<div class='col hidden-sm-down'>
-								Copper Coins<br />
-								" . shortNumberParse($r['primary_currency']) . "
-							</div>
-							<div class='col'>
-								{$active}
-							</div>
-							<div class='col'>
-								<a href='inbox.php?action=compose&user={$r['userid']}'>Send Message</a>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>";
+echo '</table>';
+echo "<h3>Forum Moderators</h3>
+<table class='table table-bordered table-hover table-striped'>
+	<tr>
+		<th>
+			User
+		</th>
+		<th>
+			Last Seen
+		</th>
+		<th>
+			Contact
+		</th>
+	</tr>";
+foreach ($staff as $r) {
+    if ($r['user_level'] == 'Forum Moderator') {
+        echo "<tr>
+				<td>
+					<a href='profile.php?user={$r['userid']}'>{$r['username']}</a> [{$r['userid']}]
+				</td>
+				<td>
+					" . dateTimeParse($r['laston']) . "
+				</td>
+				<td>
+					<a href='inbox.php?action=compose&user={$r['userid']}'>Send {$r['username']} Message</a>
+				</td>
+			</tr>";
     }
 }
+echo '</table>';
 $h->endpage();

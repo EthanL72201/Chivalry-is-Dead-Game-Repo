@@ -1,10 +1,32 @@
 <?php
 /*
-	File: staff/staff_estates.php
-	Created: 4/4/2017 at 7:02PM Eastern Time
-	Info: Staff panel for handling/editing/creating estates for players to buy.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine/
+	File: 		staff/staff_estates.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to do actions relating to the in-game estates.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('sglobals.php');
 if ($ir['user_level'] != "Admin") {
@@ -24,13 +46,16 @@ switch ($_GET['action']) {
     case "delestate":
         delestate();
         break;
-    case "giftestate":
-        giftestate();
-        break;
     default:
-        alert('danger', "Uh Oh!", "Please select a valid action to perform.", true, 'index.php');
-        die($h->endpage());
+        menu();
         break;
+}
+function menu()
+{
+	echo "<h3>Estate Staff Menu</h3><hr />
+    <a href='?action=addestate' class='btn btn-primary'>Create Estate</a><br /><br />
+    <a href='?action=editestate' class='btn btn-primary'>Edit Estate</a><br /><br />
+    <a href='?action=delestate' class='btn btn-primary'>Delete Estate</a><br /><br />";
 }
 function addestate()
 {
@@ -41,20 +66,18 @@ function addestate()
         $name = (isset($_POST['name']) && is_string($_POST['name'])) ? $db->escape(htmlentities($_POST['name'])) : '';
         $will = (isset($_POST['will']) && is_numeric($_POST['will'])) ? abs(intval($_POST['will'])) : 100;
         $cost = (isset($_POST['cost']) && is_numeric($_POST['cost'])) ? abs($_POST['cost']) : 0;
-		$upgrades = (isset($_POST['upgrades']) && is_numeric($_POST['upgrades'])) ? abs($_POST['upgrades']) : 0;
-		$hidden = (isset($_POST['hidden']) && is_numeric($_POST['hidden'])) ? abs($_POST['hidden']) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_addestate', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_addestate', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Your previous action was blocked for your security. Please submit forms quickly after opening them.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT COUNT(`house_id`) FROM `estates` WHERE `house_name` = '{$name}'");
+        $q = $db->query("SELECT COUNT(`house_id`) FROM `estates` WHERE `house_name` = '{$name}'");
         if ($db->fetch_single($q) > 0) {
             $db->free_result($q);
             alert('danger', "Uh Oh!", "The estate name you've chosen is already in use.");
             die($h->endpage());
         }
         $db->free_result($q);
-        $q = $db->query("/*qc=on*/SELECT COUNT(`house_id`) FROM `estates` WHERE `house_will` = {$will}");
+        $q = $db->query("SELECT COUNT(`house_id`) FROM `estates` WHERE `house_will` = {$will}");
         if ($db->fetch_single($q) > 0) {
             alert('danger', "Uh Oh!", "You cannot have more than one estate with the same Will level.");
             die($h->endpage());
@@ -67,14 +90,11 @@ function addestate()
             alert('danger', "Uh Oh!", "You cannot have an estate with less than 100 will.");
             die($h->endpage());
         }
-        
-        if (($hidden > 1) || ($hidden < 0))
-            $hidden = 0;
-        $api->SystemLogsAdd($userid, 'staff', "Created an estate named {$name}.");
+        $api->game->addLog($userid, 'staff', "Created an estate named {$name}.");
         alert('success', "Success!", "You have successfully created the {$name} Estate.", true, 'index.php');
-        $db->query("INSERT INTO `estates` (`house_name`, `house_price`, `house_will`, `house_level`, `upgradeLevel`, `house_hidden`) VALUES ('{$name}', '{$cost}', '{$will}', '{$lvl}', '{$upgrades}', '{$hidden}')");
+        $db->query("INSERT INTO `estates` (`house_name`, `house_price`, `house_will`, `house_level`) VALUES ('{$name}', '{$cost}', '{$will}', '{$lvl}')");
     } else {
-        $csrf = request_csrf_html('staff_addestate');
+        $csrf = getHtmlCSRF('staff_addestate');
         echo "<form action='?action=addestate' method='post'>
 		<table class='table table-bordered'>
 			<tr>
@@ -115,25 +135,6 @@ function addestate()
 				</td>
 			</tr>
 			<tr>
-				<th>
-					Upgrades
-				</th>
-				<td>
-					<input type='number' name='upgrades' min='0' max='100' required='1' class='form-control'>
-				</td>
-			</tr>
-            <tr>
-				<th>
-					Hidden?
-				</th>
-				<td>
-					<select name='hidden' class='form-control' required='1' type='dropdown'>
-						<option value='0'>Not Hidden</option>
-						<option value='1'>Hidden</option>
-					</select>
-				</td>
-			</tr>
-			<tr>
 				<td colspan='2'>
 					<input type='submit' class='btn btn-primary' value='Create Estate'>
 				</td>
@@ -149,11 +150,11 @@ function delestate()
     global $db, $userid, $api, $h;
     if (isset($_POST['estate'])) {
         $_POST['estate'] = (isset($_POST['estate']) && is_numeric($_POST['estate'])) ? abs(intval($_POST['estate'])) : '';
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_delestate', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_delestate', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Your previous action was blocked for your security. Please submit forms quickly after opening them.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT * FROM `estates` WHERE `house_id` = {$_POST['estate']}");
+        $q = $db->query("SELECT * FROM `estates` WHERE `house_id` = {$_POST['estate']}");
         if ($db->num_rows($q) == 0) {
             $db->free_result($q);
             alert('danger', "Uh Oh!", "You are trying to delete a non-existent Estate.");
@@ -169,9 +170,9 @@ function delestate()
                  `maxwill` = 100, `will` = LEAST(100, `will`) WHERE `maxwill` = {$old['house_will']}");
         $db->query("DELETE FROM `estates` WHERE `house_id` = {$old['house_id']}");
         alert('success', "Success!", "You have deleted the {$old['house_name']} estate.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Deleted the {$old['house_name']} estate.");
+        $api->game->addLog($userid, 'staff', "Deleted the {$old['house_name']} estate.");
     } else {
-        $csrf = request_csrf_html('staff_delestate');
+        $csrf = getHtmlCSRF('staff_delestate');
         echo "<form method='post'>
 			<table class='table table-bordered'>
 				<tr>
@@ -185,7 +186,7 @@ function delestate()
 						Estate
 					</th>
 					<td>
-						" . estate_dropdown() . "
+						" . dropdownEstate() . "
 					</td>
 				</tr>
 				<tr>
@@ -210,9 +211,8 @@ function editestate()
         $name = (isset($_POST['name']) && is_string($_POST['name'])) ? $db->escape(htmlentities($_POST['name'])) : '';
         $will = (isset($_POST['will']) && is_numeric($_POST['will'])) ? abs(intval($_POST['will'])) : 100;
         $cost = (isset($_POST['cost']) && is_numeric($_POST['cost'])) ? abs($_POST['cost']) : 0;
-		$upgrades = (isset($_POST['upgrade']) && is_numeric($_POST['upgrade'])) ? abs($_POST['upgrade']) : 0;
         $_POST['id'] = (isset($_POST['id']) && is_numeric($_POST['id'])) ? abs(intval($_POST['id'])) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editestate2', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_editestate2', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Your previous action was blocked for your security. Please submit forms quickly after opening them.");
             die($h->endpage());
         }
@@ -222,12 +222,12 @@ function editestate()
             alert('danger', "Uh Oh!", "Please fill out the form completely before submitting it.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT `house_id` FROM `estates` WHERE `house_will` = {$will} AND `house_id` != {$_POST['id']}");
+        $q = $db->query("SELECT `house_id` FROM `estates` WHERE `house_will` = {$will} AND `house_id` != {$_POST['id']}");
         if ($db->num_rows($q)) {
             alert('danger', "Uh Oh!", "You cannot have more than one Estate with the same Will.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT `house_will` FROM `estates` WHERE `house_id` = {$_POST['id']}");
+        $q = $db->query("SELECT `house_will` FROM `estates` WHERE `house_id` = {$_POST['id']}");
         if ($db->num_rows($q) == 0) {
             $db->free_result($q);
             alert('danger', "Uh Oh!", "You are trying to edit a non-existent estate.");
@@ -239,22 +239,20 @@ function editestate()
             die($h->endpage());
         }
         $db->query("UPDATE `estates` SET `house_will` = {$will}, `house_price` = {$cost},
-					`house_name` = '{$name}', `house_level` = {$lvl}, `upgradeLevel` = {$upgrades} WHERE `house_id` = {$_POST['id']}");
-        //TODO REDO THIS TO USE NEW ESTATE SYSTEM
-		$db->query("UPDATE `users` SET `maxwill` = {$will}, `will` = LEAST(`will`, {$will})
+					`house_name` = '{$name}', `house_level` = {$lvl} WHERE `house_id` = {$_POST['id']}");
+        $db->query("UPDATE `users` SET `maxwill` = {$will}, `will` = LEAST(`will`, {$will})
 					WHERE `maxwill` = {$oldwill}");
-		trigger_error("Update query for updating will on estates and users.");
         alert('success', "Success!", "You have successfully updated the {$name} estate.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Edited the {$name} estate.");
+        $api->game->addLog($userid, 'staff', "Edited the {$name} estate.");
         die($h->endpage());
     }
     if ($_POST['step'] == 1) {
         $_POST['estate'] = (isset($_POST['estate']) && is_numeric($_POST['estate'])) ? abs(intval($_POST['estate'])) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editestate1', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_editestate1', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Your previous action was blocked for your security. Please submit forms quickly after opening them.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT * FROM `estates` WHERE `house_id` = {$_POST['estate']}");
+        $q = $db->query("SELECT * FROM `estates` WHERE `house_id` = {$_POST['estate']}");
         if ($db->num_rows($q) == 0) {
             $db->free_result($q);
             alert('danger', "Uh Oh!", "The estate you're trying to edit does not exist.");
@@ -262,7 +260,7 @@ function editestate()
         }
         $old = $db->fetch_row($q);
         $db->free_result($q);
-        $csrf = request_csrf_html('staff_editestate2');
+        $csrf = getHtmlCSRF('staff_editestate2');
         echo "<form method='post'>
 		<table class='table table-bordered'>
 			<tr>
@@ -303,14 +301,6 @@ function editestate()
 				</td>
 			</tr>
 			<tr>
-				<th>
-					Upgrades
-				</th>
-				<td>
-					<input type='number' name='upgrade' min='0' max='100' required='1' class='form-control' value='{$old['upgradeLevel']}'>
-				</td>
-			</tr>
-			<tr>
 				<td colspan='2'>
 					<input type='submit' class='btn btn-primary' value='Edit Estate'>
 				</td>
@@ -322,7 +312,7 @@ function editestate()
 		</form>";
     }
     if ($_POST['step'] == 0) {
-        $csrf = request_csrf_html('staff_editestate1');
+        $csrf = getHtmlCSRF('staff_editestate1');
         echo "<form method='post'>
 			<input type='hidden' name='step' value='1' />
 			<table class='table table-bordered'>
@@ -336,7 +326,7 @@ function editestate()
 						Estate
 					</th>
 					<td>
-						" . estate_dropdown() . "
+						" . dropdownEstate() . "
 					</td>
 				</tr>
 				<tr>
@@ -350,101 +340,4 @@ function editestate()
     }
 }
 
-function giftestate()
-{
-    global $db, $api, $h, $userid;
-    if (isset($_POST['user']))
-    {
-        $postUser = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs(intval($_POST['user'])) : 0;
-        $postEstate = (isset($_POST['estate']) && is_numeric($_POST['estate'])) ? abs(intval($_POST['estate'])) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_gift_estate', stripslashes($_POST['verf']))) 
-        {
-            alert('danger', "Action Blocked!", "Your previous action was blocked for your security. Please submit forms quickly after opening them.");
-            die($h->endpage());
-        }
-        if (empty($postEstate))
-        {
-            alert('danger', "Uh Oh!", "Please input a valid estate to gift.");
-            die($h->endpage());
-        }
-        elseif (empty($postUser))
-        {
-            alert('danger', "Uh Oh!", "Please input a valid user to gift the estate to.");
-            die($h->endpage());
-        }
-        $q = $db->query("SELECT `house_name` FROM `estates` WHERE `house_id` = {$postEstate}");
-        if ($db->num_rows($q) == 0)
-        {
-            alert('danger', "Uh Oh!", "You are trying to gift a non-existent estate.");
-            die($h->endpage());
-        }
-        $houseName = $db->fetch_single($q);
-        $db->free_result($q);
-        $q = $db->query("SELECT `username` FROM `users` WHERE `userid` = {$postUser}");
-        if ($db->num_rows($q) == 0)
-        {
-            alert('danger', "Uh Oh!", "You are trying to gift an estate to a non-existent user.");
-            die($h->endpage());
-        }
-        buyEstate($postUser, $postEstate);
-        alert('success',"Success!","You have successfully gifted {$db->fetch_single($q)} the {$houseName} estate.",true,'index.php');
-        $api->SystemLogsAdd($userid, "staff", "Gifted {$db->fetch_single($q)} the {$houseName} estate.");
-        $api->GameAddNotification($postUser, "The game administration has gifted you the {$houseName} estate. You may view this in the Estate Management page.");
-        $db->free_result($q);
-    }
-    else
-    {
-        $csrf = request_csrf_html('staff_gift_estate');
-        $getUser = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs(intval($_GET['user'])) : $userid;
-        echo "<div class='card'>
-                <div class='card-header'>
-                    Gift Estate
-                </div>
-                <div class='card-body'>
-                    <form method='post'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    Gift a player an estate using this form. This does not cost the player anything when you use this form.
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-auto'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Estate</b></small>
-                                </div>
-                                <div class='col-12'>
-                                    " . estate_dropdown('estate', 2) . "
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-auto'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Player</b></small>
-                                </div>
-                                <div class='col-12'>
-                                    " . user_dropdown('user', $getUser) . "
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-auto'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Link</b></small>
-                                </div>
-                                <div class='col-12'>
-                                    <input type='submit' value='Gift Estate' class='btn btn-success btn-block'>
-                                </div>
-                            </div>
-                        </div>
-                        {$csrf}
-                        </form>
-                    </div>
-                </div>
-        </div>";
-    }
-}
 $h->endpage();

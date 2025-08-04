@@ -1,10 +1,32 @@
 <?php
 /*
-	File: staff/staff_academy.php
-	Created: 6/1/2016 at 6:06PM Eastern Time
-	Info: Allows admins to add/edit/delete academy courses.
-	Author: ImJustIsabella
-	Website: https://github.com/MasterGeneral156/chivalry-engine
+	File: 		staff/staff_academy.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to do actions relating to the in-game academy.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('sglobals.php');
 if ($ir['user_level'] != "Admin") {
@@ -25,15 +47,21 @@ switch ($_GET['action']) {
         editacademy();
         break;
     default:
-        echo "404";
-        die($h->endpage());
+        menu();
         break;
+}
+function menu()
+{
+    echo "<h3>Academy Staff Menu</h3><hr />
+    <a href='?action=add' class='btn btn-primary'>Add Course</a><br /><br />
+    <a href='?action=edit' class='btn btn-primary'>Edit Course</a><br /><br />
+    <a href='?action=del' class='btn btn-primary'>Delete Course</a><br /><br />";
 }
 function addacademy()
 {
-    global $h, $db, $userid, $api, $ir;
+    global $h, $db, $userid, $api;
     if (!isset($_POST['name'])) {
-        $csrf = request_csrf_html('staff_newacademy');
+        $csrf = getHtmlCSRF('staff_newacademy');
         echo "<form method='post'>
 		<table class='table table-bordered'>
 		<tr>
@@ -83,7 +111,7 @@ function addacademy()
 			</tr>
 			<tr>
 				<th>
-					Course Strength
+					Course " . constant("stat_strength") . "
 				</th>
 				<td>
 					<input type='number' required='1' name='str' min='0' value='0' class='form-control'>
@@ -91,7 +119,7 @@ function addacademy()
 			</tr>
 			<tr>
 				<th>
-					Course Agility
+					Course " . constant("stat_agility") . "
 				</th>
 				<td>
 					<input type='number' required='1' name='agl' min='0' value='0' class='form-control'>
@@ -99,7 +127,7 @@ function addacademy()
 			</tr>
 			<tr>
 				<th>
-					Course Guard
+					Course " . constant("stat_guard") . "
 				</th>
 				<td>
 					<input type='number' required='1' name='grd' min='0' value='0' class='form-control'>
@@ -107,7 +135,7 @@ function addacademy()
 			</tr>
 			<tr>
 				<th>
-					Course Labor
+					Course " . constant("stat_labor") . "
 				</th>
 				<td>
 					<input type='number' required='1' name='lab' min='0' value='0' class='form-control'>
@@ -115,7 +143,7 @@ function addacademy()
 			</tr>
 			<tr>
 				<th>
-					Course IQ
+					Course " . constant("stat_iq") . "
 				</th>
 				<td>
 					<input type='number' required='1' name='iq' min='0' value='0' class='form-control'>
@@ -130,7 +158,7 @@ function addacademy()
 		{$csrf}
 		</form>";
     } else {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_newacademy', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_newacademy', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Forms expire fairly quickly. Go back and submit it quicker!");
             die($h->endpage());
         }
@@ -152,14 +180,14 @@ function addacademy()
             alert('danger', "Uh Oh!", "Please be sure to input some stats to be gained by completing the course.");
             die($h->endpage());
         }
-        $inq = $db->query("/*qc=on*/SELECT `ac_id` FROM `academy` WHERE `ac_name` = '{$name}'");
+        $inq = $db->query("SELECT `ac_id` FROM `academy` WHERE `ac_name` = '{$name}'");
         if ($db->num_rows($inq) > 0) {
             $db->free_result($inq);
             alert('danger', "Uh Oh!", "You cannot have more than one course with the same name.");
             die($h->endpage());
         }
         $db->query("INSERT INTO `academy` VALUES (NULL, '{$name}', '{$desc}', '{$cost}', '{$lvl}', '{$days}', '{$str}', '{$agl}', '{$grd}', '{$lab}', '{$iq}')");
-        $api->SystemLogsAdd($userid, 'staff', "Created academy course {$name}.");
+        $api->game->addLog($userid, 'staff', "Created academy course {$name}.");
         alert('success', "Success!", "You have successfully added the {$name} course.", true, 'index.php');
     }
 }
@@ -168,7 +196,7 @@ function delacademy()
 {
     global $db, $ir, $h, $userid, $api;
     if (!isset($_POST['academy'])) {
-        $csrf = request_csrf_html('staff_delacademy');
+        $csrf = getHtmlCSRF('staff_delacademy');
         echo "<h4>Deleting an Academic Course</h4>
 			The academy you select will be deleted permanently. There isn't a confirmation prompt, so be 100% sure.
 			<form method='post'>
@@ -178,7 +206,7 @@ function delacademy()
 							Course
 						</th>
 						<td>
-							" . academy_dropdown('academy') . "
+							" . dropdownAcademy('academy') . "
 						</td>
 					</tr>
 					<tr>
@@ -190,7 +218,7 @@ function delacademy()
 				{$csrf}
 			</form>";
     } else {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_delacademy', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_delacademy', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Forms expire fairly quickly. Go back and submit it quicker!");
             die($h->endpage());
         }
@@ -201,7 +229,7 @@ function delacademy()
         }
         $d =
             $db->query(
-                "/*qc=on*/SELECT `ac_name`
+                "SELECT `ac_name`
 					 FROM `academy`
 					 WHERE `ac_id` = {$_POST['academy']}");
         if ($db->num_rows($d) == 0) {
@@ -212,7 +240,7 @@ function delacademy()
         $academyname = $db->fetch_single($d);
         $db->free_result($d);
         $db->query("DELETE FROM `academy` WHERE `ac_id` = {$_POST['academy']}");
-        $api->SystemLogsAdd($userid, 'staff', "Deleted academy {$academyname}.");
+        $api->game->addLog($userid, 'staff', "Deleted academy {$academyname}.");
         alert("success", "Success!", "You have successfully deleted the {$academyname} academic course.", true, 'index.php');
         die($h->endpage());
     }
@@ -237,7 +265,7 @@ function editacademy()
             $grd = (isset($_POST['grd']) && is_numeric($_POST['grd'])) ? abs(intval($_POST['grd'])) : 0;
             $lab = (isset($_POST['lab']) && is_numeric($_POST['lab'])) ? abs(intval($_POST['lab'])) : 0;
             $iq = (isset($_POST['iq']) && is_numeric($_POST['iq'])) ? abs(intval($_POST['iq'])) : 0;
-            $q = $db->query("/*qc=on*/SELECT * FROM `academy` WHERE `ac_id` = {$id}");
+            $q = $db->query("SELECT * FROM `academy` WHERE `ac_id` = {$id}");
             if ($db->num_rows($q) == 0) {
                 $db->free_result($q);
                 alert("danger", "Uh Oh!", "The course you are wishing to edit does not exist, or is invalid.");
@@ -258,22 +286,22 @@ function editacademy()
                          `ac_iq` = {$iq}
                          WHERE `ac_id` = {$id}");
             alert('success', "Success!", "You have successfully edited the {$name} Academy Course.", true, 'index.php');
-            $api->SystemLogsAdd($userid, 'staff', "Edited the {$name} Course.");
+            $api->game->addLog($userid, 'staff', "Edited the {$name} Course.");
             break;
         case 1:
             $_POST['academy'] = (isset($_POST['academy']) && is_numeric($_POST['academy'])) ? abs(intval($_POST['academy'])) : 0;
-            $q = $db->query("/*qc=on*/SELECT * FROM `academy` WHERE `ac_id` = {$_POST['academy']}");
+            $q = $db->query("SELECT * FROM `academy` WHERE `ac_id` = {$_POST['academy']}");
             if ($db->num_rows($q) == 0) {
                 $db->free_result($q);
                 alert("danger", "Uh Oh!", "The course you are wishing to edit does not exist, or is invalid.");
                 die($h->endpage());
             }
-            if (!isset($_POST['verf']) || !verify_csrf_code('staff_editacademy1', stripslashes($_POST['verf']))) {
+            if (!isset($_POST['verf']) || !checkCSRF('staff_editacademy1', stripslashes($_POST['verf']))) {
                 alert('danger', "Action Blocked!", "Forms expire fairly quickly. Go back and submit it quicker!");
                 die($h->endpage());
             }
             $r = $db->fetch_row($q);
-            $csrf = request_csrf_html('staff_editacademy2');
+            $csrf = getHtmlCSRF('staff_editacademy2');
             echo "<form method='post'>
                 <input type='hidden' name='step' value='2' />
         	    <input type='hidden' name='id' value='{$_POST['academy']}' />
@@ -325,7 +353,7 @@ function editacademy()
                     </tr>
                     <tr>
                         <th>
-                            Course Strength
+                            Course " . constant("stat_strength") . "
                         </th>
                         <td>
                             <input type='number' required='1' name='str' min='0' class='form-control' value='{$r['ac_str']}'>
@@ -333,7 +361,7 @@ function editacademy()
                     </tr>
                     <tr>
                         <th>
-                            Course Agility
+                            Course " . constant("stat_agility") . "
                         </th>
                         <td>
                             <input type='number' required='1' name='agl' min='0' class='form-control' value='{$r['ac_agl']}'>
@@ -341,7 +369,7 @@ function editacademy()
                     </tr>
                     <tr>
                         <th>
-                            Course Guard
+                            Course " . constant("stat_guard") . "
                         </th>
                         <td>
                             <input type='number' required='1' name='grd' min='0' class='form-control' value='{$r['ac_grd']}'>
@@ -349,7 +377,7 @@ function editacademy()
                     </tr>
                     <tr>
                         <th>
-                            Course Labor
+                            Course " . constant("stat_labor") . "
                         </th>
                         <td>
                             <input type='number' required='1' name='lab' min='0' class='form-control' value='{$r['ac_lab']}'>
@@ -357,7 +385,7 @@ function editacademy()
                     </tr>
                     <tr>
                         <th>
-                            Course IQ
+                            Course " . constant("stat_iq") . "
                         </th>
                         <td>
                             <input type='number' required='1' name='iq' min='0' class='form-control' value='{$r['ac_iq']}'>
@@ -373,12 +401,12 @@ function editacademy()
                 </form>";
             break;
         default:
-            $csrf = request_csrf_html('staff_editacademy1');
+            $csrf = getHtmlCSRF('staff_editacademy1');
             echo "<h3>Edit a Course</h3><hr />
             Please select the academy course you wish to edit.<br />
             <form method='post'>
                 <input type='hidden' name='step' value='1'>
-                " . academy_dropdown() . " <br />
+                " . dropdownAcademy() . " <br />
                 {$csrf}
                 <input type='submit' value='Edit Course' class='btn btn-primary'>
             </form>";

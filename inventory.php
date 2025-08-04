@@ -1,363 +1,420 @@
 <?php
 /*
-	File:		inventory.php
-	Created: 	4/5/2016 at 12:14AM Eastern Time
-	Info: 		Displays the player's items and equipment, along with
-				actions that you can do with the items.
-	Author:		TheMasterGeneral
-	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	File:		inventory_modern.php
+	Created: 	Modernized inventory with drag-and-drop and better UI
+	Info: 		Enhanced inventory management system
 */
 require("globals.php");
-$itemActions = [
-    28 => [["bomb.php?action=small", "Set Bomb"]],
-    33 => [["bor.php?tresde={$tresder}", "Open"]],
-    33 => [["autobor.php", "Auto Open"]],
-    61 => [["bomb.php?action=medium", "Set Bomb"]],
-    62 => [["bomb.php?action=large", "Set Bomb"]],
-    63 => [["2017halloween.php?action=ticket", "Scratch"]],
-    64 => [["bomb.php?action=pumpkin", "Chuck"]],
-    68 => [["invispotion.php", "Drink"]],
-    69 => [["2017thanksgiving.php?action=ticket", "Scratch"]],
-    89 => [["vipticket.php", "Scratch"]],
-    91 => [["vipitem.php?item=autohex", "Redeem"]],
-    92 => [["vipitem.php?item=autobor", "Redeem"]],
-    123 => [["mysteriouspotion.php", "Drink"]],
-    128 => [["vipitem.php?item=vipcolor", "Change VIP Color"]],
-    137 => [["2018stpatties.php?action=ticket", "Scratch"]],
-    149 => [["bomb.php?action=rickroll", "Set Rick Roll"]],
-    177 => [["mine.php?action=herb", "Eat"]],
-    189 => [["2018halloween.php?action=ticket", "Scratch"]],
-    195 => [["2018thanksgiving.php?action=ticket", "Scratch"]],
-    202 => [["bomb.php?action=snowball", "Throw"]],
-    203 => [["2018christmas.php?action=ticket", "Scratch"]],
-    205 => [["gym_ca.php", "Train"]],
-    210 => [["scratchticket.php?action=cidticket", "Scratch"]],
-    222 => [["bomb.php?action=assassin", "Place Hit"]],
-    227 => [["mine.php?action=potion", "Drink"]],
-    230 => [["2019easter.php?action=ticket", "Scratch"]],
-    250 => [["spellbook.php", "Unlock Tome"]],
-    258 => [["potion.php?potion=poison", "Poison Weapon"]],
-    263 => [["vipitem.php?item=willstim", "Convert"]],
-    264 => [["2019halloween.php?action=ticket", "Scratch"]],
-    268 => [["scratchticket.php?action=2ndyearann", "Scratch"]],
-    320 => [["goditem.php", "Eat Potato"]],
-    352 => [["scratchticket.php?action=2020bang", "Scratch"]],
-    364 => [["vipitem.php?item=autobum", "Redeem"]],
-    376 => [["2020halloween.php?action=ticket", "Scratch"]],
-    391 => [["2020thanksgiving.php?action=ticket", "Scratch"]],
-    407 => [["vipitem.php?item=contact", "Contact CID Admin"]],
-    424 => [["vipitem.php?item=autominer", "Configure"]],
-    449 => [["2022halloween.php?action=ticket", "Scratch"]],
-    514 => [["scratchticket.php?action=24halloween", "Scratch"]]
-    // ... Add more here
-    ];
 
-$potionexclusion=array(17,123,68,138,95,96,148,177,227,286,285,258,287);
-if (isset($_POST['itemUse']))
-{
-    if (!empty($_POST['itemUse']))
-    {
-        $redir = $db->escape($_POST['itemUse']);
-        header("Location: {$redir}");
-    }
-}
-$tresder = (Random(100, 999));
-$primWeap = ($ir['equip_primary'] > 0) ? $api->SystemItemIDtoName($ir['equip_primary']) : "<i>No primary</i>";
-$primWeapDam = 0;
-$secWeapDam = 0;
-$armorRating = 0;
-if ($ir['equip_primary'] > 0)
-    $primWeapDam = calcWeaponEffectiveness($ir['equip_primary'], $userid);
-$secWeap = ($ir['equip_secondary'] > 0) ? $api->SystemItemIDtoName($ir['equip_secondary']) : "<i>No secondary</i>";
-if ($ir['equip_secondary'] > 0)
-    $secWeapDam = calcWeaponEffectiveness($ir['equip_secondary'], $userid);
-$armor = ($ir['equip_armor'] > 0) ? $api->SystemItemIDtoName($ir['equip_armor']) : "<i>No armor</i>";
-if ($ir['equip_armor'] > 0)
-    $armorRating = calcArmorEffectiveness($ir['equip_armor'], $userid);
-$potion = ($ir['equip_potion'] > 0) ? $api->SystemItemIDtoName($ir['equip_potion']) : "<i>No potion</i>";
-$badge = ($ir['equip_badge'] > 0) ? $api->SystemItemIDtoName($ir['equip_badge']) : "<i>No badge</i>";
-echo "<div class='row'>
-        <div class='col-12'>
-            <div class='card'>
-                <div class='card-header'>
-                    Your Equipment
+// Calculate equipment bonuses
+$totalStrength = 0;
+$totalAgility = 0;
+$totalGuard = 0;
+
+// Equipment slots
+$equipment_slots = [
+    'equip_primary' => ['name' => 'Primary Weapon', 'icon' => 'fa-sword', 'color' => 'danger'],
+    'equip_secondary' => ['name' => 'Secondary Weapon', 'icon' => 'fa-shield-alt', 'color' => 'primary'],
+    'equip_armor' => ['name' => 'Armor', 'icon' => 'fa-vest', 'color' => 'secondary']
+];
+?>
+
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-gradient-primary text-white">
+                <div class="card-body">
+                    <h2 class="mb-0"><i class="fas fa-backpack me-2"></i>Inventory Management</h2>
+                    <p class="mb-0 mt-2">Manage your equipment and items</p>
                 </div>
-                <div class='card-body text-center'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Primary Weapon (" . shortNumberParse($primWeapDam) . ")</b></small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Equipment Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3"><i class="fas fa-shield-alt text-primary"></i> Equipped Items</h4>
+        </div>
+        
+        <?php foreach($equipment_slots as $slot => $info): ?>
+        <div class="col-md-4 mb-3">
+            <div class="card equipment-card h-100 animate__animated animate__fadeIn">
+                <div class="card-header bg-gradient-<?php echo $info['color']; ?> text-white">
+                    <i class="fas <?php echo $info['icon']; ?> me-2"></i><?php echo $info['name']; ?>
+                </div>
+                <div class="card-body text-center">
+                    <?php if (!empty($ir[$slot])): 
+                        $item_name = $api->game->getItemNameFromID($ir[$slot]);
+                        $item_info = $db->fetch_row($db->query("SELECT * FROM `items` WHERE `itmid` = {$ir[$slot]}"));
+                    ?>
+                        <div class="equipped-item">
+                            <i class="fas <?php echo $info['icon']; ?> fa-3x mb-3 text-<?php echo $info['color']; ?>"></i>
+                            <h5><?php echo $item_name; ?></h5>
+                            <?php if($item_info): ?>
+                                <div class="item-stats mt-3">
+                                    <?php if($item_info['weapon'] > 0): ?>
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-fist-raised"></i> +<?php echo $item_info['weapon']; ?> Power
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if($item_info['armor'] > 0): ?>
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-shield-alt"></i> +<?php echo $item_info['armor']; ?> Defense
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
-                            </div>
-                            <div class='row'>
-                                <div class='col-12 col-sm-auto'>
-                                    <a href='iteminfo.php?ID={$ir['equip_primary']}'>" . returnIcon($ir['equip_primary'], 4) . "
-                                </div>
-                                <div class='col-12 col-sm'>
-                                    {$primWeap}</a>
-                                </div>
-                                <div class='col-12 col-sm-auto'>
-                                    <a href='unequip.php?type=equip_secondary' class='btn btn-primary btn-block'>Unequip</a>
-                                </div>
-                            </div>
+                            <?php endif; ?>
+                            <a href="unequip.php?type=<?php echo $slot; ?>" class="btn btn-sm btn-outline-danger mt-3">
+                                <i class="fas fa-times"></i> Unequip
+                            </a>
                         </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Secondary Weapon (" . shortNumberParse($secWeapDam) . ")</b></small>
-                                </div>
-                            </div>
-                            <div class='row'>
-                                <div class='col-auto'>
-                                    <a href='iteminfo.php?ID={$ir['equip_secondary']}'>" . returnIcon($ir['equip_secondary'], 4) . "
-                                </div>
-                                <div class='col'>
-                                    {$secWeap}</a>
-                                </div>
-                                <div class='col-auto'>
-                                    <a href='unequip.php?type=equip_secondary' class='btn btn-primary btn-block'>Unequip</a>
-                                </div>
-                            </div>
+                    <?php else: ?>
+                        <div class="empty-slot">
+                            <i class="fas <?php echo $info['icon']; ?> fa-3x mb-3 text-muted opacity-25"></i>
+                            <p class="text-muted">No <?php echo strtolower($info['name']); ?> equipped</p>
+                            <a href="#inventory-items" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-plus"></i> Equip Item
+                            </a>
                         </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Armor (" . shortNumberParse($armorRating) . ")</b></small>
-                                </div>
-                            </div>
-                            <div class='row'>
-                                <div class='col-auto'>
-                                    <a href='iteminfo.php?ID={$ir['equip_armor']}'>" . returnIcon($ir['equip_armor'], 4) . "
-                                </div>
-                                <div class='col'>
-                                    {$armor}</a>
-                                </div>
-                                <div class='col-auto'>
-                                    <a href='unequip.php?type=equip_armor' class='btn btn-primary btn-block'>Unequip</a>
-                                </div>
-                            </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- Inventory Items -->
+    <div class="row" id="inventory-items">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-gradient-secondary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-boxes me-2"></i>Your Items</h4>
+                    <div class="inventory-controls">
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-light active" data-filter="all">
+                                <i class="fas fa-th"></i> All
+                            </button>
+                            <button class="btn btn-sm btn-light" data-filter="weapon">
+                                <i class="fas fa-sword"></i> Weapons
+                            </button>
+                            <button class="btn btn-sm btn-light" data-filter="armor">
+                                <i class="fas fa-shield-alt"></i> Armor
+                            </button>
+                            <button class="btn btn-sm btn-light" data-filter="consumable">
+                                <i class="fas fa-potion"></i> Consumables
+                            </button>
+                            <button class="btn btn-sm btn-light" data-filter="other">
+                                <i class="fas fa-cube"></i> Other
+                            </button>
                         </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Potion</b></small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="inventory-grid">
+                        <?php
+                        $inv = $db->query("
+                            SELECT `inv_qty`, `inv_id`, `inv_equip`, `inv_itemid`,
+                                   `itmid`, `itmname`, `itmdesc`, `itmtype`, 
+                                   `itmbuyable`, `itmbuyprice`, `itmsellprice`, 
+                                   `effect1_on`, `effect2_on`, `effect3_on`,
+                                   `weapon`, `armor`
+                            FROM `inventory` AS `iv`
+                            INNER JOIN `items` AS `i` ON `iv`.`inv_itemid` = `i`.`itmid`
+                            WHERE `iv`.`inv_userid` = {$userid}
+                            ORDER BY `i`.`itmtype` ASC, `i`.`itmname` ASC
+                        ");
+                        
+                        if ($db->num_rows($inv) == 0) {
+                            echo '<div class="col-12 text-center py-5">
+                                    <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
+                                    <p class="text-muted">Your inventory is empty. Visit the <a href="shops.php">shops</a> to buy items!</p>
+                                  </div>';
+                        } else {
+                            while ($item = $db->fetch_row($inv)) {
+                                // Determine item category
+                                $category = 'other';
+                                if ($item['weapon'] > 0) $category = 'weapon';
+                                elseif ($item['armor'] > 0) $category = 'armor';
+                                elseif ($item['effect1_on'] || $item['effect2_on'] || $item['effect3_on']) $category = 'consumable';
+                                
+                                // Determine item rarity based on price
+                                $rarity = 'common';
+                                if ($item['itmbuyprice'] >= 10000) $rarity = 'legendary';
+                                elseif ($item['itmbuyprice'] >= 5000) $rarity = 'epic';
+                                elseif ($item['itmbuyprice'] >= 1000) $rarity = 'rare';
+                                elseif ($item['itmbuyprice'] >= 500) $rarity = 'uncommon';
+                                ?>
+                                <div class="col-lg-3 col-md-4 col-sm-6 mb-3 inventory-item" data-category="<?php echo $category; ?>">
+                                    <div class="card item-card h-100 rarity-<?php echo $rarity; ?> animate__animated animate__fadeIn">
+                                        <div class="card-body d-flex flex-column">
+                                            <div class="item-icon text-center mb-2">
+                                                <?php
+                                                $icon = 'fa-cube';
+                                                if ($category == 'weapon') $icon = 'fa-sword';
+                                                elseif ($category == 'armor') $icon = 'fa-shield-alt';
+                                                elseif ($category == 'consumable') $icon = 'fa-potion';
+                                                ?>
+                                                <i class="fas <?php echo $icon; ?> fa-2x"></i>
+                                            </div>
+                                            <h6 class="item-name"><?php echo $item['itmname']; ?></h6>
+                                            <?php if($item['inv_qty'] > 1): ?>
+                                                <span class="badge bg-primary position-absolute top-0 end-0 m-2">
+                                                    x<?php echo number_format($item['inv_qty']); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            
+                                            <p class="item-desc small text-muted mb-2"><?php echo $item['itmdesc']; ?></p>
+                                            
+                                            <div class="item-stats mb-2">
+                                                <?php if($item['weapon'] > 0): ?>
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-fist-raised"></i> +<?php echo $item['weapon']; ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if($item['armor'] > 0): ?>
+                                                    <span class="badge bg-primary">
+                                                        <i class="fas fa-shield-alt"></i> +<?php echo $item['armor']; ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                            
+                                            <div class="item-value mb-2">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-coins text-warning"></i> 
+                                                    <?php echo number_format($item['itmsellprice']); ?>
+                                                </small>
+                                            </div>
+                                            
+                                            <div class="item-actions">
+                                                <!-- Primary Action Button -->
+                                                <div class="d-grid mb-2">
+                                                    <?php if($item['weapon'] > 0): ?>
+                                                        <a href="equip.php?slot=weapon&ID=<?php echo $item['inv_id']; ?>" class="btn btn-success btn-sm">
+                                                            <i class="fas fa-hand-rock"></i> Equip Weapon
+                                                        </a>
+                                                    <?php elseif($item['armor'] > 0): ?>
+                                                        <a href="equip.php?slot=armor&ID=<?php echo $item['inv_id']; ?>" class="btn btn-success btn-sm">
+                                                            <i class="fas fa-vest"></i> Equip Armor
+                                                        </a>
+                                                    <?php elseif($item['effect1_on'] || $item['effect2_on'] || $item['effect3_on']): ?>
+                                                        <a href="itemuse.php?id=<?php echo $item['inv_id']; ?>" class="btn btn-primary btn-sm">
+                                                            <i class="fas fa-flask"></i> Use Item
+                                                        </a>
+                                                    <?php else: ?>
+                                                        <a href="iteminfo.php?id=<?php echo $item['itmid']; ?>" class="btn btn-info btn-sm">
+                                                            <i class="fas fa-info"></i> View Details
+                                                        </a>
+                                                    <?php endif; ?>
+                                                </div>
+                                                
+                                                <!-- Secondary Actions Row -->
+                                                <div class="row g-1">
+                                                    <div class="col-4">
+                                                        <a href="itemsend.php?id=<?php echo $item['inv_id']; ?>" class="btn btn-outline-secondary btn-sm w-100" title="Send">
+                                                            <i class="fas fa-gift"></i>
+                                                        </a>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <a href="itemsell.php?id=<?php echo $item['inv_id']; ?>" class="btn btn-outline-warning btn-sm w-100" title="Sell">
+                                                            <i class="fas fa-coins"></i>
+                                                        </a>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <a href="itemmarket.php?action=add&id=<?php echo $item['inv_id']; ?>" class="btn btn-outline-info btn-sm w-100" title="Market">
+                                                            <i class="fas fa-store"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class='row'>
-                                <div class='col-auto'>
-                                    <a href='iteminfo.php?ID={$ir['equip_potion']}'>" . returnIcon($ir['equip_potion'], 4) . "
-                                </div>
-                                <div class='col'>
-                                    {$potion}</a>
-                                </div>
-                                <div class='col-auto'>
-                                    <a href='unequip.php?type=equip_potion' class='btn btn-primary btn-block'>Unequip</a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Profile Badge</b></small>
-                                </div>
-                            </div>
-                            <div class='row'>
-                                <div class='col-auto'>
-                                    <a href='iteminfo.php?ID={$ir['equip_badge']}'>" . returnIcon($ir['equip_badge'], 4) . "
-                                </div>
-                                <div class='col'>
-                                    {$badge}</a>
-                                </div>
-                                <div class='col-auto'>
-                                    <a href='unequip.php?type=equip_badge' class='btn btn-primary btn-block'>Unequip</a>
-                                </div>
-                            </div>
-                        </div>";
-                        $trinkq=$db->query("SELECT * FROM `user_equips` WHERE `userid` = {$userid} AND `itemid` > 0");
-                        while ($r=$db->fetch_row($trinkq))
-                        {
-                            echo "
-                            <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>" . equipSlotParser($r['equip_slot']) . "</b></small>
-                                </div>
-                            </div>
-                            <div class='row'>
-                                <div class='col-auto'>
-                                    <a href='iteminfo.php?ID={$r['itemid']}'>" . returnIcon($r['itemid'], 4) . "
-                                </div>
-                                <div class='col'>
-                                    {$api->SystemItemIDtoName($r['itemid'])}</a>
-                                </div>
-                                <div class='col-auto'>
-                                    <a href='unequip.php?type={$r['equip_slot']}' class='btn btn-primary btn-block'>Unequip</a>
-                                </div>
-                            </div>
-                        </div>";
+                                <?php
+                            }
                         }
-                                    
-                    echo"
+                        ?>
                     </div>
                 </div>
             </div>
         </div>
-    </div>";
-            alert('secondary', "", "<h4><i class='fas fa-fw fa-briefcase'></i> Your Inventory</h4>", false);
-$inv =
-    $db->query(
-        "/*qc=on*/SELECT `iv`.`inv_qty`, `iv`.`inv_id`,
-				`i`.*, `it`.`itmtypename`
-                 FROM `inventory` AS `iv`
-                 INNER JOIN `items` AS `i`
-                 ON `iv`.`inv_itemid` = `i`.`itmid`
-                 INNER JOIN `itemtypes` AS `it`
-                 ON `i`.`itmtype` = `it`.`itmtypeid`
-                 WHERE `iv`.`inv_userid` = {$userid}
-                 AND `iv`.`inv_qty` > 0
-                 ORDER BY `i`.`itmtype` ASC, `i`.`itmname` ASC");
-$lt = "";
-echo "
-<div class='accordion' id='inventoryAccordian'>";
-while ($i = $db->fetch_row($inv)) {
-    if ($lt != $i['itmtypename']) {
-        $lt = $i['itmtypename'];
-        echo "<div class='card'><div class='card-body'><h4 class='mb-0'>{$lt}</h4></div></div>";
-    }
-    
-    $i['itmdesc'] = htmlentities($i['itmdesc'], ENT_QUOTES);
-    $icon = ($ir['icons'] == 1) ? returnIcon($i['itmid'], 2) : "";
-    $i['inv_qty_value'] = $i['inv_qty'] * $i['itmsellprice'];
-    $total = returnTotalItemCount($i['itmid']);
-    $itemUse = getItemUses($i, $tresder, $ir, $potionexclusion);
-    
-    $options = "";
-    foreach ($itemUse as $v) {
-        $options .= "<option value='{$v[0]}'>{$v[1]}</option>";
-    }
-    
-    // Echo the block here (using HEREDOC or output buffer for maintainability)
-    echo "
-    <div class='card'>
-        <div class='card-header bg-transparent' id='heading{$i['itmid']}'>
-            <h2 class='mb-0'>
-                <button class='btn btn-block text-left' type='button' data-toggle='collapse' data-target='#collapse{$i['itmid']}'>
-                    <div class='row'>
-                        <div class='col-2 col-md-1'>{$icon}</div>
-                        <div class='col-10 col-md-5'>{$i['itmname']}" . ($i['inv_qty'] > 1 ? "<b> x " . shortNumberParse($i['inv_qty']) . "</b>" : "") . "</div>
-                        <div class='col'>
-                            <form method='post'>
-                                <div class='row'>
-                                    <div class='col-12 col-sm-8 col-md-7 col-xl-8'>
-                                        <select name='itemUse' class='form-control'>$options</select>
-                                    </div>
-                                    <div class='col-12 col-sm-4 col-md-5 col-xl-4'>
-                                        <input type='submit' class='btn btn-primary btn-block' value='Confirm'>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </button>
-            </h2>
-        </div>
-        <div id='collapse{$i['itmid']}' class='collapse' data-parent='#inventoryAccordian'>
-            <div class='card-body'>
-                <div class='row'>
-                    <div class='col-2 col-lg-1'>" . returnIcon($i['itmid'], 3.5) . "</div>
-                    <div class='col text-left'>
-                        <b><a href='iteminfo.php?ID={$i['itmid']}'>{$i['itmname']}</a></b> is a {$lt} item.<br />
-                        <i>{$i['itmdesc']}</i>";
-    
-    // Effects
-    $start = 0;
-    for ($enum = 1; $enum <= 3; $enum++) {
-        if ($i["effect{$enum}_on"] === 'true') {
-            if ($start == 0) {
-                echo "<br /><b>Effect</b> ";
-                $start = 1;
-            }
-            $einfo = unserialize($i["effect{$enum}"]);
-            $einfo['inc_type'] = ($einfo['inc_type'] === 'percent') ? '%' : '';
-            $einfo['dir'] = ($einfo['dir'] === 'pos') ? '+' : '-';
-            echo "{$einfo['dir']}" . number_format($einfo['inc_amount']) . "{$einfo['inc_type']} " . statParser($einfo['stat']) . ". ";
-        }
-    }
-    
-    echo "
-                    </div>
-                </div>
-                <hr />
-                <div class='row'>
-                    <div class='col-6 col-md'><b>Buy</b><br /><small>{$i['itmbuyprice']} Copper Coins</small></div>
-                    <div class='col-6 col-md'><b>Sell</b><br /><small>{$i['itmsellprice']} Copper Coins</small></div>
-                    <div class='col-6 col-md'><b>Total Value</b><br /><small>{$i['inv_qty_value']} Copper Coins</small></div>
-                    <div class='col-6 col-md'><b>Circulating</b><br /><small>{$total}</small></div>
-                </div>";
-    
-    // Equip stats
-    if ($i['weapon'] || $i['ammo'] || $i['armor']) {
-        echo "<hr /><div class='row'>";
-        if ($i['weapon']) echo "<div class='col'><b>Weapon</b><br /><small>" . shortNumberParse($i['weapon']) . "</small></div>";
-        if ($i['ammo']) echo "<div class='col'><b>Projectile</b><br /><small>{$api->SystemItemIDtoName($i['ammo'])}</small></div>";
-        if ($i['armor']) echo "<div class='col'><b>Armor</b><br /><small>" . shortNumberParse($i['armor']) . "</small></div>";
-        echo "</div>";
-    }
-    
-    echo "</div></div></div>";
-}
-echo "</div><br />
-<a href='inventdump.php' class='btn btn-block btn-danger'>Dump Inventory</a><br />";
-$db->free_result($inv);
-$h->endpage();
+    </div>
+</div>
 
-function getItemUses($i, $tresder, $ir, $potionexclusion) {
-    global $itemActions;
-    
-    $uses = [];
-    
-    // Default effect use
-    if (($i['effect1_on'] === 'true' || $i['effect2_on'] === 'true' || $i['effect3_on'] === 'true')
-        && $i['armor'] == 0 && $i['weapon'] == 0
-        && !in_array($i['itmtypename'], ['Rings', 'Necklaces', 'Pendants', 'Badges'])) {
-            $uses[] = ["itemuse.php?item={$i['inv_id']}", "Use {$i['itmname']}"];
-        }
-        
-        // Static mappings
-        if (isset($itemActions[$i['itmid']])) {
-            foreach ($itemActions[$i['itmid']] as $action) {
-                $uses[] = [$action[0], "{$action[1]} {$i['itmname']}"];
-            }
-        }
-        
-        // Equip logic
-        if ($i['weapon'] > 0) {
-            $uses[] = ["equip.php?slot=weapon&ID={$i['inv_id']}", "Equip as Weapon"];
-        }
-        if ($i['armor'] > 0) {
-            $uses[] = ["equip.php?slot=armor&ID={$i['inv_id']}", "Equip as Armor"];
-        }
-        if ($i['itmtypename'] === 'Badges') {
-            $uses[] = ["equip.php?slot=badge&ID={$i['inv_id']}", "Equip as Badge"];
-        }
-        if ($i['itmtypename'] === 'Rings') {
-            $uses[] = ["equip.php?slot=ring&ID={$i['inv_id']}", "Equip as Ring"];
-        }
-        if ($i['itmtypename'] === 'Necklaces') {
-            $uses[] = ["equip.php?slot=necklace&ID={$i['inv_id']}", "Equip as Necklace"];
-        }
-        if ($i['itmtypename'] === 'Pendants') {
-            $uses[] = ["equip.php?slot=pendant&ID={$i['inv_id']}", "Equip as Pendant"];
-        }
-        if (in_array($i['itmtypename'], ['Potions', 'Food']) && !in_array($i['itmid'], $potionexclusion)) {
-            $uses[] = ["equip.php?slot=potion&ID={$i['inv_id']}", "Equip as Potion"];
-        }
-        
-        // Always available actions
-        $uses[] = ["itemsend.php?ID={$i['inv_id']}", "Send"];
-        $uses[] = ["itemmarket.php?action=add&ID={$i['itmid']}", "List on Market"];
-        $uses[] = ["itemsell.php?ID={$i['inv_id']}", "Sell"];
-        
-        return $uses;
+<!-- Custom Styles -->
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
+
+.bg-gradient-secondary {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.equipment-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.equipment-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.equipped-item, .empty-slot {
+    padding: 20px;
+}
+
+.item-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.item-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.item-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.item-card:hover::before {
+    left: 100%;
+}
+
+/* Rarity borders */
+.rarity-common {
+    border-left: 3px solid #gray;
+}
+
+.rarity-uncommon {
+    border-left: 3px solid #28a745;
+}
+
+.rarity-rare {
+    border-left: 3px solid #007bff;
+}
+
+.rarity-epic {
+    border-left: 3px solid #6f42c1;
+}
+
+.rarity-legendary {
+    border-left: 3px solid #ffc107;
+}
+
+.item-name {
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.item-actions {
+    margin-top: auto;
+    padding-top: 10px;
+}
+
+.item-actions .btn {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.item-actions .btn i {
+    font-size: 10px;
+}
+
+/* Ensure equal button spacing */
+.item-actions .row.g-1 {
+    --bs-gutter-x: 0.25rem;
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 768px) {
+    .inventory-item {
+        margin-bottom: 15px;
+    }
+    
+    .item-card .card-body {
+        padding: 12px;
+    }
+    
+    .item-actions .btn {
+        font-size: 10px;
+        padding: 6px 8px;
+    }
+    
+    .item-name {
+        font-size: 14px;
+    }
+    
+    .item-desc {
+        font-size: 12px;
+        min-height: 35px;
+    }
+}
+}
+
+.item-desc {
+    min-height: 40px;
+}
+
+.inventory-controls .btn-group .btn {
+    transition: all 0.3s ease;
+}
+
+.inventory-controls .btn-group .btn.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.inventory-item {
+    transition: all 0.3s ease;
+}
+
+.inventory-item.hidden {
+    display: none !important;
+}
+</style>
+
+<!-- JavaScript for filtering -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Item filtering
+    const filterButtons = document.querySelectorAll('[data-filter]');
+    const inventoryItems = document.querySelectorAll('.inventory-item');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Update active button
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Filter items
+            const filter = this.dataset.filter;
+            inventoryItems.forEach(item => {
+                if (filter === 'all' || item.dataset.category === filter) {
+                    item.classList.remove('hidden');
+                    item.style.animation = 'fadeIn 0.5s';
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+        });
+    });
+});
+</script>
+
+<?php
+$h->endpage();
+?>

@@ -1,1268 +1,844 @@
 <?php
-$expMod=1.0;
-$waterIncr = 5;
-$timeMod = 1;
-$macropage = ('farm.php');
-require('globals.php');
-if (currentMonth() == 7)
-{
-    $expMod *= 2.0;
-    $waterIncr *= 2;
-    $timeMod *= 0.5;
-    $farmconfig['farmlandCost'] *= 0.75;
-}
-echo "<h3>" . loadImageAsset("explore/farming.svg", 1.8) . " Farming</h3><hr />";
-if ($api->UserStatus($userid,'dungeon') || $api->UserStatus($userid,'infirmary'))
-{
-	alert('danger',"Uh Oh!","You cannot visit your farm while in the infirmary or dungeon.",true,'explore.php');
-	die($h->endpage());
-}
-$q=$db->query("/*qc=on*/SELECT * FROM `farm_users` WHERE `userid` = {$userid}");
-if ($db->num_rows($q) == 0)
-{
-    $db->query("INSERT INTO `farm_users` (`userid`) VALUES ('{$userid}')");
-}
-$FU = ($db->fetch_row($db->query("/*qc=on*/SELECT * FROM `farm_users` WHERE `userid` = {$userid}")));
+/*
+    File: farm.php
+    Created: Farming System
+    Info: Plant crops, manage fields, and harvest resources
+*/
+require_once('globals.php');
 
-//Config options
-$farmconfig['farmlandCost']		=	round(500000*levelMultiplier($ir['level']));
-$farmconfig['startingFields'] 	=	2;
-$farmconfig['maxFields']		=	round(8 * levelMultiplier($ir['level']));
-$farmconfig['wellnessPerTend']	=	Random(3,9);
-$farmconfig['wellnessPerHarv']	=	Random(15,30);
-$farmconfig['wellnessPerPlant']	=	Random(7,14);
-
-if (getUserSkill($userid, 29) > 0)
-{
-	$specialnumber=((getUserSkill($userid, 29) * getSkillBonus(29)) / 100);
-    $farmconfig['wellnessPerTend']=$farmconfig['wellnessPerTend']-($farmconfig['wellnessPerTend']*$specialnumber);
-	$farmconfig['wellnessPerHarv']=$farmconfig['wellnessPerHarv']-($farmconfig['wellnessPerHarv']*$specialnumber);
-	$farmconfig['wellnessPerPlant']=$farmconfig['wellnessPerPlant']-($farmconfig['wellnessPerPlant']*$specialnumber);
-}
-
-//End Config options
-if ($FU['farm_water_max'] == 0)
-{
-    if (isset($_GET['buy']))
-    {
-        if (!$api->UserHasItem($userid,2,500))
-        {
-            alert('danger',"Uh Oh!","You do not have enough Heavy Rocks to construct your well.",true,'farm.php');
-            die($h->endpage());
-        }
-        else
-        {
-            $api->UserTakeItem($userid,2,500);
-            $db->query("UPDATE `farm_users` SET `farm_water_available` = {$waterIncr}, `farm_water_max` = {$waterIncr} WHERE `userid` = {$userid}");
-            alert('success',"Success!","You have successfully constructed your farm's well and filled it with water.",true,'farm.php','Get Farming!');
-			$loop=0;
-			while ($loop < $farmconfig['startingFields'] )
-			{
-				createField($userid);
-				$loop=$loop+1;
-			}
-			$api->SystemLogsAdd($userid, "farm", "Constructed well for 500 Heavy Rocks.");
-			$api->SystemLogsAdd($userid, "farm", "Purchased {$farmconfig['startingFields']} fields for 0 Copper Coins.");
-            die($h->endpage());
-        }
-    }
-    alert('info','',"You must construct your well before you can tend to your farms. It will cost you 500 Heavy Rocks.",true,'?buy','Construct Well');
-    die($h->endpage());
-}
-doFarmTick();
-$frmeen = min(round($FU['farm_water_available'] / $FU['farm_water_max'] * 100), 100);
-$frmexp = min(round($FU['farm_xp'] / $FU['xp_needed'] * 100), 100);
-echo "<div class='card'>
-        <div class='card-body'>
-	<div class='row'>
-        <div class='col-md-4' align='left'>
-			Well Capacity - <span id='wellPercent'>{$frmeen}%</span><br />
-			<small>
-				<a href='?action=fill' class='btn btn-primary btn-sm'>💦🪣</a>
-			</small>
-		</div>
-		<div class='col-md'>
-			<div class='progress' style='height: 1rem;'>
-				<div class='progress-bar bg-success progress-bar-striped progress-bar-animated' role='progressbar' id='wellBar' aria-valuenow='{$FU['farm_water_available']}' aria-valuemin='0' aria-valuemax='100' style='width:{$frmeen}%'>
-					<span id='wellBarInfo'>
-						{$frmeen}% (" . number_format($FU['farm_water_available']) . " Buckets / " . number_format($FU['farm_water_max']) . " Buckets)
-					</span>
-				</div>
-			</div>
-		</div>
-	</div>
-	<hr />
-	<div class='row'>
-        <div class='col-sm-6 col-md-4' align='left'>
-			Farming Experience - {$frmexp}%<br />
-			<small>
-				Farming Level {$FU['farm_level']}
-			</small>
-		</div>
-		<div class='col-md'>
-			<div class='progress' style='height: 1rem;'>
-				<div class='progress-bar bg-warning progress-bar-striped progress-bar-animated' role='progressbar' aria-valuenow='{$FU['farm_xp']}' aria-valuemin='0' aria-valuemax='100' style='width:{$frmexp}%'>
-					<span>
-						{$frmexp}% (" . number_format($FU['farm_xp']) . " / " . number_format($FU['xp_needed']) . ")
-					</span>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
-</div>
-	<hr />";
-if (!isset($_GET['action'])) {
-    $_GET['action'] = '';
-}
-switch ($_GET['action']) {
-    case 'buyland':
-        buyland();
-        break;
-	case 'plant':
-        plantland();
-        break;
-	case 'createseed':
-        createseed();
-        break;
-	case 'editseed':
-	    editseed();
-	    break;
-	case 'water':
-        waterland();
-        break;
-	case 'fill':
-        fillbucket();
-        break;
-	case 'harvest':
-        harvest();
-        break;
-	case 'torchland':
-	    torchland();
-	    break;
-	case 'tend':
-        tend();
-        break;
-	case 'collect':
-        collect();
-        break;
-	case 'fertilize':
-        fertilize();
-        break;
-    default:
-        home();
-        break;
-}
-function home()
-{
-    global $db,$userid,$api,$h,$ir,$FD;
-    alert('info',"","Welcome to the farmlands, {$ir['username']}. You may tend to your crops and plots of farm here.", true, "?action=buyland", "Buy Farm Plots");
-    $q=$db->query("/*qc=on*/SELECT * FROM `farm_data` WHERE `farm_owner` = {$userid}");
-    if ($db->num_rows($q) == 0)
-    {
-        alert('info','',"You don't have any farmland!",true,'?action=buyland',"Buy Land");
-    }
-    else
-    {
-		echo "<div class='card'>
-                <div class='card-body'>";
-        while ($r=$db->fetch_row($q))
-        {
-			$seedID=$r['farm_seed'];
-			if ($r['farm_seed'] == 0)
-				$r['farm_seed'] = 'Unplanted';
-			else
-				$r['farm_seed'] = $api->SystemItemIDtoName($r['farm_seed']);
-			$r2 = $db->fetch_row($db->query("SELECT * FROM `farm_produce` WHERE `seed_item` = {$seedID}"));
-			echo "<div class='row'>
-					<div class='col-12 col-sm-6 col-lg-3 col-xl-2'>
-                        <div class='row'>
-                            <div class='col-12 col-sm-6 col-lg-12'>
-                                " . returnIcon($seedID, 4) . "<br />
-                            </div>
-                            <div class='col-12 col-sm-6 col-lg-12'>
-                                <small>{$r['farm_seed']}</small><br />
-                            </div>
-                        </div>
-					</div>
-					<div class='col-12 col-sm-6 col-lg-9 col-xl-4 col-xxl-3'>
-						" . returnStageDetail($r['farm_stage'], $r['farm_time'], $r2['seed_safe_time'], $r['farm_id']) . "
-                        " . createFarmStageBar(returnCurrentStage($r['farm_id']), returnTotalStages($r['farm_id']), returnStagebyID($r['farm_stage'], $r['farm_time'])) . "
-                        " . createWellnessBar($r['farm_wellness']) . "
-					</div>
-					<div class='col-12 col-xl-6 col-xxl-7'>
-						" . returnStageActions($r['farm_stage'],$r['farm_id'], $r['farm_time'],$seedID) . "
-					</div>
-				</div>
-				<hr />";
-        }
-        echo "</div></div>";
-    }
-    $h->endpage();
-}
-function buyland()
-{
-    global $userid,$api,$h,$ir,$farmconfig;
-    $farmconfig['farmlandCost'] = $farmconfig['farmlandCost'] + ((countFarmland($userid) * $farmconfig['farmlandCost']) * 2.2);
-	if (isset($_GET['buy']))
-	{
-		if (!($api->UserHasCurrency($userid,'primary',$farmconfig['farmlandCost'])))
-		{
-		    alert('danger',"Uh Oh!", "You do not have enough Copper Coins to buy farmland. You need " . shortNumberParse($farmconfig['farmlandCost']) . ", but you only have " . shortNumberParse($ir['primary_currency']) . " Copper Coins.", true, 'farm.php');
-		}
-		elseif (countFarmland($userid) == $farmconfig['maxFields'])
-		{
-			alert('danger',"Uh Oh!", "You may only have a maximum of {$farmconfig['maxFields']} plots of farmland at this time.", true, 'farm.php');
-		}
-		else
-		{
-			createField($userid);
-			alert('success',"Success!", "You have purchased a plot of farmland for " . shortNumberParse($farmconfig['farmlandCost']) . " Copper Coins!", true, 'farm.php');
-			$api->UserTakeCurrency($userid,'primary',$farmconfig['farmlandCost']);
-			$api->SystemLogsAdd($userid, "farm", "Purchased farmland for " . shortNumberParse($farmconfig['farmlandCost']) . " Copper Coins.");
-		}
-	}
-	else
-	{
-	    echo "<div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-header'>
-                        Farmland Purchase
-                    </div>
-                    <div class='card-body'>
-                        Would you like to purchase a farmland? One will cost you 
-                        " . shortNumberParse($farmconfig['farmlandCost']) . " Copper Coins. You currently own 
-                        " . countFarmland($userid) . " plots of farmland, and you may own a maximum of {$farmconfig['maxFields']}.
-                        <div class='row'>
-                            <div class='col-12 col-sm-6'>
-                                <a href='?action=buyland&buy=1' class='btn btn-primary btn-block'>Buy Land</a><br />
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <a href='farm.php' class='btn btn-danger btn-block'>Go Back</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>";
-	}
-	$h->endpage();
-}
-
-function plantland()
-{
-    global $db,$userid,$api,$h,$ir,$farmconfig,$FU,$timeMod;
-	$_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs($_GET['id']) : '';
-    if (empty($_GET['id'])) 
-	{
-        alert('danger', "Uh Oh!", "Please specify the farm plot you wish to interact with.", true, 'farm.php');
-        die($h->endpage());
-    }
-    $q = $db->query("/*qc=on*/SELECT * FROM `farm_data` WHERE `farm_id` = {$_GET['id']} AND `farm_owner` = {$userid}");
-    if ($db->num_rows($q) == 0) 
-	{
-        alert('danger', "Uh Oh!", "The farm plot you wish to interact with does not exist, or does not belong to you.", true, 'farm.php');
-        die($h->endpage());
-    }
-    $r = $db->fetch_row($q);
-	if ($r['farm_stage'] != 0)
-	{
-		alert('danger', "Uh Oh!", "This plot is not ready to be planted.", true, 'farm.php');
-        die($h->endpage());
-	}
-	if (isset($_POST['seed']))
-	{
-		$_POST['seed'] = (isset($_POST['seed']) && is_numeric($_POST['seed'])) ? abs($_POST['seed']) : '';
-		if (empty($_POST['seed'])) 
-		{
-			alert('danger', "Uh Oh!", "Please select a valid seed.");
-			die($h->endpage());
-		}
-		elseif (!($api->UserHasItem($userid,$_POST['seed'],1)))
-		{
-			alert('danger', "Uh Oh!", "You do not have a {$api->SystemItemIDtoName($_POST['seed'])} to plant.");
-			die($h->endpage());
-		}
-		$sq=$db->query("/*qc=on*/SELECT * FROM `farm_produce` WHERE `seed_item` = {$_POST['seed']}");
-		if ($db->num_rows($sq) == 0) 
-		{
-			alert('danger', "Uh Oh!", "That item is not a valid seed, it seems.", true, 'farm.php');
-			die($h->endpage());
-		}
-		$sr = $db->fetch_row($sq);
-		$cropSeedName = $api->SystemItemIDtoName($sr['seed_item']);
-		if ($sr['seed_lvl_requirement'] > $FU['farm_level'])
-		{
-			alert('danger', "Uh Oh!", "You need to be have a better Farming level to plant {$cropSeedName}. You need to be level {$sr['seed_lvl_requirement']}, and you have level {$FU['farm_level']}.", true, 'farm.php');
-			die($h->endpage());
-		}
-		elseif ($sr['seed_wellness_plant'] > $r['farm_wellness'])
-		{
-			alert('danger', "Uh Oh!", "{$cropSeedName} requires that your plot's wellness be at least {$sr['seed_wellness_plant']}%, and this plot is at {$r['farm_wellness']}%.", true, 'farm.php');
-			die($h->endpage());
-		}
-		if (($r['farm_wellness']-$farmconfig['wellnessPerPlant']) <= 0)
-			$farmconfig['wellnessPerPlant']=$r['farm_wellness'];
-		if (getUserSkill($userid, 30) > 0)
-			$sr['seed_time'] /= 2;
-		$stagetime=time()+round($sr['seed_time']*$timeMod);
-		
-		$db->query("UPDATE `farm_data` SET `farm_seed` = {$_POST['seed']}, `farm_time` = {$stagetime}, `farm_stage` = 1, `farm_wellness` = `farm_wellness` - {$farmconfig['wellnessPerPlant']} WHERE `farm_id` = {$_GET['id']}");
-		$api->UserTakeItem($userid,$_POST['seed'],1);
-		$random = Random(2,8);
-		$db->query("UPDATE `farm_users` SET `farm_xp` = `farm_xp` + {$random} WHERE `userid` = {$userid}");
-		alert('success', "Success!", "You have successfully planted a {$cropSeedName} in this plot.", false, 'farm.php');
-		
-		$api->SystemLogsAdd($userid, "farm", "Planted {$cropSeedName} in on plot # {$_GET['id']}");
-		doGetBonusWellCapacity();
-		die(home());
-	}
-	else
-	{
-		echo "<div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-header'>
-                        Plant Seeds
-                    </div>
-                    <div class='card-body'>
-                        Select the seed you wish to plant in this plot. Remember that growing crops takes loads of TLC! 
-                        Simply planting the crop will be enough to drop the plot's wellness.
-                        <form method='post' action='?action=plant&id={$_GET['id']}'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                " . seed_dropdown() . "<br />
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <input type='submit' value='Plant Seed' class='btn btn-primary btn-block'>
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <a href='farm.php' class='btn btn-danger btn-block'>Go Back</a>
-                            </div>
-                        </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>";
-	}
-	$h->endpage();
-}
-
-function waterland()
-{
-	global $db,$userid,$api,$h,$ir,$farmconfig,$FU;
-	$_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs($_GET['id']) : '';
-    if (empty($_GET['id'])) 
-	{
-	    alert('danger', "Uh Oh!", "Please specify the farm plot you wish to interact with.", false);
-        die(home());
-    }
-    $q = $db->query("/*qc=on*/SELECT * FROM `farm_data` WHERE `farm_id` = {$_GET['id']} AND `farm_owner` = {$userid}");
-    if ($db->num_rows($q) == 0) 
-	{
-	    alert('danger', "Uh Oh!", "The farm plot you wish to interact with does not exist, or does not belong to you.", false);
-	    die(home());
-    }
-    $r = $db->fetch_row($q);
-	if ($r['farm_wellness'] >= 100)
-	{
-	    alert('danger', "Uh Oh!", "You may only increase this plot's wellness to 100% using water.", false);
-	    die(home());
-	}
-	if (!doWaterAttempt($userid))
-	{
-		alert('danger', "Uh Oh!", "You do not have enough water in your well, and in your inventory, to water this farmland.", false);
-		die(home());
-	}
-	else
-	{
-		$random=Random(2,6);
-		if (Random(1, 100) == 64)
-		{
-		     $timegone=Random(30,100);
-		     if ($r['farm_time'] > 0)
-		         removeStageTime($_GET['id'],$timegone);
-		}
-			$db->query("UPDATE `farm_data` SET `farm_wellness` = `farm_wellness` + {$random} WHERE `farm_id` = {$_GET['id']}");
-		$db->query("UPDATE `farm_users` SET `farm_xp` = `farm_xp` + {$random} WHERE `userid` = {$userid}");
-		alert('success', "Success", "You have successfully watered this farmland, increasing its wellness by {$random}%.", false);
-		$api->SystemLogsAdd($userid, "farm", "Planted plot # {$_GET['id']} (+{$random}% Wellness)");
-		doGetBonusWellCapacity();
-		die(home());
-	}
-	$h->endpage();
-}
-
-function fertilize()
-{
-	global $db,$userid,$api,$h,$FU;
-	$_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs($_GET['id']) : '';
-    if (empty($_GET['id'])) 
-	{
-        alert('danger', "Uh Oh!", "Please specify the farm plot you wish to interact with.", false);
-        die(home());
-    }
-    $q = $db->query("/*qc=on*/SELECT * FROM `farm_data` WHERE `farm_id` = {$_GET['id']} AND `farm_owner` = {$userid}");
-    if ($db->num_rows($q) == 0) 
-	{
-	    alert('danger', "Uh Oh!", "The farm plot you wish to interact with does not exist, or does not belong to you.", false);
-	    die(home());;
-    }
-    $r = $db->fetch_row($q);
-	if ($r['farm_wellness'] >= 150)
-	{
-	    alert('danger', "Uh Oh!", "You may only increase this plot's wellness to 150% using fertilizer.", false);
-	    die(home());
-	}
-	if (isset($_GET['do']))
-	{
-		if (!$api->UserHasItem($userid,311,1))
-		{
-		    alert('danger', "Uh Oh!", "You do not have any fertilizer in your inventory. You can create some in the workshop.", false);
-		    die(home());
-		}
-		else
-		{
-		    $timegone=Random(300,800);
-		    if ($r['farm_time'] > 0)
-		        removeStageTime($_GET['id'],$timegone);
-			$random=Random(6,18);
-			$db->query("UPDATE `farm_data` SET `farm_wellness` = `farm_wellness` + {$random} WHERE `farm_id` = {$_GET['id']}");
-			$db->query("UPDATE `farm_users` SET `farm_xp` = `farm_xp` + {$random} WHERE `userid` = {$userid}");
-			$api->UserTakeItem($userid,311,1);
-			alert('success', "Success", "You have successfully fertilized this farmland, increasing its wellness by {$random}%.", false);
-			$api->SystemLogsAdd($userid, "farm", "Fertilized plot # {$_GET['id']} (+{$random}% Wellness)");
-			doGetBonusWellCapacity();
-			die(home());
-		}
-	}
-	else
-	{
-	    echo "
-            <div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-header'>
-                        Fertilize Plot
-                    </div>
-                    <div class='card-body'>
-                        Are you sure you wish to fertilize this plot? You need at least one Fertilizer. This will increase your plot's 
-                        wellness by 6-18%, and grant you similar farming experience. This will also decrease your plot's stage time by 5-12 minutes.
-                        <div class='row'>
-                            <div class='col-12 col-sm-6'>
-                                <a href='?action=fertilize&id={$_GET['id']}&do=1' class='btn btn-primary btn-block'>Fertilize</a>
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <a href='farm.php' class='btn btn-danger btn-block'>Go Back</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>";
-	}
-	$h->endpage();
-}
-
-function torchland()
-{
-    global $db,$userid,$api,$h,$ir,$farmconfig,$FU;
-    $_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs($_GET['id']) : '';
-    if (empty($_GET['id']))
-    {
-        alert('danger', "Uh Oh!", "Please specify the farm plot you wish to interact with.", false);
-        die(home());
-    }
-    $q = $db->query("/*qc=on*/SELECT * FROM `farm_data` WHERE `farm_id` = {$_GET['id']} AND `farm_owner` = {$userid}");
-    if ($db->num_rows($q) == 0)
-    {
-        alert('danger', "Uh Oh!", "The farm plot you wish to interact with does not exist, or does not belong to you.", false);
-        die(home());
-    }
-    $r = $db->fetch_row($q);
-    if (isset($_GET['do']))
-    {
-        deleteField($_GET['id']);
-        alert('success',"Success!","You have successfully torched this plot. It is now forever lost to the sands of time...", false);
-        $api->SystemLogsAdd($userid, "farm", "Torched plot # {$_GET['id']}.");
-        die(home());
-    }
-    else
-    {
-        echo "<div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-header'>
-                        Plot Torching
-                    </div>
-                    <div class='card-body'>
-                        Are you sure you wish to torch this plot? This will permenantly delete it, and any seeds you may have 
-                        growing on it.
-                        <div class='row'>
-                            <div class='col-12 col-sm-6'>
-                                <a href='?action=torchland&id={$_GET['id']}&do=1' class='btn btn-primary btn-block'>Burn It</a>
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <a href='farm.php' class='btn btn-danger btn-block'>Go Back</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>";
-    }
-}
-function harvest()
-{
-	global $db,$userid,$api,$h,$ir,$farmconfig,$FU,$expMod;
-	$_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs($_GET['id']) : '';
-	$q = $db->query("/*qc=on*/SELECT * FROM `farm_data` WHERE `farm_id` = {$_GET['id']} AND `farm_owner` = {$userid}");
-	if ($db->num_rows($q) == 0)
-	{
-	    alert('danger', "Uh Oh!", "The farm plot you wish to interact with does not exist, or does not belong to you.", false);
-	    die(home());
-	}
-	$r = $db->fetch_row($q);
-	
-	$sq=$db->query("/*qc=on*/SELECT * FROM `farm_produce` WHERE `seed_item` = {$r['farm_seed']}");
-	$sr=$db->fetch_row($sq);
-	
-	$cropOutput = round(Random($sr['seed_qty']/2, $sr['seed_qty']*2));
-	$cropSeedName = $api->SystemItemIDtoName($sr['seed_item']);
-    if (empty($_GET['id'])) 
-	{
-	    alert('danger', "Uh Oh!", "Please specify the farm plot you wish to interact with.", false);
-        die(home());
-    }
-	if ($r['farm_stage'] != 2)
-	{
-	    alert('danger', "Uh Oh!", "This plot is not ready for harvest.", false);
-	    die(home());
-	}
-	if (isset($_POST['water']))
-	{
-		if ($sr['seed_wellness_plant'] > $r['farm_wellness'])
-		{
-		    alert('danger', "Uh Oh!", "Improve the plot's wellness to {$sr['seed_wellness_plant']}% before you attempt to harvest this plot.", false);
-		    die(home());
-		}
-		$xp = round(($cropOutput * $sr['seed_xp']) * $expMod);
-		$api->UserGiveItem($userid, $sr['seed_output'], $cropOutput);
-		$db->query("UPDATE `farm_users` SET `farm_xp` = `farm_xp` + {$xp} WHERE `userid` = {$userid}");
-		if (($r['farm_wellness']-$farmconfig['wellnessPerHarv']) <= 0)
-			$farmconfig['wellnessPerHarv']=$r['farm_wellness'];
-		$db->query("UPDATE `farm_data` SET `farm_time` = 0, `farm_stage` = 0, `farm_wellness` = `farm_wellness` - {$farmconfig['wellnessPerHarv']}, `farm_seed` = 0 WHERE `farm_id` = {$_GET['id']}");
-		alert('success', "Success!", "You have successfully harvested your {$cropSeedName} and received {$cropOutput} {$api->SystemItemIDtoName($sr['seed_output'])}s and " . number_format($xp) . " farming experience.", false);
-		$api->SystemLogsAdd($userid, "farm", "Collected seeds on plot # {$_GET['id']} (Received {$cropOutput} {$api->SystemItemIDtoName($sr['seed_output'])})");
-		doGetBonusWellCapacity();
-		die(home());
-	}
-	else
-	{
-		echo "<div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-header'>
-                        Crop Harvesting
-                    </div>
-                    <div class='card-body'>
-                        Please confirm you want to harvest your {$api->SystemItemIDtoName($sr['seed_item'])}. This will grant you 
-                        between " . round($sr['seed_qty'] / 2) . "-" . round($sr['seed_qty'] * 2) . " 
-                        <a href='iteminfo.php?ID={$sr['seed_output']}'>{$api->SystemItemIDtoName($sr['seed_output'])}s</a>.
-                        <form method='post' action='?action=harvest&id={$_GET['id']}'>
-                        <div class='row'>
-                            <div class='col-12 col-sm-6'>
-                                <input type='submit' value='Harvest Plot' class='btn btn-primary btn-block'><br />
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <a href='farm.php' class='btn btn-danger btn-block'>Go Back</a>
-                            </div>
-                        </div>
-                        <input type='hidden' value='water' name='water' class='btn btn-primary'>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>";
-	}
-	$h->endpage();
-}
-
-function collect()
-{
-	global $db,$userid,$api,$h,$ir,$farmconfig,$FU,$expMod;
-	$_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs($_GET['id']) : '';
-    if (empty($_GET['id'])) 
-	{
-	    alert('danger', "Uh Oh!", "Please specify the farm plot you wish to interact with.", false);
-	    die(home());
-    }
-    $q = $db->query("/*qc=on*/SELECT * FROM `farm_data` WHERE `farm_id` = {$_GET['id']} AND `farm_owner` = {$userid}");
-    if ($db->num_rows($q) == 0) 
-	{
-	    alert('danger', "Uh Oh!", "The farm plot you wish to interact with does not exist, or does not belong to you.", false);
-	    die(home());
-    }
-    $r = $db->fetch_row($q);
-    $sq=$db->query("/*qc=on*/SELECT * FROM `farm_produce` WHERE `seed_item` = {$r['farm_seed']}");
-    $sr=$db->fetch_row($sq);
-    $cropOutput = round(Random($sr['seed_qty'], $sr['seed_qty']*2));
-    $xpPerSeed = ($sr['seed_xp']*0.75) * $expMod;
-    $xp = round($cropOutput * $xpPerSeed);
-    $cropSeedName = $api->SystemItemIDtoName($sr['seed_item']);
-	if ($r['farm_stage'] != 2)
-	{
-	    alert('danger', "Uh Oh!", "This plot is not ready for harvest.", false);
-	    die(home());
-	}
-	if (isset($_POST['water']))
-	{
-		if ($sr['seed_wellness_plant'] > $r['farm_wellness'])
-		{
-		    alert('danger', "Uh Oh!", "Improve the plot's wellness to {$sr['seed_wellness_plant']}% before you attempt to harvest this plot.", false);
-		    die(home());
-		}
-		
-		$db->query("UPDATE `farm_users` SET `farm_xp` = `farm_xp` + {$xp} WHERE `userid` = {$userid}");
-		$api->UserGiveItem($userid, $r['farm_seed'], $cropOutput);
-		if (($r['farm_wellness']-$farmconfig['wellnessPerHarv']) <= 0)
-			$farmconfig['wellnessPerHarv']=$r['farm_wellness'];
-		$db->query("UPDATE `farm_data` SET `farm_time` = 0, `farm_stage` = 0, `farm_wellness` = `farm_wellness` - {$farmconfig['wellnessPerHarv']}, `farm_seed` = 0 WHERE `farm_id` = {$_GET['id']}");
-		alert('success', "Success!", "You have successfully harvested this plot and received {$cropOutput} {$api->SystemItemIDtoName($r['farm_seed'])}(s).", false);
-		$api->SystemLogsAdd($userid, "farm", "Collected seeds on plot # {$_GET['id']} (Received {$cropOutput} {$api->SystemItemIDtoName($r['farm_seed'])})");
-		doGetBonusWellCapacity();
-		die(home());
-	}
-	else
-	{
-		echo "<div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-header'>
-                        Seed Harvesting
-                    </div>
-                    <div class='card-body'>
-                        Please confirm you wish to harvest the seeds from this plant? You will receive 
-                        {$sr['seed_qty']}-" . round($sr['seed_qty'] * 2) . " {$cropSeedName}s, and {$xpPerSeed} 
-                        farming experience per seed gathered.
-                        <form method='post' action='?action=collect&id={$_GET['id']}'>
-                        <div class='row'>
-                            <div class='col-12 col-sm-6'>
-                                <input type='submit' value='Harvest Seeds' class='btn btn-primary btn-block'>
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <a href='farm.php' class='btn btn-danger btn-block'>Go Back</a>
-                            </div>
-                        </div>
-                        <input type='hidden' value='water' name='water' class='btn btn-primary'>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>";
-	}
-	$h->endpage();
-}
-
-function tend()
-{
-	global $db,$userid,$api,$h,$ir,$farmconfig,$FU,$timeMod;
-	$_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs($_GET['id']) : '';
-    if (empty($_GET['id'])) 
-	{
-	    alert('danger', "Uh Oh!", "Please specify the farm plot you wish to interact with.", false);
-	    die(home());
-    }
-    $q = $db->query("/*qc=on*/SELECT * FROM `farm_data` WHERE `farm_id` = {$_GET['id']} AND `farm_owner` = {$userid}");
-    if ($db->num_rows($q) == 0) 
-	{
-	    alert('danger', "Uh Oh!", "The farm plot you wish to interact with does not exist, or does not belong to you.", false);
-	    die(home());
-    }
-    $r = $db->fetch_row($q);
-    $sq=$db->query("/*qc=on*/SELECT * FROM `farm_produce` WHERE `seed_item` = {$r['farm_seed']}");
-    $sr=$db->fetch_row($sq);
-    $cropSeedName = $api->SystemItemIDtoName($sr['seed_item']);
-	if (($r['farm_stage'] != 1) && ($r['farm_stage'] < 10))
-	{
-		alert('danger', "Uh Oh!", "Invalid stage.", true, 'farm.php');
-        die($h->endpage());
-	}
-	if ($r['farm_time'] > time())
-	{
-	    alert('danger', "Uh Oh!", "This field is not ready to be tended yet.", false);
-	    die(home());
-	}
-	if (isset($_POST['water']))
-	{
-	    if (getUserSkill($userid, 30) > 0)
-	        $sr['seed_time'] /= 2;
-		if ($sr['seed_wellness_plant'] > $r['farm_wellness'])
-		{
-		    alert('danger', "Uh Oh!", "Improve the plot's wellness to {$sr['seed_wellness_plant']}% before you attempt to tend this plot.", false);
-		    die(home());
-		}
-		if (($r['farm_wellness']-$farmconfig['wellnessPerTend']) <= 0)
-			$farmconfig['wellnessPerTend']=$r['farm_wellness'];
-		if (($r['farm_stage'] - 1) == 10)
-		{
-			$stagetime=time()+round($sr['seed_time']*$timeMod);
-			$db->query("UPDATE `farm_data` SET `farm_time` = {$stagetime}, `farm_stage` = 2, `farm_wellness` = `farm_wellness` - {$farmconfig['wellnessPerTend']} WHERE `farm_id` = {$_GET['id']}");
-			alert('success', "Success!", "You've tended your {$cropSeedName}. It appears you're closing in on the final harvest.", true, 'farm.php');
-		}
-		elseif ($r['farm_stage'] == 1)
-		{
-			$stagetime=time()+round($sr['seed_time']*$timeMod);
-			$db->query("UPDATE `farm_data` SET `farm_time` = {$stagetime}, `farm_stage` = 10, `farm_wellness` = `farm_wellness` - {$farmconfig['wellnessPerTend']} WHERE `farm_id` = {$_GET['id']}");
-			alert('success', "Success!", "You've tended your {$cropSeedName}. You will seriously maximize your harvest by keeping up with tending the plot.", true, 'farm.php');
-		}
-		else
-		{
-			$stagetime=time()+round($sr['seed_time']*$timeMod);
-			$db->query("UPDATE `farm_data` SET `farm_time` = {$stagetime}, `farm_stage` = `farm_stage` + 1, `farm_wellness` = `farm_wellness` - {$farmconfig['wellnessPerTend']} WHERE `farm_id` = {$_GET['id']}");
-			alert('success', "Success!", "You've tended your {$cropSeedName}. Remember to keep up with the TLC.", true, 'farm.php');
-		}
-		$random=Random(2 * $r['farm_stage'], 6 * $r['farm_stage']);
-		$db->query("UPDATE `farm_users` SET `farm_xp` = `farm_xp` + {$random} WHERE `userid` = {$userid}");
-		$api->SystemLogsAdd($userid, "farm", "Tended plot # {$_GET['id']}.");
-		doGetBonusWellCapacity();
-		die(home());
-	}
-	else
-	{
-	    echo "<div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-header'>
-                        Crop Tending
-                    </div>
-                    <div class='card-body'>
-                        Please confirm you wish to tend your {$cropSeedName}. This will start the next stage of the farming process,
-                         and will drop this plot's wellness slightly.
-                        <form method='post' action='?action=tend&id={$_GET['id']}'>
-                        <div class='row'>
-                            <div class='col-12 col-sm-6'>
-                                <input type='submit' value='Tend Plot' class='btn btn-primary btn-block'><br />
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <a href='farm.php' class='btn btn-danger btn-block'>Go Back</a>
-                            </div>
-                        </div>
-                        <input type='hidden' value='water' name='water' class='btn btn-primary'>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>";
-	}
-	$h->endpage();
-}
-
-function fillbucket()
-{
-	global $FU, $h;
-	echo "
-    <span id='wellSuccess'></span>
-    <div class='row'>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillSingle' class='btn btn-primary btn-block updateHoverBtn'>Fill 1 Bucket</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillFive' class='btn btn-primary btn-block updateHoverBtn'>Fill 5 Buckets</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillTen' class='btn btn-primary btn-block updateHoverBtn'>Fill 10 Buckets</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillTwentyFive' class='btn btn-primary btn-block updateHoverBtn'>Fill 25 Buckets</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillFifty' class='btn btn-primary btn-block updateHoverBtn'>Fill 50 Buckets</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillSeventyFive' class='btn btn-primary btn-block updateHoverBtn'>Fill 75 Buckets</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillHundred' class='btn btn-primary btn-block updateHoverBtn'>Fill 100 Buckets</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillOneFifty' class='btn btn-primary btn-block updateHoverBtn'>Fill 150 Buckets</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillTwoHundred' class='btn btn-primary btn-block updateHoverBtn'>Fill 200 Buckets</a><br />
-        </div>
-        <div class='col-6 col-md-4 col-xl-3 col-xxl-2'>
-            <a id='farmWellFillFiveHundred' class='btn btn-primary btn-block updateHoverBtn'>Fill 500 Buckets</a><br />
-        </div>
-    </div>";
-	$h->endpage();
-}
-
-function createseed()
-{
-	global $db,$userid,$api,$h,$ir,$farmconfig,$FU;
-	if ($userid != 1)
-	{
-		echo "Go back, now. This will place you in fed in 6 seconds...";
-		die($h->endpage());
-	}
-	if (isset($_POST['seed']))
-	{
-		$seed = (isset($_POST['seed']) && is_numeric($_POST['seed'])) ? abs($_POST['seed']) : '';
-		$output = (isset($_POST['output']) && is_numeric($_POST['output'])) ? abs($_POST['output']) : '';
-		$qty = (isset($_POST['qty']) && is_numeric($_POST['qty'])) ? abs($_POST['qty']) : '';
-		$stages = (isset($_POST['stages']) && is_numeric($_POST['stages'])) ? abs($_POST['stages']) : '';
-		$stagetime = (isset($_POST['stagetime']) && is_numeric($_POST['stagetime'])) ? abs($_POST['stagetime']) : '';
-		$stagesafe = (isset($_POST['stagesafe']) && is_numeric($_POST['stagesafe'])) ? abs($_POST['stagesafe']) : '';
-		$level = (isset($_POST['level']) && is_numeric($_POST['level'])) ? abs($_POST['level']) : '';
-		$well_rot = (isset($_POST['well_rot']) && is_numeric($_POST['well_rot'])) ? abs($_POST['well_rot']) : '';
-		$well_plant = (isset($_POST['well_plant']) && is_numeric($_POST['well_plant'])) ? abs($_POST['well_plant']) : '';
-		$seed_xp = (isset($_POST['xp']) && is_numeric($_POST['xp'])) ? abs($_POST['xp']) : '';
-		if (!$api->SystemItemIDtoName($seed))
-		{
-			alert("danger","Uh Oh!","That is not a valid seed, or the item does not exist.");
-		}
-		elseif (!$api->SystemItemIDtoName($output))
-		{
-			alert("danger","Uh Oh!","That is not a valid crop output, or the item does not exist.");
-		}
-		elseif (($qty < 1) || ($qty > 1024))
-		{
-			alert("danger","Uh Oh!","Crop output must be at least 1, and at most, 1024.");
-		}
-		elseif (($stages < 1) || ($stages > 1024))
-		{
-			alert("danger","Uh Oh!","Crop stage count must be at least 1, and at most, 1024.");
-		}
-		elseif ($stagetime < 60)
-		{
-			alert("danger","Uh Oh!","Crop stage count must be at least 60 seconds.");
-		}
-		elseif ($stagesafe < 60)
-		{
-			alert("danger","Uh Oh!","Crop stage count must be at least 60 seconds.");
-		}
-		elseif ($level < 1)
-		{
-			alert("danger","Uh Oh!","Seed minimum level must be at least 1.");
-		}
-		elseif ($well_rot < 0)
-		{
-			alert("danger","Uh Oh!","Seed wellness rotten percent must be at least 0.");
-		}
-		elseif ($well_plant < 0)
-		{
-			alert("danger","Uh Oh!","Seed wellness plant percent must be at least 0.");
-		}
-		elseif ($seed_xp < 1)
-		{
-			alert("danger","Uh Oh!","Seed experience gain must be at least 1.");
-		}
-		$query="INSERT INTO `farm_produce` 
-				(`seed_item`, `seed_time`, `seed_safe_time`, 
-				`seed_stages`, `seed_output`, `seed_qty`, 
-				`seed_lvl_requirement`, `seed_wellness_plant`,
-				`seed_wellness_bad`, `seed_xp`) 
-				VALUES 
-				('{$seed}', '{$stagetime}', '{$stagesafe}', '{$stages}', '{$output}', '{$qty}', '{$level}', '{$well_plant}', '{$well_rot}', '{$seed_xp}')";
-		if ($db->query($query))
-		{
-			alert('success',"Success!","You have created a new seed!", true, 'farm.php');
-			$api->SystemLogsAdd($userid,'staff',"Created {$api->SystemItemIDtoName($seed)} seed.");
-		}
-		else
-		{
-			alert('danger',"Big oof!","The query failed...");
-		}
-	}
-	else
-	{
-		echo "Create a seed by filling out this form.
-		<form method='post' >
-			<table class='table table-bordered'>
-				<tr>
-					<th>
-						Seed Item<br />
-						<small>What's the seed base item?</small>
-					</th>
-					<td>
-						" . item_dropdown('seed') . "
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Output<br />
-						<small>What item will this seed produce?</small>
-					</th>
-					<td>
-						" . item_dropdown('output') . "
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Output Qty<br />
-						<small>How many crops will be output by this seed?<br />
-						<b>Actual gain will be +/- 50% this number.</b>
-						</small>
-					</th>
-					<td>
-						<input type='number' min='1' name='qty' max='1024' required='1' class='form-control' value='1'>
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Stage Count<br />
-						<small>How many stages will this crop have?</small>
-					</th>
-					<td>
-						<input type='number' name='stages' min='1' max='1024' required='1' class='form-control' value='1'>
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Stage Duration (Seconds)<br />
-						<small>How long is a stage for this seed?<br />
-							60 = 1 Minute<br />
-							3,600 = 1 Hour<br />
-							86,400 = 1 Day<br />
-							604,800 = 1 Week<br />
-							‭2,592,000‬ = 30 Days
-						</small>
-					</th>
-					<td>
-						<input type='number' name='stagetime' min='1' max='1000000' required='1' class='form-control' value='3600'>
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Stage Safe Duration (Seconds)<br />
-						<small>How long the plant will rot away if not attended to after each stage.<br />
-						<b>We recommend 3X the Stage Duration to not be a dick.</b><br />
-							60 = 1 Minute<br />
-							3,600 = 1 Hour<br />
-							86,400 = 1 Day<br />
-							604,800 = 1 Week<br />
-							‭2,592,000‬ = 30 Days
-						</small>
-					</th>
-					<td>
-						<input type='number' name='stagesafe' min='1' max='1000000' required='1' class='form-control' value='10800'>
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Level Requirement<br />
-						<small>The minimum farming level someone must be to plant this seed.
-						</small>
-					</th>
-					<td>
-						<input type='number' name='level' min='1' max='1000000' required='1' class='form-control' value='1'>
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Wellness Plant<br />
-						<small>The minimum wellness a plot should be for this seed to be planted.
-						</small>
-					</th>
-					<td>
-						<input type='number' name='well_plant' min='1' max='100' required='1' class='form-control' value='50'>
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Wellness Rotten<br />
-						<small>At this plot wellness, the crops will be lost.<br />
-						<b>We recommend 10% of the Wellness Plant number</b>
-						</small>
-					</th>
-					<td>
-						<input type='number' name='well_rot' min='1' max='100' required='1' class='form-control' value='5'>
-					</td>
-				</tr>
-				<tr>
-					<th>
-						Seed Experience<br />
-						<small>Flat experience points.<br />
-						<b>This is per produce received at harvest, not per seed.</b>
-						</small>
-					</th>
-					<td>
-						<input type='number' name='xp' min='1' max='100' required='1' class='form-control' value='5'>
-					</td>
-				</tr>
-				<tr>
-					<td colspan='2'>
-						<input type='submit' class='btn btn-primary' value='Create Seed'>
-					</td>
-				</tr>
-			</table>
-		</form>";
-	
-	}
-	$h->endpage();
-}
-
-function editseed()
-{
-    global $db, $api, $userid, $ir, $h;
-    if ($ir['user_level'] != 'Admin')
-    {
-        alert('danger',"Uh Oh!","You do not have access to this place.", true, 'farm.php');
-        die($h->endpage());
-    }
-    if (!isset($_POST['step']))
-        $_POST['step'] = 0;
-    if ($_POST['step'] == 1)
-    {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editseed1', stripslashes($_POST['verf']))) 
-        {
-            alert('danger', "Action Blocked!", "Forms expire fairly quickly after opening them. Go back and submit the form quicker!");
-            die($h->endpage());
-        }
-        $seed = (isset($_POST['seed']) && is_numeric($_POST['seed'])) ? abs(intval($_POST['seed'])) : 0;
-        if (empty($seed)) 
-        {
-            alert('danger', "Uh Oh!", "Please fill out the form completely before submitting it.");
-            die($h->endpage());
-        }
-        $q = $db->query("SELECT * FROM `farm_produce` WHERE `seed_item` = {$seed}");
-        if ($db->num_rows($q) == 0)
-        {
-            alert('danger', "Uh Oh!", "The seed you selected is not set up as a valid seed.");
-            die($h->endpage());
-        }
-        $r = $db->fetch_row($q);
-        $csrf = request_csrf_html('staff_editseed2');
-        echo "<div class='card'>
-            <div class='card-header'>
-                Editing {$api->SystemItemIDtoName($r['seed_item'])}...
-            </div>
-            <form method='post'>
-            <div class='card-body'>
-                <div class='row'>
-                    <div class='col-12'>
-                        <small>Seed Output</small>
-                    </div>
-                    <div class='col-12'>
-                        " . item_dropdown("output", $r['seed_output']) . "
-                    </div>
-                    <div class='col-12'>
-                        <small>Seed Output Qty</small>
-                    </div>
-                    <div class='col-12'>
-                        <input type='number' name='seed_qty' value='{$r['seed_qty']}' class='form-control'>
-                    </div>
-                    <div class='col-12'>
-                        <small>Seed Stages</small>
-                    </div>
-                    <div class='col-12'>
-                        <input type='number' name='seed_stages' value='{$r['seed_stages']}' class='form-control'>
-                    </div>
-                    <div class='col-12'>
-                        <small>Seed Stage Duration</small>
-                    </div>
-                    <div class='col-12'>
-                        <input type='number' name='seed_time' value='{$r['seed_time']}' class='form-control'>
-                    </div>
-                    <div class='col-12'>
-                        <small>Seed Safe Time</small>
-                    </div>
-                    <div class='col-12'>
-                        <input type='number' name='seed_safe_time' value='{$r['seed_safe_time']}' class='form-control'>
-                    </div>
-                    <div class='col-12'>
-                        <small>Seed Min. Level</small>
-                    </div>
-                    <div class='col-12'>
-                        <input type='number' name='seed_lvl_requirement' value='{$r['seed_lvl_requirement']}' class='form-control'>
-                    </div>
-                    <div class='col-12'>
-                        <small>Seed Min. Wellness</small>
-                    </div>
-                    <div class='col-12'>
-                        <input type='number' name='seed_wellness_plant' value='{$r['seed_wellness_plant']}' class='form-control'>
-                    </div>
-                    <div class='col-12'>
-                        <small>Seed Rotten</small>
-                    </div>
-                    <div class='col-12'>
-                        <input type='number' name='seed_wellness_bad' value='{$r['seed_wellness_bad']}' class='form-control'>
-                    </div>
-                    <div class='col-12'>
-                        <small>Seed XP</small>
-                    </div>
-                    <div class='col-12'>
-                        <input type='number' name='seed_xp' value='{$r['seed_xp']}' class='form-control'>
-                    </div>
-                    <div class='col-12'>
-                        <input type='submit' value='Edit Seed' class='btn btn-primary btn-block'>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {$csrf}
-        <input type='hidden' value='2' name='step'>
-        <input type='hidden' value='{$r['seed_item']}' name='seed'>
-        </form>";
-    }
-    elseif ($_POST['step'] == 2)
-    {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editseed2', stripslashes($_POST['verf'])))
-        {
-            alert('danger', "Action Blocked!", "Forms expire fairly quickly after opening them. Go back and submit the form quicker!");
-            die($h->endpage());
-        }
-        $seed = (isset($_POST['seed']) && is_numeric($_POST['seed'])) ? abs(intval($_POST['seed'])) : 0;
-        $output = (isset($_POST['output']) && is_numeric($_POST['output'])) ? abs(intval($_POST['output'])) : 0;
-        $qty = (isset($_POST['seed_qty']) && is_numeric($_POST['seed_qty'])) ? abs(intval($_POST['seed_qty'])) : 0;
-        $stages = (isset($_POST['seed_stages']) && is_numeric($_POST['seed_stages'])) ? abs(intval($_POST['seed_stages'])) : 0;
-        $time = (isset($_POST['seed_time']) && is_numeric($_POST['seed_time'])) ? abs(intval($_POST['seed_time'])) : 0;
-        $safe_time = (isset($_POST['seed_safe_time']) && is_numeric($_POST['seed_safe_time'])) ? abs(intval($_POST['seed_safe_time'])) : 0;
-        $lvl_requirement = (isset($_POST['seed_lvl_requirement']) && is_numeric($_POST['seed_lvl_requirement'])) ? abs(intval($_POST['seed_lvl_requirement'])) : 0;
-        $wellness_plant = (isset($_POST['seed_wellness_plant']) && is_numeric($_POST['seed_wellness_plant'])) ? abs(intval($_POST['seed_wellness_plant'])) : 0;
-        $wellness_bad = (isset($_POST['seed_wellness_bad']) && is_numeric($_POST['seed_wellness_bad'])) ? abs(intval($_POST['seed_wellness_bad'])) : 0;
-        $xp = (isset($_POST['seed_xp']) && is_numeric($_POST['seed_xp'])) ? abs(intval($_POST['seed_xp'])) : 0;
+class FarmingSystem {
+    private $db;
+    private $userid;
+    private $api;
+    public $config;
+    
+    public function __construct($db, $userid, $api) {
+        $this->db = $db;
+        $this->userid = $userid;
+        $this->api = $api;
         
-        if (empty($seed))
-        {
-            alert('danger', "Uh Oh!", "Please make sure the form isn't broken before you submit it.");
-            die($h->endpage());
-        }
-        if (empty($output))
-        {
-            alert('danger', "Uh Oh!", "You specified an invalid crop output item.");
-            die($h->endpage());
-        }
-        if (empty($qty))
-        {
-            alert('danger', "Uh Oh!", "You have specified an invalid crop output quantity.");
-            die($h->endpage());
-        }
-        if (empty($stages))
-        {
-            alert('danger', "Uh Oh!", "You have specified an invalid amount of stages.");
-            die($h->endpage());
-        }
-        if (empty($time))
-        {
-            alert('danger', "Uh Oh!", "You have specified an invalid amount of seed stage time.");
-            die($h->endpage());
-        }
-        if (empty($safe_time))
-        {
-            alert('danger', "Uh Oh!", "You have specified an invalid safe time for seed's finishing their stage.");
-            die($h->endpage());
-        }
-        if (empty($lvl_requirement))
-        {
-            alert('danger', "Uh Oh!", "You have specified an invalid level requirement.");
-            die($h->endpage());
-        }
-        if (empty($wellness_bad))
-        {
-            alert('danger', "Uh Oh!", "You have specified an invalid crop rotten level.");
-            die($h->endpage());
-        }
-        if (empty($wellness_plant))
-        {
-            alert('danger', "Uh Oh!", "You have input an invalid minimum wellness plant requirement for this seed.");
-            die($h->endpage());
-        }
-        if (empty($xp))
-        {
-            alert('danger', "Uh Oh!", "Invalid XP per seed specified.");
-            die($h->endpage());
-        }
-        $q = $db->query("SELECT * FROM `farm_produce` WHERE `seed_item` = {$seed}");
-        if ($db->num_rows($q) == 0)
-        {
-            alert('danger', "Uh Oh!", "The seed you selected is not set up as a valid seed.");
-            die($h->endpage());
-        }
-        if (!$api->SystemItemIDtoName($output))
-        {
-            alert('danger', "Uh Oh!", "The item you've selected as a crop output does not exist.");
-            die($h->endpage());
-        }
-        elseif (($qty < 1) || ($qty > 1024))
-        {
-            alert("danger","Uh Oh!","Crop output must be at least 1, and at most, 1024.");
-        }
-        elseif (($stages < 1) || ($stages > 1024))
-        {
-            alert("danger","Uh Oh!","Crop stage count must be at least 1, and at most, 1024.");
-        }
-        elseif ($time < 60)
-        {
-            alert("danger","Uh Oh!","Crop stage count must be at least 60 seconds.");
-        }
-        elseif ($safe_time < 60)
-        {
-            alert("danger","Uh Oh!","Crop stage count must be at least 60 seconds.");
-        }
-        elseif ($lvl_requirement < 1)
-        {
-            alert("danger","Uh Oh!","Seed minimum level must be at least 1.");
-        }
-        elseif ($wellness_bad < 0)
-        {
-            alert("danger","Uh Oh!","Seed wellness rotten percent must be at least 0.");
-        }
-        elseif ($wellness_plant < 0)
-        {
-            alert("danger","Uh Oh!","Seed wellness plant percent must be at least 0.");
-        }
-        elseif ($xp < 1)
-        {
-            alert("danger","Uh Oh!","Seed experience gain must be at least 1.");
-        }
-        $db->query("UPDATE `farm_produce` SET
-                    `seed_time` = {$time},
-                    `seed_safe_time` = {$safe_time},
-                    `seed_stages` = {$stages},
-                    `seed_output` = {$output},
-                    `seed_qty` = {$qty},
-                    `seed_lvl_requirement` = {$lvl_requirement},
-                    `seed_wellness_plant` = {$wellness_plant},
-                    `seed_wellness_bad` = {$wellness_bad},
-                    `seed_xp` = {$xp}
-                    WHERE `seed_item` = {$seed}");
-        alert('success',"Success!","You have successfully edited the {$api->SystemItemIDtoName($seed)} seed.", true, 'farm.php');
-        $api->SystemLogsAdd($userid, "staff", "Edited {$api->SystemItemIDtoName($seed)} crop.");
-        die($h->endpage());
+        // Farming configuration
+        $this->config = [
+            'startingFields' => 2,
+            'maxFields' => 12,
+            'wellnessPerTend' => 5,
+            'wellnessPerHarvest' => 20,
+            'wellnessPerPlant' => 10,
+            'waterPerTend' => 1,
+            'fieldCost' => 50000,
+            'wellCost' => 10000
+        ];
+        
+        // Initialize user farming data
+        $this->initializeFarmer();
     }
-    elseif ($_POST['step'] == 0)
-    {
-        $csrf = request_csrf_html('staff_editseed1');
-        echo "<div class='card'>
-                <div class='card-body'>
-                    Select the seed from the dropdown you wish to edit.
-                    <form method='post'>
-                        <input type='hidden' name='step' value='1'>
-                        " . seed_dropdown() . "<br />
-                        <input type='submit' class='btn btn-primary btn-block' value='Edit Seed'>
-                        {$csrf}
-                    </form>
-                </div>
-            </div>";
+    
+    /**
+     * Initialize farming data for user
+     */
+    private function initializeFarmer() {
+        $check = $this->db->query("SELECT * FROM farm_users WHERE userid = {$this->userid}");
+        if ($this->db->num_rows($check) == 0) {
+            $this->db->query("
+                INSERT INTO farm_users (userid, farm_level, farm_xp, xp_needed, farm_water_available, farm_water_max)
+                VALUES ({$this->userid}, 1, 0, 100, 0, 0)
+            ");
+        }
     }
-    else
-    {
-        alert('danger',"Uh Oh!","Invalid step specified.", true, '?action=editseed');
-        die($h->endpage());
+    
+    /**
+     * Get user's farming data
+     */
+    public function getFarmData() {
+        return $this->db->fetch_row($this->db->query("
+            SELECT * FROM farm_users WHERE userid = {$this->userid}
+        "));
+    }
+    
+    /**
+     * Get user's fields
+     */
+    public function getFields() {
+        $fields = [];
+        $query = $this->db->query("
+            SELECT f.*, c.crop_name, c.crop_icon, c.grow_time, c.sell_price, c.xp_reward
+            FROM farm_fields f
+            LEFT JOIN farm_crops c ON f.crop_id = c.crop_id
+            WHERE f.userid = {$this->userid}
+            ORDER BY f.field_id
+        ");
+        
+        while ($row = $this->db->fetch_row($query)) {
+            // Calculate growth progress
+            if ($row['planted_at'] > 0 && $row['crop_id'] > 0) {
+                $elapsed = time() - $row['planted_at'];
+                $row['growth_percent'] = min(100, ($elapsed / $row['grow_time']) * 100);
+                $row['time_remaining'] = max(0, $row['grow_time'] - $elapsed);
+                $row['can_harvest'] = $row['growth_percent'] >= 100;
+            } else {
+                $row['growth_percent'] = 0;
+                $row['time_remaining'] = 0;
+                $row['can_harvest'] = false;
+            }
+            
+            $fields[] = $row;
+        }
+        
+        return $fields;
+    }
+    
+    /**
+     * Get available crops
+     */
+    public function getCrops() {
+        $farmData = $this->getFarmData();
+        $crops = [];
+        
+        $query = $this->db->query("
+            SELECT * FROM farm_crops 
+            WHERE level_required <= {$farmData['farm_level']}
+            ORDER BY level_required, crop_name
+        ");
+        
+        while ($row = $this->db->fetch_row($query)) {
+            $crops[] = $row;
+        }
+        
+        return $crops;
+    }
+    
+    /**
+     * Build well
+     */
+    public function buildWell() {
+        global $ir;
+        
+        $farmData = $this->getFarmData();
+        
+        if ($farmData['farm_water_max'] > 0) {
+            return ['success' => false, 'message' => 'You already have a well!'];
+        }
+        
+        if ($ir['primary_currency'] < $this->config['wellCost']) {
+            return ['success' => false, 'message' => 'You need ' . number_format($this->config['wellCost']) . ' gold to build a well!'];
+        }
+        
+        // Build well
+        $this->db->query("
+            UPDATE farm_users 
+            SET farm_water_available = 50, farm_water_max = 50 
+            WHERE userid = {$this->userid}
+        ");
+        
+        $this->db->query("
+            UPDATE users 
+            SET primary_currency = primary_currency - {$this->config['wellCost']} 
+            WHERE userid = {$this->userid}
+        ");
+        
+        // Add starting fields
+        for ($i = 0; $i < $this->config['startingFields']; $i++) {
+            $this->db->query("
+                INSERT INTO farm_fields (userid, field_status)
+                VALUES ({$this->userid}, 'empty')
+            ");
+        }
+        
+        return ['success' => true, 'message' => 'Well built! You received ' . $this->config['startingFields'] . ' starting fields.'];
+    }
+    
+    /**
+     * Buy new field
+     */
+    public function buyField() {
+        global $ir;
+        
+        $fieldCount = $this->db->fetch_single($this->db->query("
+            SELECT COUNT(*) FROM farm_fields WHERE userid = {$this->userid}
+        "));
+        
+        if ($fieldCount >= $this->config['maxFields']) {
+            return ['success' => false, 'message' => 'You have reached the maximum number of fields!'];
+        }
+        
+        $cost = $this->config['fieldCost'] * ($fieldCount + 1);
+        
+        if ($ir['primary_currency'] < $cost) {
+            return ['success' => false, 'message' => 'You need ' . number_format($cost) . ' gold!'];
+        }
+        
+        // Buy field
+        $this->db->query("
+            INSERT INTO farm_fields (userid, field_status)
+            VALUES ({$this->userid}, 'empty')
+        ");
+        
+        $this->db->query("
+            UPDATE users 
+            SET primary_currency = primary_currency - {$cost} 
+            WHERE userid = {$this->userid}
+        ");
+        
+        return ['success' => true, 'message' => 'New field purchased!'];
+    }
+    
+    /**
+     * Fill well with water
+     */
+    public function fillWell() {
+        global $ir;
+        
+        $farmData = $this->getFarmData();
+        $waterNeeded = $farmData['farm_water_max'] - $farmData['farm_water_available'];
+        $cost = $waterNeeded * 100;
+        
+        if ($waterNeeded <= 0) {
+            return ['success' => false, 'message' => 'Your well is already full!'];
+        }
+        
+        if ($ir['primary_currency'] < $cost) {
+            return ['success' => false, 'message' => 'You need ' . number_format($cost) . ' gold to fill your well!'];
+        }
+        
+        $this->db->query("
+            UPDATE farm_users 
+            SET farm_water_available = farm_water_max 
+            WHERE userid = {$this->userid}
+        ");
+        
+        $this->db->query("
+            UPDATE users 
+            SET primary_currency = primary_currency - {$cost} 
+            WHERE userid = {$this->userid}
+        ");
+        
+        return ['success' => true, 'message' => 'Well filled with water!'];
+    }
+    
+    /**
+     * Plant crop in field
+     */
+    public function plantCrop($field_id, $crop_id) {
+        global $ir;
+        
+        $farmData = $this->getFarmData();
+        
+        // Verify field ownership
+        $field = $this->db->fetch_row($this->db->query("
+            SELECT * FROM farm_fields WHERE field_id = {$field_id} AND userid = {$this->userid}
+        "));
+        
+        if (!$field) {
+            return ['success' => false, 'message' => 'Invalid field!'];
+        }
+        
+        if ($field['field_status'] != 'empty') {
+            return ['success' => false, 'message' => 'Field is not empty!'];
+        }
+        
+        // Get crop info
+        $crop = $this->db->fetch_row($this->db->query("
+            SELECT * FROM farm_crops WHERE crop_id = {$crop_id}
+        "));
+        
+        if (!$crop) {
+            return ['success' => false, 'message' => 'Invalid crop!'];
+        }
+        
+        if ($crop['level_required'] > $farmData['farm_level']) {
+            return ['success' => false, 'message' => 'Your farming level is too low!'];
+        }
+        
+        if ($ir['primary_currency'] < $crop['seed_cost']) {
+            return ['success' => false, 'message' => 'You need ' . number_format($crop['seed_cost']) . ' gold for seeds!'];
+        }
+        
+        if ($ir['energy'] < $this->config['wellnessPerPlant']) {
+            return ['success' => false, 'message' => 'You need ' . $this->config['wellnessPerPlant'] . ' energy!'];
+        }
+        
+        // Plant crop
+        $this->db->query("
+            UPDATE farm_fields 
+            SET crop_id = {$crop_id}, 
+                field_status = 'growing', 
+                planted_at = " . time() . ",
+                health = 100
+            WHERE field_id = {$field_id}
+        ");
+        
+        $this->db->query("
+            UPDATE users 
+            SET primary_currency = primary_currency - {$crop['seed_cost']},
+                energy = energy - {$this->config['wellnessPerPlant']}
+            WHERE userid = {$this->userid}
+        ");
+        
+        // Add XP
+        $this->addFarmingXP(5);
+        
+        return ['success' => true, 'message' => "Planted {$crop['crop_name']}!"];
+    }
+    
+    /**
+     * Tend to field
+     */
+    public function tendField($field_id) {
+        global $ir;
+        
+        $farmData = $this->getFarmData();
+        
+        // Verify field
+        $field = $this->db->fetch_row($this->db->query("
+            SELECT * FROM farm_fields WHERE field_id = {$field_id} AND userid = {$this->userid}
+        "));
+        
+        if (!$field || $field['field_status'] != 'growing') {
+            return ['success' => false, 'message' => 'Cannot tend this field!'];
+        }
+        
+        if ($farmData['farm_water_available'] < $this->config['waterPerTend']) {
+            return ['success' => false, 'message' => 'Not enough water!'];
+        }
+        
+        if ($ir['energy'] < $this->config['wellnessPerTend']) {
+            return ['success' => false, 'message' => 'Not enough energy!'];
+        }
+        
+        // Tend field
+        $this->db->query("
+            UPDATE farm_fields 
+            SET health = LEAST(100, health + 20),
+                last_tended = " . time() . "
+            WHERE field_id = {$field_id}
+        ");
+        
+        $this->db->query("
+            UPDATE farm_users 
+            SET farm_water_available = farm_water_available - {$this->config['waterPerTend']}
+            WHERE userid = {$this->userid}
+        ");
+        
+        $this->db->query("
+            UPDATE users 
+            SET energy = energy - {$this->config['wellnessPerTend']}
+            WHERE userid = {$this->userid}
+        ");
+        
+        // Add XP
+        $this->addFarmingXP(2);
+        
+        return ['success' => true, 'message' => 'Field tended successfully!'];
+    }
+    
+    /**
+     * Harvest crop
+     */
+    public function harvestCrop($field_id) {
+        global $ir;
+        
+        // Verify field
+        $field = $this->db->fetch_row($this->db->query("
+            SELECT f.*, c.crop_name, c.sell_price, c.xp_reward, c.grow_time, c.item_id
+            FROM farm_fields f
+            INNER JOIN farm_crops c ON f.crop_id = c.crop_id
+            WHERE f.field_id = {$field_id} AND f.userid = {$this->userid}
+        "));
+        
+        if (!$field || $field['field_status'] != 'growing') {
+            return ['success' => false, 'message' => 'Cannot harvest this field!'];
+        }
+        
+        // Check if ready
+        $elapsed = time() - $field['planted_at'];
+        if ($elapsed < $field['grow_time']) {
+            return ['success' => false, 'message' => 'Crop is not ready yet!'];
+        }
+        
+        if ($ir['energy'] < $this->config['wellnessPerHarvest']) {
+            return ['success' => false, 'message' => 'Not enough energy!'];
+        }
+        
+        // Calculate yield based on field health
+        $yield_multiplier = $field['health'] / 100;
+        $base_yield = rand(1, 3);
+        $final_yield = ceil($base_yield * $yield_multiplier);
+        
+        // Give rewards
+        if ($field['item_id'] > 0) {
+            // Give item
+            $this->api->UserGiveItem($this->userid, $field['item_id'], $final_yield);
+            $reward_text = "{$final_yield}x {$field['crop_name']}";
+        } else {
+            // Give gold
+            $gold_reward = $field['sell_price'] * $final_yield;
+            $this->db->query("
+                UPDATE users 
+                SET primary_currency = primary_currency + {$gold_reward}
+                WHERE userid = {$this->userid}
+            ");
+            $reward_text = number_format($gold_reward) . " gold";
+        }
+        
+        // Clear field
+        $this->db->query("
+            UPDATE farm_fields 
+            SET crop_id = 0, 
+                field_status = 'empty', 
+                planted_at = 0,
+                health = 100,
+                last_tended = 0
+            WHERE field_id = {$field_id}
+        ");
+        
+        $this->db->query("
+            UPDATE users 
+            SET energy = energy - {$this->config['wellnessPerHarvest']}
+            WHERE userid = {$this->userid}
+        ");
+        
+        // Add XP
+        $this->addFarmingXP($field['xp_reward']);
+        
+        return ['success' => true, 'message' => "Harvested {$field['crop_name']}! Received {$reward_text}."];
+    }
+    
+    /**
+     * Add farming XP and handle level up
+     */
+    private function addFarmingXP($amount) {
+        $farmData = $this->getFarmData();
+        
+        // Ensure xp_needed exists
+        if (!isset($farmData['xp_needed'])) {
+            $farmData['xp_needed'] = $farmData['farm_level'] * 100;
+        }
+        
+        $newXP = $farmData['farm_xp'] + $amount;
+        
+        // Check for level up
+        if ($newXP >= $farmData['xp_needed']) {
+            $newLevel = $farmData['farm_level'] + 1;
+            $newXPNeeded = $newLevel * 100;
+            $leftoverXP = $newXP - $farmData['xp_needed'];
+            
+            $this->db->query("
+                UPDATE farm_users 
+                SET farm_level = {$newLevel},
+                    farm_xp = {$leftoverXP},
+                    xp_needed = {$newXPNeeded},
+                    farm_water_max = farm_water_max + 10
+                WHERE userid = {$this->userid}
+            ");
+            
+            // Notification
+            $this->api->SystemLogsAdd($this->userid, 'farming', "Reached Farming Level {$newLevel}!");
+        } else {
+            $this->db->query("
+                UPDATE farm_users 
+                SET farm_xp = {$newXP}
+                WHERE userid = {$this->userid}
+            ");
+        }
     }
 }
 
-function doGetBonusWellCapacity()
-{
-    global $db, $ir, $userid, $FU, $waterIncr;
-    if (Random(1,300) == Random(1,300))
-    {
-        $FU['farm_water_max'] = $FU['farm_water_max'] + $waterIncr;
-        $db->query("UPDATE `farm_users` SET `farm_water_max` = `farm_water_max` + {$waterIncr} WHERE `userid` = {$userid}");
-        alert('success',"Bonus Well Capacity!","While tending your farm, you've discovered a small reservoir of water, increasing your well's capacity by {$waterIncr} units.",false);
+// Check if v3.2 is installed
+$v32_check = $db->query("SELECT setting_value FROM settings WHERE setting_name = 'db_version' LIMIT 1");
+$db_version = null;
+if ($db->num_rows($v32_check) > 0) {
+    $db_version = $db->fetch_single($v32_check);
+}
+
+// Check if tables exist
+$tables_exist = true;
+$check_tables = ['farm_users', 'farm_fields', 'farm_crops'];
+foreach ($check_tables as $table) {
+    $check = $db->query("SHOW TABLES LIKE '{$table}'");
+    if ($db->num_rows($check) == 0) {
+        $tables_exist = false;
+        break;
     }
 }
+
+// If tables don't exist or version is less than 3.2, show upgrade message
+if (!$tables_exist || ($db_version && version_compare($db_version, '3.2.0', '<'))) {
+    ?>
+    <div class="container-fluid">
+        <div class="alert alert-warning">
+            <h4><i class="fas fa-exclamation-triangle"></i> Feature Not Available</h4>
+            <p>The Farming System requires Chivalry Engine v3.2.0 or higher.</p>
+            <?php if ($userid == 1): ?>
+                <p>Please run the database update to install this feature.</p>
+                <a href="uplift_check.php" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Run Database Update
+                </a>
+            <?php else: ?>
+                <p>Please contact an administrator to update the game.</p>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+    $h->endpage();
+    exit;
+}
+
+if (!$tables_exist) {
+    // Create tables
+    $db->query("
+        CREATE TABLE IF NOT EXISTS `farm_users` (
+            `userid` int(11) unsigned NOT NULL,
+            `farm_level` int(11) NOT NULL DEFAULT 1,
+            `farm_xp` int(11) NOT NULL DEFAULT 0,
+            `xp_needed` int(11) NOT NULL DEFAULT 100,
+            `farm_water_available` int(11) NOT NULL DEFAULT 0,
+            `farm_water_max` int(11) NOT NULL DEFAULT 0,
+            PRIMARY KEY (`userid`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    
+    $db->query("
+        CREATE TABLE IF NOT EXISTS `farm_fields` (
+            `field_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+            `userid` int(11) unsigned NOT NULL,
+            `crop_id` int(11) unsigned DEFAULT 0,
+            `field_status` enum('empty','growing','dead') DEFAULT 'empty',
+            `planted_at` int(11) DEFAULT 0,
+            `health` int(11) DEFAULT 100,
+            `last_tended` int(11) DEFAULT 0,
+            PRIMARY KEY (`field_id`),
+            KEY `userid` (`userid`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    
+    $db->query("
+        CREATE TABLE IF NOT EXISTS `farm_crops` (
+            `crop_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+            `crop_name` varchar(100) NOT NULL,
+            `crop_icon` varchar(50) DEFAULT '🌾',
+            `level_required` int(11) NOT NULL DEFAULT 1,
+            `seed_cost` int(11) NOT NULL,
+            `sell_price` int(11) NOT NULL,
+            `grow_time` int(11) NOT NULL,
+            `xp_reward` int(11) NOT NULL DEFAULT 10,
+            `item_id` int(11) unsigned DEFAULT 0,
+            PRIMARY KEY (`crop_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    
+    // Add sample crops
+    $db->query("
+        INSERT IGNORE INTO `farm_crops` 
+        (`crop_name`, `crop_icon`, `level_required`, `seed_cost`, `sell_price`, `grow_time`, `xp_reward`) VALUES
+        ('Wheat', '🌾', 1, 100, 200, 300, 5),
+        ('Corn', '🌽', 2, 250, 500, 600, 10),
+        ('Tomatoes', '🍅', 3, 500, 1000, 900, 15),
+        ('Potatoes', '🥔', 4, 750, 1500, 1200, 20),
+        ('Carrots', '🥕', 5, 1000, 2000, 1500, 25),
+        ('Pumpkins', '🎃', 6, 1500, 3000, 1800, 30),
+        ('Grapes', '🍇', 7, 2000, 4000, 2400, 35),
+        ('Strawberries', '🍓', 8, 3000, 6000, 3000, 40),
+        ('Watermelons', '🍉', 10, 5000, 10000, 3600, 50)
+    ");
+}
+
+// Initialize system
+$farm_system = new FarmingSystem($db, $userid, $api);
+
+// Handle actions
+if (isset($_POST['action'])) {
+    $result = null;
+    
+    // Debug info (remove in production)
+    error_log("Farm action: " . $_POST['action']);
+    
+    switch($_POST['action']) {
+        case 'build_well':
+            $result = $farm_system->buildWell();
+            break;
+            
+        case 'buy_field':
+            $result = $farm_system->buyField();
+            break;
+            
+        case 'fill_well':
+            $result = $farm_system->fillWell();
+            break;
+            
+        case 'plant':
+            $field_id = isset($_POST['field_id']) ? abs((int)$_POST['field_id']) : 0;
+            $crop_id = isset($_POST['crop_id']) ? abs((int)$_POST['crop_id']) : 0;
+            
+            // Validate input
+            if ($field_id == 0 || $crop_id == 0) {
+                $result = ['success' => false, 'message' => 'Please select a valid field and crop!'];
+            } else {
+                $result = $farm_system->plantCrop($field_id, $crop_id);
+            }
+            break;
+            
+        case 'tend':
+            $field_id = isset($_POST['field_id']) ? abs((int)$_POST['field_id']) : 0;
+            if ($field_id == 0) {
+                $result = ['success' => false, 'message' => 'Invalid field!'];
+            } else {
+                $result = $farm_system->tendField($field_id);
+            }
+            break;
+            
+        case 'harvest':
+            $field_id = isset($_POST['field_id']) ? abs((int)$_POST['field_id']) : 0;
+            if ($field_id == 0) {
+                $result = ['success' => false, 'message' => 'Invalid field!'];
+            } else {
+                $result = $farm_system->harvestCrop($field_id);
+            }
+            break;
+            
+        default:
+            $result = ['success' => false, 'message' => 'Invalid action!'];
+            break;
+    }
+    
+    if ($result) {
+        alert($result['success'] ? 'success' : 'danger',
+              $result['success'] ? 'Success!' : 'Failed!',
+              $result['message'], false);
+    }
+}
+
+// Get data
+$farmData = $farm_system->getFarmData();
+// Ensure xp_needed field exists
+if (!isset($farmData['xp_needed'])) {
+    $farmData['xp_needed'] = $farmData['farm_level'] * 100;
+}
+$fields = $farm_system->getFields();
+$crops = $farm_system->getCrops();
+
+?>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-gradient-success text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h2 class="mb-0"><i class="fas fa-tractor me-2"></i>Farming</h2>
+                            <p class="mb-0 mt-2">Plant crops, tend your fields, and harvest your bounty!</p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <div class="d-inline-block text-center mx-2">
+                                <h4 class="mb-0">Level <?php echo $farmData['farm_level']; ?></h4>
+                                <small>Farming Level</small>
+                            </div>
+                            <div class="d-inline-block text-center mx-2">
+                                <h4 class="mb-0"><?php echo number_format($farmData['farm_xp']); ?>/<?php echo number_format($farmData['xp_needed']); ?></h4>
+                                <small>Experience</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <?php if ($farmData['farm_water_max'] == 0): ?>
+        <!-- Need to build well -->
+        <div class="alert alert-info">
+            <h4><i class="fas fa-info-circle"></i> Build Your Well</h4>
+            <p>You need to build a well before you can start farming. This will cost <?php echo number_format($farm_system->config['wellCost']); ?> gold.</p>
+            <form method="POST">
+                <input type="hidden" name="action" value="build_well">
+                <?php echo getHtmlCSRF('farm_well'); ?>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-hammer"></i> Build Well (<?php echo number_format($farm_system->config['wellCost']); ?> gold)
+                </button>
+            </form>
+        </div>
+    <?php else: ?>
+        
+        <!-- Water Management -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-tint"></i> Water Supply</h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-info" 
+                                 style="width: <?php echo ($farmData['farm_water_available'] / $farmData['farm_water_max']) * 100; ?>%">
+                                <?php echo $farmData['farm_water_available']; ?> / <?php echo $farmData['farm_water_max']; ?> Buckets
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="action" value="fill_well">
+                            <?php echo getHtmlCSRF('farm_fill'); ?>
+                            <button type="submit" class="btn btn-info btn-sm">
+                                <i class="fas fa-fill"></i> Fill Well
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Crop Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Available Crops</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Crop</th>
+                                <th>Level</th>
+                                <th>Cost</th>
+                                <th>Time</th>
+                                <th>Sells For</th>
+                                <th>XP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($crops as $crop): ?>
+                            <tr class="<?php echo $crop['level_required'] > $farmData['farm_level'] ? 'text-muted' : ''; ?>">
+                                <td><?php echo $crop['crop_icon']; ?> <?php echo $crop['crop_name']; ?></td>
+                                <td><?php echo $crop['level_required']; ?></td>
+                                <td><?php echo number_format($crop['seed_cost']); ?>g</td>
+                                <td><?php echo round($crop['grow_time'] / 60); ?>m</td>
+                                <td><?php echo number_format($crop['sell_price']); ?>g</td>
+                                <td><?php echo $crop['xp_reward']; ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Fields -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-seedling"></i> Your Fields</h5>
+                <?php if (count($fields) < $farm_system->config['maxFields']): ?>
+                <form method="POST" class="d-inline">
+                    <input type="hidden" name="action" value="buy_field">
+                    <?php echo getHtmlCSRF('farm_buy_field'); ?>
+                    <button type="submit" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> Buy New Field
+                    </button>
+                </form>
+                <?php endif; ?>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <?php foreach ($fields as $field): ?>
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                Field #<?php echo $field['field_id']; ?>
+                            </div>
+                            <div class="card-body text-center">
+                                <?php if ($field['field_status'] == 'empty'): ?>
+                                    <div class="mb-3" style="font-size: 3rem;">🌱</div>
+                                    <p>Empty Field</p>
+                                    <form method="POST" class="text-center">
+                                        <input type="hidden" name="action" value="plant">
+                                        <input type="hidden" name="field_id" value="<?php echo $field['field_id']; ?>">
+                                        <?php echo getHtmlCSRF('farm_plant_' . $field['field_id']); ?>
+                                        
+                                        <select name="crop_id" class="form-select form-select-sm mb-2" required>
+                                            <option value="">-- Select Crop --</option>
+                                            <?php foreach ($crops as $crop): ?>
+                                                <?php if ($crop['level_required'] <= $farmData['farm_level']): ?>
+                                                <option value="<?php echo $crop['crop_id']; ?>">
+                                                    <?php echo $crop['crop_icon']; ?> <?php echo $crop['crop_name']; ?> (<?php echo number_format($crop['seed_cost']); ?>g)
+                                                </option>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        
+                                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                                            <i class="fas fa-seedling"></i> Plant
+                                        </button>
+                                    </form>
+                                    
+                                <?php elseif ($field['field_status'] == 'growing'): ?>
+                                    <div class="mb-2" style="font-size: 3rem;"><?php echo $field['crop_icon'] ?? '🌾'; ?></div>
+                                    <h6><?php echo $field['crop_name']; ?></h6>
+                                    
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div class="progress-bar bg-success" 
+                                             style="width: <?php echo $field['growth_percent']; ?>%">
+                                            <?php echo round($field['growth_percent']); ?>%
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small>Health: <?php echo $field['health']; ?>%</small>
+                                    </div>
+                                    
+                                    <?php if ($field['can_harvest']): ?>
+                                        <form method="POST">
+                                            <input type="hidden" name="action" value="harvest">
+                                            <input type="hidden" name="field_id" value="<?php echo $field['field_id']; ?>">
+                                            <?php echo getHtmlCSRF('farm_harvest'); ?>
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                <i class="fas fa-hand-holding"></i> Harvest
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <p class="small mb-1">Ready in <?php echo round($field['time_remaining'] / 60); ?> min</p>
+                                        <form method="POST">
+                                            <input type="hidden" name="action" value="tend">
+                                            <input type="hidden" name="field_id" value="<?php echo $field['field_id']; ?>">
+                                            <?php echo getHtmlCSRF('farm_tend'); ?>
+                                            <button type="submit" class="btn btn-info btn-sm">
+                                                <i class="fas fa-hand-holding-water"></i> Tend Field
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                    
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    
+                    <?php if (empty($fields)): ?>
+                    <div class="col-12">
+                        <p class="text-muted">You don't have any fields yet.</p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        
+    <?php endif; ?>
+    
+    <!-- Info -->
+    <div class="card">
+        <div class="card-body">
+            <h5><i class="fas fa-info-circle"></i> Farming Guide</h5>
+            <ul>
+                <li>Plant crops in your fields using seeds</li>
+                <li>Tend your fields regularly to maintain crop health</li>
+                <li>Harvest crops when they're fully grown</li>
+                <li>Higher farming levels unlock better crops</li>
+                <li>Field health affects your harvest yield</li>
+                <li>Water is required for tending fields</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<?php
+$h->endpage();
+?>

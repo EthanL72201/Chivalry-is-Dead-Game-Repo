@@ -1,14 +1,35 @@
 <?php
 /*
-	File: staff/staff_polling.php
-	Created: 9/27/2016 at 8:41PM Eastern Time
-	Info: Allows staff to create in-game polls.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine
+	File: 		staff/staff_polling.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to do actions relating to the in-game polls.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('sglobals.php');
-echo "<h3>Staff Polling</h3><hr />";
-if ($api->UserMemberLevelGet($userid, 'Assistant') == false) {
+if (!$api->user->getStaffLevel($userid, 'Admin')) {
     alert('danger', "Uh Oh!", "You do not have permission to be here.");
     die($h->endpage());
 }
@@ -23,15 +44,21 @@ switch ($_GET['action']) {
         close();
         break;
     default:
-        alert('danger', "Uh Oh!", "Please select a valid action to perform.", true, 'index.php');
-        die($h->endpage());
+        menu();
         break;
+}
+function menu()
+{
+	echo "<h3>Polling Staff Menu</h3><hr />
+	<a href='?action=addpoll' class='btn btn-primary'>Create Poll</a><br /><br />
+	<a href='?action=closepoll' class='btn btn-primary'>Close Poll</a><br /><br />";
 }
 function add()
 {
+	echo "<h3>Starting a Poll...</h3><hr />";
     global $db, $h, $userid, $api;
     if (isset($_POST['question'])) {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_startpoll', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_startpoll', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quickly next time.");
             die($h->endpage());
         }
@@ -60,15 +87,14 @@ function add()
                      '$choice7', '$choice8', '$choice9' ,'$choice10',
                      '{$_POST['hidden']}')");
         alert('success', "Success!", "You have successfully created a poll.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Started a game poll.");
-        $q = $db->query("/*qc=on*/SELECT `userid`, `username` FROM `users`");
+        $api->game->addLog($userid, 'staff', "Started a game poll.");
+        $q = $db->query("SELECT `userid`, `username` FROM `users`");
         while ($r = $db->fetch_row($q)) {
-            notification_add($r['userid'], "The game administration has added a poll for you to vote in. Please do so by visiting <a href='polling.php'>here</a>.");
+            addNotification($r['userid'], "The game administration has added a poll for you to vote in. Please do so by visiting <a href='polling.php'>here</a>.");
         }
         die($h->endpage());
     } else {
-        echo "Start a Poll";
-        $csrf = request_csrf_html('staff_startpoll');
+        $csrf = getHtmlCSRF('staff_startpoll');
         echo "<hr />
 		<form method='post'>
 		<table class='table table-bordered'>
@@ -185,9 +211,10 @@ function add()
 function close()
 {
     global $db, $h, $api, $userid;
+	echo "<h3>Close a Poll...</h3><hr />";
     $_POST['poll'] = (isset($_POST['poll']) && is_numeric($_POST['poll'])) ? abs(intval($_POST['poll'])) : '';
     if (empty($_POST['poll'])) {
-        $csrf = request_csrf_html('staff_endpoll');
+        $csrf = getHtmlCSRF('staff_endpoll');
         echo "
         Select the poll you wish to end.
         <br />
@@ -195,7 +222,7 @@ function close()
            ";
         $q =
             $db->query(
-                "/*qc=on*/SELECT `id`, `question`
+                "SELECT `id`, `question`
                          FROM `polls`
                          WHERE `active` = '1'");
         echo "<select name='poll' class='form-control' type='dropdown'>";
@@ -209,11 +236,11 @@ function close()
    		";
         $h->endpage();
     } else {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_endpoll', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_endpoll', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quickly next time.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT COUNT(`id`) FROM `polls` WHERE `id` = {$_POST['poll']}");
+        $q = $db->query("SELECT COUNT(`id`) FROM `polls` WHERE `id` = {$_POST['poll']}");
         if ($db->fetch_single($q) == 0) {
             $db->free_result($q);
             alert('danger', "Uh Oh!", "This poll does not exist, and thus, cannot be ended.");
@@ -222,11 +249,12 @@ function close()
         $db->free_result($q);
         $db->query("UPDATE `polls` SET `active` = '0' WHERE `id` = {$_POST['poll']}");
         alert('success', "Success!", "You have closed this poll to respones.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Closed a game poll.");
-        $q = $db->query("/*qc=on*/SELECT `userid`, `username` FROM `users`");
+        $api->game->addLog($userid, 'staff', "Closed a game poll.");
+        $q = $db->query("SELECT `userid`, `username` FROM `users`");
         while ($r = $db->fetch_row($q)) {
-            notification_add($r['userid'], "The game administration has closed a recent poll. View the results <a href='polling.php?action=viewpolls'>here</a>.");
+            addNotification($r['userid'], "The game administration has closed a recent poll. View the results <a href='polling.php?action=viewpolls'>here</a>.");
         }
         die($h->endpage());
     }
 }
+$h->endpage();

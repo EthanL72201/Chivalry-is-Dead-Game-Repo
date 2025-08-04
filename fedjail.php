@@ -1,182 +1,147 @@
 <?php
 /*
 	File:		fedjail.php
-	Created: 	4/5/2016 at 12:01AM Eastern Time
-	Info: 		Lists those placed into the federal jail. Players in
-				federal jail cannot interact with the game at all.
-				Consider it like an in-game ban.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Shows the players removed from the game. Players in 
+				the federal dungeon cannot interact with the game in 
+				any way, shape or form until their sentence is complete.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('globals.php');
-alert('danger','',"Players in the federal dungeon have broken the rules and have been removed from the game in hopes they fix their ways.", false);
-$q = $db->query("/*qc=on*/SELECT * FROM `fedjail` ORDER BY `fed_out` ASC");
-echo "
-<div class='card'>
-    <div class='card-header'>
-        {$set['WebsiteName']} Federal Jail
-    </div>
-    <div class='card-body'>";
+echo "<h3>Federal Dungeon</h3>
+	This is where you go if you break the game rules. Be smart, follow the rules!";
+$q = $db->query("SELECT * FROM `fedjail` ORDER BY `fed_out` ASC");
+echo "<div class='container'>
+<div class='row'>
+		<div class='col-sm'>
+		    <h4>User</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Reason</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Sentence</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Jailer</h4>
+		</div>
+</div><hr />";
 //List all the players in the federal jail.
 while ($r = $db->fetch_row($q)) {
     echo "
-    <div class='row'>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Player</b></small>
-                </div>
-                <div class='col-12'>
-                    <a href='profile.php?user={$r['fed_userid']}'>" . parseUsername($r['fed_userid']) . " " . parseUserID($r['fed_userid']) . "</a>
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Reason</b></small>
-                </div>
-                <div class='col-12'>
-                    {$r['fed_reason']}
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Sentence</b></small>
-                </div>
-                <div class='col-12'>
-                    " . TimeUntil_Parse($r['fed_out']) . "
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Jailer</b></small>
-                </div>
-                <div class='col-12'>
-                    <a href='profile.php?user={$r['fed_jailedby']}'>" . parseUsername($r['fed_jailedby']) . " " . parseUserID($r['fed_jailedby']) . "</a>
-                </div>
-            </div>
-        </div>
+	<div class='row'>
+    	<div class='col-sm'>
+    		<a href='profile.php?user={$r['fed_userid']}'>{$api->user->getNamefromID($r['fed_userid'])}</a>
+    	</div>
+    	<div class='col-sm'>
+			" . timeUntilParse($r['fed_out']) . "
+		</div>
+    	<div class='col-sm'>
+			{$r['fed_reason']}
+		</div>
+    	<div class='col-sm'>
+    		<a href='profile.php?user={$r['fed_jailedby']}'>{$api->user->getNamefromID($r['fed_jailedby'])}</a>
+    	</div>
     </div><hr />";
 }
-echo "</div></div><br />";
+echo "</div>";
 $db->free_result($q);
-alert('warning',"","If you spam or abuse the mail or comment system, you may lose your privlegdes.",false);
-$q = $db->query("/*qc=on*/SELECT * FROM `mail_bans` ORDER BY `mbTIME` ASC");
-echo "
-<div class='card'>
-    <div class='card-header'>
-        {$set['WebsiteName']} Mail Bans
-    </div>
-    <div class='card-body'>";
+echo "We have no real good reason to put mail banned players here... but we still did.";
+$q = $db->query("SELECT * FROM `mail_bans` ORDER BY `mbTIME` ASC");
+echo "<div class='container'>
+<div class='row'>
+		<div class='col-sm'>
+		    <h4>User</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Reason</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Sentence</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Jailer</h4>
+		</div>
+</div><hr />";
 //List all the players who are mail banned
 while ($r = $db->fetch_row($q)) {
-	echo "
-    <div class='row'>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Player</b></small>
-                </div>
-                <div class='col-12'>
-                    <a href='profile.php?user={$r['mbUSER']}'>" . parseUsername($r['mbUSER']) . " " . parseUserID($r['mbUSER']) . "</a>
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Reason</b></small>
-                </div>
-                <div class='col-12'>
-                    {$r['mbREASON']}
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Ban Time</b></small>
-                </div>
-                <div class='col-12'>
-                    " . TimeUntil_Parse($r['mbTIME']) . "
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Jailer</b></small>
-                </div>
-                <div class='col-12'>
-                    <a href='profile.php?user={$r['mbBANNER']}'>" . parseUsername($r['mbBANNER']) . " " . parseUserID($r['mbBANNER']) . "</a>
-                </div>
-            </div>
-        </div>
+    echo "
+	<div class='row'>
+    	<div class='col-sm'>
+    		<a href='profile.php?user={$r['mbUSER']}'>{$api->user->getNamefromID($r['mbUSER'])}</a>
+    	</div>
+    	<div class='col-sm'>
+			" . timeUntilParse($r['mbTIME']) . "
+		</div>
+    	<div class='col-sm'>
+			{$r['mbREASON']}
+		</div>
+    	<div class='col-sm'>
+    		<a href='profile.php?user={$r['mbBANNER']}'>{$api->user->getNamefromID($r['mbBANNER'])}</a>
+    	</div>
     </div><hr />";
 }
-echo "</div></div><br />";
+echo "</div>";
 $db->free_result($q);
 
-alert('warning',"","We want the forums to be civlized... if you can't help yourself, we can remove your prilvegdes to the forums.",false);
-$q = $db->query("/*qc=on*/SELECT * FROM `forum_bans` ORDER BY `fb_time` ASC");
-echo "
-<div class='card'>
-    <div class='card-header'>
-        {$set['WebsiteName']} Forum Bans
-    </div>
-    <div class='card-body'>";
+echo "The same holds true for forum bans.";
+$q = $db->query("SELECT * FROM `forum_bans` ORDER BY `fb_time` ASC");
+echo "<div class='container'>
+<div class='row'>
+		<div class='col-sm'>
+		    <h4>User</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Reason</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Sentence</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Jailer</h4>
+		</div>
+</div><hr />";
 //List all the players who are mail banned
 while ($r = $db->fetch_row($q)) {
-	echo "
-    <div class='row'>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Player</b></small>
-                </div>
-                <div class='col-12'>
-                    <a href='profile.php?user={$r['fb_user']}'>" . parseUsername($r['fb_user']) . " " . parseUserID($r['fb_user']) . "</a>
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Reason</b></small>
-                </div>
-                <div class='col-12'>
-                    {$r['fb_reason']}
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Ban Time</b></small>
-                </div>
-                <div class='col-12'>
-                    " . TimeUntil_Parse($r['fb_time']) . "
-                </div>
-            </div>
-        </div>
-        <div class='col-auto col-sm-6 col-md-3'>
-            <div class='row'>
-                <div class='col-12'>
-                    <small><b>Jailer</b></small>
-                </div>
-                <div class='col-12'>
-                    <a href='profile.php?user={$r['fb_banner']}'>" . parseUsername($r['fb_banner']) . " " . parseUserID($r['fb_banner']) . "</a>
-                </div>
-            </div>
-        </div>
+    echo "
+	<div class='row'>
+    	<div class='col-sm'>
+    		<a href='profile.php?user={$r['fb_user']}'>{$api->user->getNamefromID($r['fb_user'])}</a>
+    	</div>
+    	<div class='col-sm'>
+			" . timeUntilParse($r['fb_time']) . "
+		</div>
+    	<div class='col-sm'>
+			{$r['fb_reason']}
+		</div>
+    	<div class='col-sm'>
+    		<a href='profile.php?user={$r['fb_banner']}'>{$api->user->getNamefromID($r['fb_banner'])}</a>
+    	</div>
     </div><hr />";
 }
-echo "</table>";
+echo "</div>";
 $db->free_result($q);
 
 $h->endpage();

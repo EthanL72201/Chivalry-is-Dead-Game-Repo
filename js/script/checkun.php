@@ -1,10 +1,32 @@
 <?php
 /*
-	File: js//script/checkun.php
-	Created: 4/4/2017 at 7:10PM Eastern Time
-	Info: PHP file for checking a user's inputted username
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine
+	File: 		js/script/check.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Checks the inputted username to see if its already in use, or invalid.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 $menuhide = 1;
 if (isset($_SERVER['REQUEST_METHOD']) && is_string($_SERVER['REQUEST_METHOD'])) {
@@ -15,17 +37,17 @@ if (isset($_SERVER['REQUEST_METHOD']) && is_string($_SERVER['REQUEST_METHOD'])) 
     }
 }
 require_once('../../global_func.php');
-if (!is_ajax()) {
+if (!isAjax()) {
     header('HTTP/1.1 400 Bad Request');
     exit;
 }
 require_once('../../globals_nonauth.php');
-$username = (isset($_POST['username']) && preg_match("/^[a-z0-9_]+([\\s]{1}[a-z0-9_]|[a-z0-9_])*$/i", $_POST['username'])) ? $db->escape(strip_tags(stripslashes($_POST['username']))) : '';
+$username = isset($_POST['username']) ? stripslashes($_POST['username']) : '';
 $e_username = $db->escape($username);
-$q = $db->query("/*qc=on*/SELECT COUNT(`userid`) FROM users WHERE username = '{$e_username}'");
+$q = $db->query("SELECT COUNT(`userid`) FROM users WHERE username = '{$e_username}'");
 if (empty($username)) {
     $newclass = 'form-control is-invalid';
-    $warning = "Please enter a valid username.";
+    $warning = "Please enter a username.";
 
 } else if ((strlen($username) < 3)) {
     $newclass = 'form-control is-invalid';

@@ -1,14 +1,36 @@
 <?php
 /*
-	File: staff/staff_mine.php
-	Created: 4/4/2017 at 7:03PM Eastern Time
-	Info: Staff panel for handling/editing/creating the in-game mines.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine/
+	File: 		staff/staff_mine.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to do actions relating to the in-game mines.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('sglobals.php');
 echo "<h2>Staff Mines</h2><hr />";
-if ($api->UserMemberLevelGet($userid, 'Admin') == false) {
+if (!$api->user->getStaffLevel($userid, 'Admin')) {
     alert('danger', "Uh Oh!", "You do not have permission to be here.");
     die($h->endpage());
 }
@@ -26,9 +48,15 @@ switch ($_GET['action']) {
         delmine();
         break;
     default:
-        alert('danger', "Uh Oh!", "Please select a valid action to perform.", true, 'index.php');
-        die($h->endpage());
+        menu();
         break;
+}
+function menu()
+{
+	echo "<h3>Mining Staff Menu</h3><hr />
+    <a href='?action=addmine' class='btn btn-primary'>Create Mine</a><br /><br />
+    <a href='?action=editmine' class='btn btn-primary'>Edit Mine</a><br /><br />
+    <a href='?action=delmine' class='btn btn-primary'>Delete Mine</a><br /><br />";
 }
 function addmine()
 {
@@ -67,12 +95,12 @@ function addmine()
             alert('danger', "Uh Oh!", "Your output minimums cannot be higher than their maximums.");
             die($h->endpage());
         } else {
-            $CitySQL = ($db->query("/*qc=on*/SELECT `town_name` FROM `town` WHERE `town_id` = {$city}"));
-            $PickSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$pick}"));
-            $CFSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$cflakes}"));
-            $SFSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$sflakes}"));
-            $GFSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$gflakes}"));
-            $GemSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$gem}"));
+            $CitySQL = ($db->query("SELECT `town_name` FROM `town` WHERE `town_id` = {$city}"));
+            $PickSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$pick}"));
+            $CFSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$cflakes}"));
+            $SFSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$sflakes}"));
+            $GFSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$gflakes}"));
+            $GemSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$gem}"));
 
             if ($db->num_rows($CitySQL) == 0) {
                 alert('danger', "Uh Oh!", "The town you've chosen does not exist.");
@@ -108,8 +136,8 @@ function addmine()
                 '{$gflakesmin}', '{$gflakesmax}', '{$pick}', '{$iq}', 
                 '{$power}', '{$cflakes}', '{$sflakes}', '{$gflakes}', 
                 '{$gem}');");
-                $api->SystemLogsAdd($userid, "staff", "Added a mine in " . $api->SystemTownIDtoName($city));
-                alert('success', "Success!", "You have successfully created a mine in " . $api->SystemTownIDtoName($city));
+                $api->game->addLog($userid, "staff", "Added a mine in " . $api->game->getTownNameFromID($city));
+                alert('success', "Success!", "You have successfully created a mine in " . $api->game->getTownNameFromID($city));
                 die($h->endpage());
             }
 
@@ -128,7 +156,7 @@ function addmine()
 						Location
                     </th>
                     <td>
-                        " . location_dropdown("city") . "
+                        " . dropdownLocation("city") . "
                     </td>
                 </tr>
                 <tr>
@@ -141,7 +169,7 @@ function addmine()
                 </tr>
                 <tr>
                     <th>
-						IQ Requirement
+						" . constant("stat_iq") . " Requirement
                     </th>
                     <td>
                         <input type='number' class='form-control' name='IQ' min='1' required='1'> 
@@ -160,7 +188,7 @@ function addmine()
 						Required Pickaxe
                     </th>
                     <td>
-                        " . item_dropdown("pick") . "
+                        " . dropdownItem("pick") . "
                     </td>
                 </tr>
                 <tr>
@@ -168,7 +196,7 @@ function addmine()
 						Item #1
                     </th>
                     <td>
-                        " . item_dropdown("cflakes") . "
+                        " . dropdownItem("cflakes") . "
                     </td>
                 </tr>
                 <tr>
@@ -176,7 +204,7 @@ function addmine()
 						Item #2
                     </th>
                     <td>
-                        " . item_dropdown("sflakes") . "
+                        " . dropdownItem("sflakes") . "
                     </td>
                 </tr>
                 <tr>
@@ -184,7 +212,7 @@ function addmine()
 						Item #3
                     </th>
                     <td>
-                        " . item_dropdown("gflakes") . "
+                        " . dropdownItem("gflakes") . "
                     </td>
                 </tr>
                 <tr>
@@ -192,7 +220,7 @@ function addmine()
 						Gem Item
                     </th>
                     <td>
-                        " . item_dropdown("gem") . "
+                        " . dropdownItem("gem") . "
                     </td>
                 </tr>
                 <tr>
@@ -294,12 +322,12 @@ function editmine()
             alert('danger', "Uh Oh!", "The item minimum outputs cannot be higher than their maximums.");
             die($h->endpage());
         } else {
-            $CitySQL = ($db->query("/*qc=on*/SELECT `town_name` FROM `town` WHERE `town_id` = {$city}"));
-            $PickSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$pick}"));
-            $CFSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$cflakes}"));
-            $SFSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$sflakes}"));
-            $GFSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$gflakes}"));
-            $GemSQL = ($db->query("/*qc=on*/SELECT `itmname` FROM `items` WHERE `itmid` = {$gem}"));
+            $CitySQL = ($db->query("SELECT `town_name` FROM `town` WHERE `town_id` = {$city}"));
+            $PickSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$pick}"));
+            $CFSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$cflakes}"));
+            $SFSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$sflakes}"));
+            $GFSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$gflakes}"));
+            $GemSQL = ($db->query("SELECT `itmname` FROM `items` WHERE `itmid` = {$gem}"));
             if ($db->num_rows($CitySQL) == 0) {
                 alert('danger', "Uh Oh!", "The town you have chosen does not exist.");
                 die($h->endpage());
@@ -325,7 +353,7 @@ function editmine()
                 `mine_gold_item` = '{$gflakes}', `mine_gold_max` = '{$gflakesmax}', `mine_gold_min` = '{$gflakesmin}', 
                 `mine_pickaxe` = '{$pick}', `mine_iq` = '{$iq}', `mine_gem_item` = '{$gem}', `mine_power_use` = '{$power}' 
                 WHERE `mine_id` = {$mine}");
-                $api->SystemLogsAdd($userid, "staff", "Edited Mine ID #{$mine}");
+                $api->game->addLog($userid, "staff", "Edited Mine ID #{$mine}");
                 alert('success', "Success!", "You have successfully edited Mine ID #{$mine}.", true, 'index.php');
                 die($h->endpage());
             }
@@ -333,11 +361,11 @@ function editmine()
         }
     } elseif ($_POST['step'] == 1) {
         $mine = (isset($_POST['mine']) && is_numeric($_POST['mine'])) ? abs(intval($_POST['mine'])) : '';
-        if ($db->num_rows($db->query("/*qc=on*/SELECT * FROM `mining_data` WHERE `mine_id` = {$mine}")) == 0) {
+        if ($db->num_rows($db->query("SELECT * FROM `mining_data` WHERE `mine_id` = {$mine}")) == 0) {
             alert('danger', "Uh Oh!", "You are trying to edit a non-existent mine.");
             die($h->endpage());
         } else {
-            $mi = $db->fetch_row($db->query("/*qc=on*/SELECT * FROM `mining_data` WHERE `mine_id` = {$mine}"));
+            $mi = $db->fetch_row($db->query("SELECT * FROM `mining_data` WHERE `mine_id` = {$mine}"));
             echo "Edit a mine with this form. The name of the mine will be based on its location and level.<br />
             <table class='table table-bordered'>
                 <form method='post'>
@@ -348,7 +376,7 @@ function editmine()
 							Location
                         </th>
                         <td>
-                            " . location_dropdown("city", $mi['mine_location']) . "
+                            " . dropdownLocation("city", $mi['mine_location']) . "
                         </td>
                     </tr>
                     <tr>
@@ -361,7 +389,7 @@ function editmine()
                     </tr>
                     <tr>
                         <th>
-                            IQ Requirement
+                           " . constant("stat_strength") . " Requirement
                         </th>
                         <td>
                             <input type='number' class='form-control' name='iq' min='1' value='{$mi['mine_iq']}' required='1'> 
@@ -380,7 +408,7 @@ function editmine()
                             Pickaxe Item
                         </th>
                         <td>
-                            " . item_dropdown("pick", $mi['mine_pickaxe']) . "
+                            " . dropdownItem("pick", $mi['mine_pickaxe']) . "
                         </td>
                     </tr>
                     <tr>
@@ -388,7 +416,7 @@ function editmine()
                             Item #1
                         </th>
                         <td>
-                            " . item_dropdown("cflakes", $mi['mine_copper_item']) . "
+                            " . dropdownItem("cflakes", $mi['mine_copper_item']) . "
                         </td>
                     </tr>
                     <tr>
@@ -396,7 +424,7 @@ function editmine()
                             Item #2
                         </th>
                         <td>
-                            " . item_dropdown("sflakes", $mi['mine_silver_item']) . "
+                            " . dropdownItem("sflakes", $mi['mine_silver_item']) . "
                         </td>
                     </tr>
                     <tr>
@@ -404,7 +432,7 @@ function editmine()
                             Item #3
                         </th>
                         <td>
-                            " . item_dropdown("gflakes", $mi['mine_gold_item']) . "
+                            " . dropdownItem("gflakes", $mi['mine_gold_item']) . "
                         </td>
                     </tr>
                     <tr>
@@ -412,7 +440,7 @@ function editmine()
                             Gem Item
                         </th>
                         <td>
-                            " . item_dropdown("gem", $mi['mine_gem_item']) . "
+                            " . dropdownItem("gem", $mi['mine_gem_item']) . "
                         </td>
                     </tr>
                     <tr>
@@ -472,7 +500,7 @@ function editmine()
             </table>";
         }
     } else {
-        echo "/*qc=on*/SELECT the mine you wish to edit.<br />
+        echo "Select the mine you wish to edit.<br />
         <form method='post'>
         <input type='hidden' name='step' value='1'>
         " . mines_dropdown("mine") . "<br />
@@ -486,22 +514,50 @@ function delmine()
     global $db, $userid, $api, $h;
     if (isset($_POST['mine'])) {
         $mine = (isset($_POST['mine']) && is_numeric($_POST['mine'])) ? abs(intval($_POST['mine'])) : '';
-        if ($db->num_rows($db->query("/*qc=on*/SELECT * FROM `mining_data` WHERE `mine_id` = {$mine}")) == 0) {
+        if ($db->num_rows($db->query("SELECT * FROM `mining_data` WHERE `mine_id` = {$mine}")) == 0) {
             alert('danger', "Uh Oh!", "You are trying to delete a non-existent mine.");
             die($h->endpage());
         } else {
             $db->query("DELETE FROM `mining_data` WHERE `mine_id` = {$mine}");
-            $api->SystemLogsAdd($userid, "staff", "Deleted a mine.");
+            $api->game->addLog($userid, "staff", "Deleted a mine.");
             alert('success', "Success!", "You have successfully deleted this mine.", true, 'index.php');
             die($h->endpage());
         }
     } else {
-        echo "/*qc=on*/SELECT the mine you wish to delete. This cannot be undone.<br />
+        echo "Select the mine you wish to delete. This cannot be undone.<br />
         <form method='post'>
         " . mines_dropdown("mine") . "<br />
         <input type='submit' class='btn btn-primary' value='Delete Mine'>
         ";
     }
+}
+
+function mines_dropdown($ddname = "mine", $selected = -1)
+{
+    global $db;
+    $ret = "<select name='$ddname' class='form-control' type='dropdown'>";
+    $q =
+        $db->query(
+            "SELECT `mine_id`, `mine_location`, `mine_level`
+                     FROM `mining_data`
+                     ORDER BY `mine_level` ASC");
+    if ($selected == -1) {
+        $first = 0;
+    } else {
+        $first = 1;
+    }
+    while ($r = $db->fetch_row($q)) {
+        $CityName = $db->fetch_single($db->query("SELECT `town_name` FROM `town` WHERE `town_id` = {$r['mine_location']}"));
+        $ret .= "\n<option value='{$r['mine_id']}'";
+        if ($selected == $r['mine_id'] || $first == 0) {
+            $ret .= " selected='selected'";
+            $first = 1;
+        }
+        $ret .= ">{$CityName} - Level {$r['mine_level']}</option>";
+    }
+    $db->free_result($q);
+    $ret .= "\n</select>";
+    return $ret;
 }
 
 $h->endpage();

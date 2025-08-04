@@ -1,10 +1,31 @@
 <?php
 /*
 	File:		sendcash.php
-	Created: 	10/03/2017 at 11:57AM Eastern Time
-	Info: 		Send cash to your friends! Wowza!
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows players to send Primary Currency to other players.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('globals.php');
 if (isset($_GET['user'])) {
@@ -13,7 +34,7 @@ if (isset($_GET['user'])) {
         alert('danger', 'Uh Oh!', 'Please specify a valid user to send cash to.', true, 'index.php');
         die($h->endpage());
     }
-    if (!$api->SystemUserIDtoName($_GET['user'])) {
+    if (!$api->user->getNamefromID($_GET['user'])) {
         alert('danger', 'Uh Oh!', 'Please specify an existing user to send cash to.', true, 'index.php');
         die($h->endpage());
     }
@@ -28,7 +49,7 @@ if (isset($_GET['user'])) {
             alert('danger', 'Uh Oh!', 'Please specify a valid user to send cash to.', true, 'index.php');
             die($h->endpage());
         }
-        if (!$api->SystemUserIDtoName($_POST['user'])) {
+        if (!$api->user->getNamefromID($_POST['user'])) {
             alert('danger', 'Uh Oh!', 'Please specify an existing user to send cash to.', true, 'index.php');
             die($h->endpage());
         }
@@ -37,26 +58,26 @@ if (isset($_GET['user'])) {
             die($h->endpage());
         }
         if ($_POST['send'] > $ir['primary_currency']) {
-            alert('danger', 'Uh Oh!', 'You cannot send more Copper Coins than you currently have.', true, 'index.php');
+            alert('danger', 'Uh Oh!', "You cannot send more " . constant("primary_currency") . " than you currently have.", true, 'index.php');
             die($h->endpage());
         }
-        if ($api->SystemCheckUsersIPs($userid, $_POST['user'])) {
-            alert('danger', 'Uh Oh!', 'You cannot send Copper Coins to anyone who has the same IP Address as you.', true, 'index.php');
+        if ($api->user->checkIP($userid, $_POST['user'])) {
+            alert('danger', 'Uh Oh!', "You cannot send " . constant("primary_currency") . " to anyone who has the same IP Address as you.", true, 'index.php');
             die($h->endpage());
         }
         $userformat = "<a href='profile.php?user={$userid}'>{$ir['username']}</a> [{$userid}]";
-        $user2format = "<a href='profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}]";
-        $cashformat = shortNumberParse($_POST['send']);
-        $api->GameAddNotification($_POST['user'], "{$userformat} has sent you {$cashformat} Copper Coins.");
-        $api->UserGiveCurrency($_POST['user'], 'primary', $_POST['send']);
-        $api->UserTakeCurrency($userid, 'primary', $_POST['send']);
-        $api->SystemLogsAdd($userid, 'sendcash', "Sent {$cashformat} Copper Coins to {$user2format}.");
-        alert("success", "Success!", "You have successfully sent {$user2format} {$cashformat} Copper Coins.", true, "profile.php?user={$_GET['user']}");
-		$h->endpage();
+        $user2format = "<a href='profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}]";
+        $cashformat = number_format($_POST['send']);
+        $api->user->addNotification($_POST['user'], "{$userformat} has sent you {$cashformat} " . constant("primary_currency") . ".");
+        $api->user->giveCurrency($_POST['user'], 'primary', $_POST['send']);
+        $api->user->takeCurrency($userid, 'primary', $_POST['send']);
+        $api->game->addLog($userid, 'sendcash', "Sent {$cashformat} " . constant("primary_currency") . " to {$user2format}.");
+        alert("success", "Success!", "You have successfully sent {$user2format} {$cashformat} " . constant("primary_currency") . ".", true, "profile.php?user={$_GET['user']}");
+        $h->endpage();
     } else {
-        echo "You are attempting to send Copper Coins to {$api->SystemUserIDtoName($_GET['user'])}. You have
-        " . shortNumberParse($ir['primary_currency']) . " Copper Coins you can send. How much do you wish to send?";
-        $csrf = request_csrf_html("sendcash_{$_GET['user']}");
+        echo "You are attempting to send " . constant("primary_currency") . " to {$api->user->getNamefromID($_GET['user'])}. You have
+        " . number_format($ir['primary_currency']) . " " . constant("primary_currency") . " you can send. How much do you wish to send?";
+        $csrf = getHtmlCSRF("sendcash_{$_GET['user']}");
         echo "<form method='post' action='?user={$_GET['user']}'>
             <input type='hidden' value='{$_GET['user']}' name='user'>
             <input type='number' min='1' max='{$ir['primary_currency']}' class='form-control' required='1' name='send'>

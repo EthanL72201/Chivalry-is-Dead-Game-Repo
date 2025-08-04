@@ -1,19 +1,40 @@
 <?php
 /*
-	File: staff/staff_smelt.php
-	Created: 4/4/2017 at 7:04PM Eastern Time
-	Info: Staff panel for creating/editing/deleting recipes in the smeltery.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine/
+	File: 		staff/staff_smelt.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to do actions relating to the in-game smelting.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('sglobals.php');
-echo "<h3>Staff Smeltery</h3><hr />";
-if ($api->UserMemberLevelGet($userid, 'Admin') == false) {
+if ($api->user->getStaffLevel($userid, 'Admin') == false) {
     alert('danger', "Uh Oh!", "You do not have permission to be here.");
     die($h->endpage());
 }
 if (!isset($_GET['action'])) {
-    $_GET['action'] = 'add';
+    $_GET['action'] = '';
 }
 switch ($_GET['action']) {
     case 'add':
@@ -23,13 +44,19 @@ switch ($_GET['action']) {
         del();
         break;
     default:
-        alert('danger', "Uh Oh!", "Please select a valid action to perform.", true, 'index.php');
-        die($h->endpage());
+        menu();
         break;
+}
+function menu()
+{
+	echo "<h3>Blacksmith Staff Menu</h3><hr />
+    <a href='?action=add' class='btn btn-primary'>Create Smelt</a><br /><br />
+    <a href='?action=del' class='btn btn-primary'>Delete Smelt</a><br /><br />";
 }
 function add()
 {
     global $db, $api, $h, $userid;
+	echo "<h3>Adding to Blacksmith...</h3><hr />";
     if (isset($_POST['smelted_item'])) {
         $_POST['smelted_item'] = (isset($_POST['smelted_item']) && is_numeric($_POST['smelted_item'])) ? abs(intval($_POST['smelted_item'])) : 0;
         $_POST['smelted_item_qty'] = (isset($_POST['smelted_item_qty']) && is_numeric($_POST['smelted_item_qty'])) ? abs(intval($_POST['smelted_item_qty'])) : 0;
@@ -40,20 +67,6 @@ function add()
             alert('danger', "Uh Oh!", "Please fill out the previous form completely before submitting.");
             die($h->endpage());
         }
-        
-        $StatArray = array('blacksmith', 'brewing', 'processing', 'cooking',
-            'runecrafting','gemcrafting', 'other'
-        );
-        //Stat is not chosen, set to level.
-        if (!isset($_POST['smelt_type'])) {
-            $_POST['smelt_type'] = 'blacksmith';
-        }
-        //Stat chosen is not a valid stat.
-        if (!in_array($_POST['smelt_type'], $StatArray)) {
-            $_POST['smelt_type'] = 'blacksmith';
-        }
-        //Sanitize and escape the GET.
-        $_POST['smelt_type'] = $db->escape(strip_tags(stripslashes($_POST['smelt_type'])));
         $items = $_POST['required_item'];
         $qty = $_POST['required_item_qty'];
         for ($i = 1; $i <= 5; $i++) {
@@ -69,10 +82,10 @@ function add()
             }
         }
         $db->query("INSERT INTO `smelt_recipes`
-		(`smelt_time`, `smelt_items`, `smelt_quantity`, `smelt_output`, `smelt_qty_output`, `smelt_type`) 
+		(`smelt_time`, `smelt_items`, `smelt_quantity`, `smelt_output`, `smelt_qty_output`) 
 		VALUES 
-		('{$_POST['timetocomplete']}', '{$items}', '{$qty}', '{$_POST['smelted_item']}', '{$_POST['smelted_item_qty']}', '{$_POST['smelt_type']}')");
-        $api->SystemLogsAdd($userid, 'staff', "Created smelting recipe for " . $api->SystemItemIDtoName($_POST['smelted_item']));
+		('{$_POST['timetocomplete']}', '{$items}', '{$qty}', '{$_POST['smelted_item']}', '{$_POST['smelted_item_qty']}')");
+        $api->game->addLog($userid, 'staff', "Created smelting recipe for " . $api->SystemItemIDtoName($_POST['smelted_item']));
         alert('success', "Success!", "You have successfully created a blacksmith recipe for " . $api->SystemItemIDtoName($_POST['smelted_item']), true, 'index.php');
     } else {
         echo "<form id='craft' method='post'>
@@ -87,23 +100,7 @@ function add()
 						Received Item
 					</th>
 					<td>
-						" . item_dropdown("smelted_item") . "
-					</td>
-				</tr>
-                <tr>
-					<th>
-						Recipe Type
-					</th>
-					<td>
-						<select name='smelt_type' class='form-control' type='dropdown'>
-        					<option value='blacksmith'>Blacksmith</option>
-        					<option value='cooking'>Cooking</option>
-                            <option value='brewing'>Brewing</option>
-                            <option value='processing'>Processing</option>
-                            <option value='runecrafting'>Runecrafting</option>
-                            <option value='gemcrafting'>Gemcrafting</option>
-        					<option value='other'>Other</option>
-        				</select>
+						" . dropdownItem("smelted_item") . "
 					</td>
 				</tr>
 				<tr>
@@ -119,7 +116,16 @@ function add()
 						Completion Time
 					</th>
 					<td>
-                        <input type='number' value='' placeholder='Time in seconds.' required='1' name='timetocomplete' class='form-control'>
+						<select class='form-control' name='timetocomplete'>
+							<option value='0'>Instantly</option>
+							<option value='5'>5 Seconds</option>
+							<option value='30'>30 Seconds</option>
+							<option value='60'>1 Minute</option>
+							<option value='300'>5 Minutes</option>
+							<option value='600'>10 Minutes</option>
+							<option value='3600'>1 Hour</option>
+							<option value='86400'>1 Day</option>
+						</select>
 					</td>
 				</tr>
 					<tr>
@@ -127,7 +133,7 @@ function add()
 							Required Item
 						</th>
 						<td>
-							<div id='input1' class='clonedInput'>" . item_dropdown("required_item") . "<br /></div>
+							<div id='input1' class='clonedInput'>" . dropdownItem("required_item") . "<br /></div>
 						</td>
 					</tr>
 				<tr>
@@ -162,6 +168,7 @@ function add()
 function del()
 {
     global $db, $userid, $api, $h;
+	echo "<h3>Deleting from Blacksmith...</h3><hr />";
     if (isset($_POST['smelt'])) {
         $_POST['smelt'] = (isset($_POST['smelt']) && is_numeric($_POST['smelt'])) ? abs(intval($_POST['smelt'])) : 0;
         if ($_POST['smelt'] == 0) {
@@ -170,7 +177,7 @@ function del()
         }
         $db->query("DELETE FROM `smelt_recipes` WHERE `smelt_id` = {$_POST['smelt']}");
         $db->query("DELETE FROM `smelt_inprogress` WHERE `sip_recipe` = {$_POST['smelt']}");
-        $api->SystemLogsAdd($userid, 'staff', "Removed Blacksmith Recipe ID #{$_POST['smelt']}");
+        $api->game->addLog($userid, 'staff', "Removed Blacksmith Recipe ID #{$_POST['smelt']}");
         alert('success', "Success!", "You have successfully removed Blacksmith Recipe ID #{$_POST['smelt']}", true, 'index.php');
     } else {
         echo "<form action='?action=del' method='post'>
@@ -185,7 +192,7 @@ function del()
 					Recipe
 				</th>
 				<td>
-					" . smelt_dropdown() . "
+					" . dropdownBlacksmith() . "
 				</td>
 			</tr>
 			<tr>

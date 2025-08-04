@@ -37,7 +37,7 @@ if (isset($_SERVER['REQUEST_METHOD']) && is_string($_SERVER['REQUEST_METHOD'])) 
     }
 }
 require_once('../../globals.php');
-if (!is_ajax()) {
+if (!isAjax()) {
     header('HTTP/1.1 400 Bad Request');
     exit;
 }
@@ -45,14 +45,14 @@ $_POST['value'] = (isset($_POST['value']) && is_numeric($_POST['value'])) ? abs(
 echo "Value = {$_POST['value']} for {$userid}.";
 if ($_POST['value'] == 1)
 {
-	$db->query("UPDATE `user_settings` SET `sidemenu` = 1 WHERE `userid` = {$userid}");
+	$db->query("UPDATE `users` SET `sidemenu` = 1 WHERE `userid` = {$userid}");
 	echo "Set to 1.";
 	exit;
 }
 elseif ($_POST['value'] == 0)
 {
-	$db->query("UPDATE `user_settings` SET `sidemenu` = 0 WHERE `userid` = {$userid}");
-	echo "Set to 0.";
+	$db->query("UPDATE `users` SET `sidemenu` = 0 WHERE `userid` = {$userid}");
+	echo "Set to 2.";
 	exit;
 }
 else

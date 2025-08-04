@@ -1,22 +1,51 @@
 <?php
 /*
 	File:		register.php
-	Created: 	4/5/2016 at 12:24AM Eastern Time
-	Info: 		The registration form.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		This form allows players to join the game.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require("globals_nonauth.php");
-$activePromo = '';
 $IP = $db->escape($_SERVER['REMOTE_ADDR']);
+if ($set['enforce_no_multis'] == 'true')
+{
 //Check if someone is already registered on this IP.
-/*if ($db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users` WHERE `lastip` = '{$IP}' OR `loginip` = '{$IP}' OR `registerip` = '{$IP}'")) >= 1) {
-    alert('danger', "Uh Oh!", "You can only have one account per IP Address. We're going to stop you from registering for now.", true, 'login.php');
-    die($h->endpage());
+    if ($db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users` WHERE `lastip` = '{$IP}' OR `loginip` = '{$IP}' OR `registerip` = '{$IP}'")) >= 1) {
+        alert('danger', "Uh Oh!", "You can only have one account per IP Address. We're going to stop you from registering for now.", true, 'login.php');
+        die($h->endpage());
 
-}*/
-$ref = (isset($_GET['REF'])) ? $_GET['REF'] : 0;
-$username = (isset($_POST['username']) && preg_match("/^[a-z0-9_]+([\\s]{1}[a-z0-9_]|[a-z0-9_])*$/i", $_POST['username'])) ? $db->escape(strip_tags(stripslashes($_POST['username']))) : '';
+    }
+}
+if (!isset($_GET['REF'])) {
+    $_GET['REF'] = 0;
+}
+$_GET['REF'] = abs($_GET['REF']);
+if ($_GET['REF']) {
+    $_GET['REF'] = $_GET['REF'];
+}
+$username = (isset($_POST['username']) && is_string($_POST['username'])) ? stripslashes($_POST['username']) : '';
 if (!empty($username)) {
     //If the registration captcha is enabled.
     if ($set['RegistrationCaptcha'] == 'ON') {
@@ -30,7 +59,7 @@ if (!empty($username)) {
         unset($_SESSION['captcha']);
     }
     //If the email is inputted, and valid.
-    if (!isset($_POST['email']) || !valid_email(stripslashes($_POST['email']))) {
+    if (!isset($_POST['email']) || !validEmail(stripslashes($_POST['email']))) {
         alert('danger', "Uh Oh!", "You input an invalid email address.");
         die($h->endpage());
 
@@ -42,29 +71,22 @@ if (!empty($username)) {
 
     }
     //If the username is less than 3 characters and more than 20.
-    if (((strlen($username) > 32) OR (strlen($username) < 3))) {
-        alert('danger', "Uh Oh!", "Your username can only be 3 through 32 characters in length.");
+    if (((strlen($username) > 20) OR (strlen($username) < 3))) {
+        alert('danger', "Uh Oh!", "Your username can only be 3 through 20 characters in length.");
         die($h->endpage());
 
     }
     //Check Gender
-    if (!isset($_POST['gender']) || ($_POST['gender'] != 'Male' && $_POST['gender'] != 'Female' && $_POST['gender'] != 'Other')) {
-        alert('danger', "Uh Oh!", "You are trying to register as an invalid gender.");
-        die($h->endpage());
-
-    }
-    //Check class
-    if (!isset($_POST['class']) || ($_POST['class'] != 'Warrior' && $_POST['class'] != 'Rogue' && $_POST['class'] != 'Guardian')) {
-        alert('danger', "Uh Oh!", "You are trying to register as an invalid class.");
+    if (!isset($_POST['gender']) || ($_POST['gender'] != 'Male' && $_POST['gender'] != 'Female')) {
+        alert('danger', "Uh Oh!", "You are trying to register as an invalid sex.");
         die($h->endpage());
 
     }
     $e_gender = $db->escape(stripslashes($_POST['gender']));
-    $e_class = $db->escape(stripslashes($_POST['class']));
     $e_username = $db->escape($username);
     $e_email = $db->escape(stripslashes($_POST['email']));
-    $q = $db->query("/*qc=on*/SELECT COUNT(`userid`) FROM `users` WHERE `username` = '{$e_username}'");
-    $q2 = $db->query("/*qc=on*/SELECT COUNT(`userid`)  FROM `users` WHERE `email` = '{$e_email}'");
+    $q = $db->query("SELECT COUNT(`userid`) FROM `users` WHERE `username` = '{$e_username}'");
+    $q2 = $db->query("SELECT COUNT(`userid`)  FROM `users` WHERE `email` = '{$e_email}'");
     $u_check = $db->fetch_single($q);
     $e_check = $db->fetch_single($q2);
     $db->free_result($q);
@@ -87,12 +109,10 @@ if (!empty($username)) {
         $_POST['ref'] = (isset($_POST['ref']) && is_numeric($_POST['ref'])) ? abs($_POST['ref']) : '';
         $IP = $db->escape($_SERVER['REMOTE_ADDR']);
         //If the registrating user was referred to the game by someone.
-        if ($_POST['ref']) 
-		{
-            $q = $db->query("/*qc=on*/SELECT `lastip` FROM `users` WHERE `userid` = {$_POST['ref']}");
+        if ($_POST['ref']) {
+            $q = $db->query("SELECT `lastip` FROM `users` WHERE `userid` = {$_POST['ref']}");
             //If referring does not exist.
-            if ($db->num_rows($q) == 0) 
-			{
+            if ($db->num_rows($q) == 0) {
                 $db->free_result($q);
                 alert('danger', "Uh Oh!", "The user who referred you does not exist.");
                 die($h->endpage());
@@ -100,52 +120,32 @@ if (!empty($username)) {
             $rem_IP = $db->fetch_single($q);
             $db->free_result($q);
             //If referring user has the same IP as the registering one.
-            if ($rem_IP == $_SERVER['REMOTE_ADDR']) 
-			{
+            if ($rem_IP == $_SERVER['REMOTE_ADDR']) {
                 alert('danger', "Uh Oh!", "You cannot use a referral ID from someone on your IP.");
                 die($h->endpage());
             }
         }
-        $encpsw = encode_password($base_pw);    //Encode the password.
+        $encpsw = encodePassword($base_pw);    //Encode the password.
         $e_encpsw = $db->escape($encpsw);
-        $profilepic = "https://chivalryisdeadgame.com/assets/img/npc/" . strtolower($e_gender) . ".svg";
+        $profilepic = "https://www.gravatar.com/avatar/" . md5(strtolower(trim($e_email))) . "?s=250.jpg";
         $CurrentTime = time();
         $db->query("INSERT INTO `users`
-					(`username`,`email`,`password`,`level`,`gender`,`class`,
-					`lastip`,`registerip`,`registertime`,`loginip`,`display_pic`,`vip_days`)
+					(`username`,`email`,`password`,`level`,`gender`,
+					`lastip`,`registerip`,`registertime`,`loginip`,`display_pic`)
 					VALUES ('{$e_username}','{$e_email}','{$e_encpsw}','1','{$e_gender}',
-					'{$e_class}','{$IP}','{$IP}','{$CurrentTime}', '{$IP}', 
-					'{$profilepic}','3')");
+					'{$IP}','{$IP}','{$CurrentTime}', '{$IP}', 
+					'{$profilepic}')");
         $i = $db->insert_id();
         $db->query("UPDATE `users` SET `brave`='10',`maxbrave`='10',`hp`='100',
 					`maxhp`='100',`maxwill`='100',`will`='100',`energy`='24',
 					`maxenergy`='24' WHERE `userid`={$i}");
-        if ($e_class == 'Warrior') 
-		{
-			$api->UserGiveItem($i,365,1);
-            $db->query("INSERT INTO `userstats` VALUES({$i}, 1500, 1000, 500, 1000, 1000, 100)");
-        }
-        if ($e_class == 'Rogue') 
-		{
-			$api->UserGiveItem($i,366,1);
-            $db->query("INSERT INTO `userstats` VALUES({$i}, 500, 1500, 1000, 1000, 1000, 100)");
-        }
-        if ($e_class == 'Guardian') 
-		{
-			$api->UserGiveItem($i,367,1);
-            $db->query("INSERT INTO `userstats` VALUES({$i}, 1000, 500, 1500, 1000, 1000, 100)");
-        }
-        if ($_POST['ref']) 
-		{
-            $api->UserGiveItem($_POST['ref'],205,10);
-            $api->UserGiveItem($_POST['ref'],210,1);
-            $db->query("UPDATE `users` SET `vip_days` = `vip_days` + 3 WHERE `userid` = {$_POST['ref']}");
-            notification_add($_POST['ref'], "Thank you for referring <a href='profile.php?user={$i}'>{$e_username}</a> to {$set['WebsiteName']}! We have given you 10 CID Admin Gym Scrolls, 3 VIP Days and a VIP Scratch Ticket.");
+        $db->query("INSERT INTO `userstats` VALUES({$i}, 1000, 1000, 1000, 1000, 1000)");
+        if ($_POST['ref']) {
+            $db->query("UPDATE `users` SET `secondary_currency` = `secondary_currency` + {$set['ReferalKickback']} WHERE `userid` = {$_POST['ref']}");
+            addNotification($_POST['ref'], "For referring $username to the game, you have earned {$set['ReferalKickback']} valuable " . constant("secondary_currency") . "(s)!");
             $e_rip = $db->escape($rem_IP);
             $db->query("INSERT INTO `referals`
 			VALUES (NULL, {$_POST['ref']}, '{$e_rip}', {$i}, '{$IP}',{$CurrentTime})");
-			$db->query("UPDATE `user_settings` SET `ref_count` = `ref_count` + 1 WHERE `userid` = {$_POST['ref']}");
-			sendRefferalEmail($_POST['ref'],$i,$e_username);
         }
         $db->query("INSERT INTO `infirmary`
 			(`infirmary_user`, `infirmary_reason`, `infirmary_in`, `infirmary_out`) 
@@ -153,15 +153,6 @@ if (!empty($username)) {
         $db->query("INSERT INTO `dungeon`
 			(`dungeon_user`, `dungeon_reason`, `dungeon_in`, `dungeon_out`) 
 			VALUES ('{$i}', 'N/A', '0', '0');");
-        //Give starter items.
-        $api->UserGiveItem($i,6,50);
-        $api->UserGiveItem($i,30,50);
-        $api->UserGiveItem($i,33,3000);
-        $api->UserGiveCurrency($i,'primary',10000);
-        $api->UserGiveCurrency($i,'secondary',50);
-        $mail="Welcome to Chivalry is Dead, {$e_username}. We hope you stay a while and hang out. To get started,
-        check out the Explore page and visit the [url=hexbags.php]Hexbags[/url] under the Gambling tab. Here you will gain many awesome starter items. Should
-        your fortune be unkind, your inventory has 50 Dungeon Keys and 50 Linen Wraps to get you out of the Infirmary and Dungeon when needed.";
         session_regenerate_id();
         $_SESSION['loggedin'] = 1;
         $_SESSION['userid'] = $i;
@@ -170,184 +161,109 @@ if (!empty($username)) {
         if (isset($_POST['promo'])) {
             $code = (isset($_POST['promo'])) ? $db->escape(strip_tags(stripslashes($_POST['promo']))) : '';
             if (!empty($code)) {
-                $promocodereal = $db->query("/*qc=on*/SELECT * FROM `promo_codes` WHERE `promo_code` = '{$code}'");
+                $promocodereal = $db->query("SELECT * FROM `promo_codes` WHERE `promo_code` = '{$code}'");
                 if ($db->num_rows($promocodereal) > 0) {
                     $pcrr = $db->fetch_row($promocodereal);
-                    item_add($i, $pcrr['promo_item'], 1);
+                    addItem($i, $pcrr['promo_item'], 1);
                     $db->query("UPDATE `promo_codes` SET `promo_use` = `promo_use` + 1 WHERE `promo_code` = '{$code}'");
-                    $api->GameAddNotification($i, "Your promotion code was valid! Check your inventory for your {$api->SystemItemIDtoName($pcrr['promo_item'])}!");
+                    $api->user->addNotification($i, "Your promotion code was valid! Check your inventory for your item!");
                 } else {
-                    $api->GameAddNotification($i, "Your promotion code was invalid.");
+                    $api->user->addNotification($i, "Your promotion code was invalid.");
                 }
             }
         }
-		$db->query("INSERT INTO `user_settings` (`userid`) VALUES ('{$_SESSION['userid']}')");
-		$eid = buyEstate($i, 1);
-        $randophrase=randomizer();
-        $db->query("UPDATE `user_settings` SET `security_key` = '{$randophrase}', `theme` = 7 WHERE `userid` = {$_SESSION['userid']}");
-        $api->SystemLogsAdd($_SESSION['userid'], 'login', "Successfully logged in.");
-        $db->query("UPDATE `users` 
-					SET `loginip` = '$IP', 
-					`last_login` = '{$CurrentTime}',
-					`laston` = '{$CurrentTime}',
-					`estate` = {$eid}
-					WHERE `userid` = {$i}");
+        $api->game->addLog($_SESSION['userid'], 'login', "Successfully logged in.");
+        $db->query("UPDATE `users` SET `loginip` = '$IP', `last_login` = '{$CurrentTime}', `laston` = '{$CurrentTime}' WHERE `userid` = {$i}");
         //User registered, lets log them in.
-        alert('success', "Success!", "You have successfully signed up to play {$set['WebsiteName']}. Click here to <a href='explore.php'>Sign In</a>", false);
-        $url=determine_game_urlbase();
-        sendRegistrationEmail($e_email);
-		$api->GameAddMail($i,"Welcome to Chivalry is Dead",$mail,1);
+        alert('success', "Success!", "You have successfully signed up to play {$set['WebsiteName']}. Click here to <a href='tutorial.php'>Sign In</a>", false);
+        $url=getGameURL();
+        $WelcomeMSGEmail="Welcome to the game, {$e_username}!<br />We hope you enjoy our lovely game and stick around for a while! If you have any questions or concerns, please contact a staff member in-game!<br />Thank you!<br /> -{$set['WebsiteName']}<br /><a href='http://{$url}'>http://{$url}</a>";
+        $api->game->sendEmail($e_email,$WelcomeMSGEmail,"{$set['WebsiteName']} Registration",$set['sending_email']);
         die($h->endpage());
     }
     $h->endpage();
 } else {
     echo "
-    <div class='card'>
-    <div class='card-header'>
-        {$set['WebsiteName']} Registration Form
-    </div>
-    <div class='card-body'>
-	<form method='post'>
-		<div class='row'>
-            <div class='col-12 col-md-6 col-lg-5 col-xl-6 col-xxl-4 col-xxxl-3'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>Username</b>
-        			</div>
-                    <div class='col-12 col-md-12'>
-				        This is used to identify yourself around the game.
-        			</div>
-        			<div class='col-12 col-md'>
-        				<input type='text' class='form-control' id='username' name='username' minlength='3' maxlength='32' placeholder='3-32 characters in length' onkeyup='CheckUsername(this.value);' required>
-        				<div id='usernameresult' class='invalid-feedback'></div>
-        			</div>
-                </div>
-            </div>
-            <div class='col-12 col-md-6 col-lg-7 col-xl-6 col-xxl-5 col-xxxl-4'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>Email</b>
-        			</div>
-                    <div class='col-12 col-md-12'>
-				        Your email is used soley for login and communication between us.
-        			</div>
-        			<div class='col-12 col-md'>
-        				<input type='email' class='form-control' id='email' name='email' minlength='3' maxlength='256' placeholder='You will use this to sign in' onkeyup='CheckEmail(this.value);' required>
-				        <div id='emailresult' class='invalid-feedback'></div>
-        			</div>
-                </div>
-            </div>
-            <div class='col-12 col-md-6 col-lg-5 col-xl-6 col-xxl-3 col-xxxl-3'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>Password</b>
-        			</div>
-                    <div class='col-12 col-md-12'>
-				        We try our best to keep it safe and secure!
-        			</div>
-        			<div class='col-12 col-md'>
-        				<input type='password' class='form-control' id='password' name='password' minlength='3' maxlength='256' placeholder='Unique passwords recommended' onkeyup='CheckPasswords(this.value);PasswordMatch();' required>
-				        <div id='passwordresult'></div>
-        			</div>
-                </div>
-            </div>
-            <div class='col-12 col-md-6 col-lg-7 col-xl-6 col-xxl-4 col-xxxl-2'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>Confirm Password</b>
-        			</div>
-                    <div class='col-12 col-md-12'>
-				        Make sure you type it exactly as before.
-        			</div>
-        			<div class='col-12 col-md'>
-        				<input type='password' class='form-control' id='cpassword' name='cpassword' minlength='3' maxlength='256' placeholder='Confirm password entered previously' onkeyup='PasswordMatch();' required>
-				        <div id='cpasswordresult'></div>
-        			</div>
-                </div>
-            </div>
-            <div class='col-12 col-md-6 col-lg-5 col-xl-6 col-xxl-4 col-xxxl'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>Gender</b>
-        			</div>
-                    <div class='col-12 col-md-12'>
-				       What's your player's gender?
-        			</div>
-        			<div class='col-12 col-md'>
-        				<select name='gender' class='form-control' type='dropdown'>
-        					<option value='Male'>Male</option>
-        					<option value='Female'>Female</option>
-        					<option value='Other'>Other</option>
-        				</select>
-        			</div>
-                </div>
-            </div>
-            <div class='col-12 col-md-6 col-lg-7 col-xl-6 col-xxl-4 col-xxxl'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>Fighting Class</b>
-        			</div>
-                    <div class='col-12 col-md-12'>
-				       What best suits your fighting style?
-        			</div>
-        			<div class='col-12 col-md'>
-        				<select name='class' id='class' class='form-control' onchange='OutputTeam(this)' type='dropdown'>
-        					<option></option>
-        					<option value='Warrior'>Brute Force</option>
-        					<option value='Rogue'>Hit Quicker</option>
-        					<option value='Guardian'>Damage Tanking</option>
-        				</select>
-                        <div id='teamresult'></div>
-        			</div>
-                </div>
-            </div>
-            <div class='col-12 col-md-6 col-lg-5 col-xl-6 col-xxxl'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>Referral Code</b>
-        			</div>
-                    <div class='col-12 col-md-12'>
-				       Did you get a referral code from a friend?
-        			</div>
-        			<div class='col-12 col-md'>
-        				<input type='number' value='{$ref}' class='form-control' id='ref' name='ref' min='0' placeholder='Can be empty. This is a User ID.'>
-        			</div>
-                </div>
-            </div>
-            <div class='col-12 col-md-6 col-lg-7 col-xl-6 col-xxxl'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>Promo Code</b>
-        			</div>
-                    <div class='col-12 col-md-12'>
-				       Promotional codes give you an extra boost.
-        			</div>
-        			<div class='col-12 col-md'>
-        				<input type='text' class='form-control' id='promo' name='promo' value='{$activePromo}' placeholder='Can be empty'>
-        			</div>
-                </div>
-            </div>
-            <div class='col-12'>
-                <div class='row'>
-                    <div class='col-12 col-md'>
-        				<b>&nbsp;</b>
-        			</div>
-                    <div class='col-12 col-md-12'>";
-                        alert("info","","By clicking Register, you accept you have read the <a href='gamerules2.php'>Game Rules</a>
+	<h3>{$set['WebsiteName']} Registration Form</h3>
+	<table class='table table-bordered'>
+		<form method='post'>
+			<tr>
+				<th>
+					Username
+				</th>
+				<td>
+                    <input type='text' class='form-control' id='username' name='username' minlength='3' maxlength='20' placeholder='3-20 characters in length' onkeyup='CheckUsername(this.value);' required>
+                    <div id='usernameresult' class='invalid-feedback'></div>
+				</td>
+			</tr>
+			<tr>
+				<th>
+					Email
+				</th>
+				<td>
+                    <input type='email' class='form-control' id='email' name='email' minlength='3' maxlength='256' placeholder='You will use this to sign in' onkeyup='CheckEmail(this.value);' required>
+                    <div id='emailresult' class='invalid-feedback'></div>
+				</td>
+			</tr>
+			<tr>
+				<th>
+					Password
+				</th>
+				<td>
+                    <input type='password' class='form-control' id='password' name='password' minlength='3' maxlength='256' placeholder='Unique passwords recommended' onkeyup='CheckPasswords(this.value);PasswordMatch();' required>
+					<div id='passwordresult'></div>
+				</td>
+				</tr>
+				<tr>
+					<th>
+						Confirm Password
+					</th>
+					<td>
+                        <input type='password' class='form-control' id='cpassword' name='cpassword' minlength='3' maxlength='256' placeholder='Confirm password entered previously' onkeyup='PasswordMatch();' required>
+					    <div id='cpasswordresult' class='invalid-feedback'></div>
+					</td>
+				</tr>
+				<tr>
+					<th>
+						Sex
+					</th>
+					<td>
+						<select name='gender' class='form-control' type='dropdown'>
+							<option value='Male'>Male</option>
+							<option value='Female'>Female</option>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<th>
+						Referral's ID
+					</th>
+					<td>
+						<input type='number' value='{$_GET['REF']}' class='form-control' id='ref' name='ref' min='0' placeholder='Can be empty. This is a User ID.'>
+					</td>
+				</tr>
+				<tr>
+					<th>
+						Promo Code
+					</th>
+					<td>
+						<input type='text' class='form-control' id='promo' name='promo' placeholder='Can be empty'>
+					</td>
+				</tr>
+				<tr>
+					<td colspan='2'>
+						<i>By clicking Register, you accept you have read the <a href='gamerules2.php'>Game Rules</a>
 						and our <a href='privacy.php'>Privacy Policy</a>. You also agree that you wish to opt-in to our
-						game newsletter. You may opt-out at anytime by checking your in-game settings.",false);
-                        echo"
-        			</div>
-        			<div class='col-12 col-md'>
-        				<input type='submit' class='btn btn-primary btn-block' value='Register' />
-        			</div>
-                </div>
-            </div>
-		</div>
-	</form>
-    <br />
-	<a href='login.php' class='btn btn-danger btn-block'>Return to Login</a>
-    </div>
-    </div>";
+						game newsletter. You may opt-out at anytime by checking your in-game settings.</i>
+					</td>
+				</tr>
+				<tr>
+					<td colspan='2'>
+						<input type='submit' class='btn btn-primary' value='Register' />
+					</td>
+				</tr>
+			</form>
+		</table>
+	&gt; <a href='login.php'>Login Page</a>";
 }
 $h->endpage();

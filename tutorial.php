@@ -1,218 +1,144 @@
 <?php
 /*
 	File:		tutorial.php
-	Created: 	5/14/2017 at 5:57 Eastern Time
-	Info: 		A very detailed game tutorial.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Displays a very well detailed tutorial for new players.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('globals.php');
-alert('info',"","Welcome to the <i>{$set['WebsiteName']}</i> Tutorial, {$ir['username']}! Our hopes are that this tutorial will help you
+echo "Welcome to the {$set['WebsiteName']} Tutorial, {$ir['username']}! Our hopes are that this tutorial will help you
 to better understand our wonderful game. If you are confused by any of the terminology here, please contact a staff
-member found on the Staff List.",true,'staff.php','View Staff List');
-alert('warning',"","In <i>{$set['WebsiteName']}</i> , you are entirely free to play as you see fit, so long as you don't break the game rules.
+member listed <a href='staff.php'>here</a>.";
+echo "<hr />
+In {$set['WebsiteName']} , you are entirely free to play as you see fit, so long as you don't break the game rules.
 You're free to protect the weak, or exploit their shortcomings. Be charitable with your cash, or keep it all to
-yourself. Declare war on a person, or a whole guild. The choice is yours.",false);
-echo "
-<div class='row'>
-    <div class='col-12'>
-        <div class='card'>
-            <div class='card-header'>
-                Glossary
-            </div>
-            <div class='card-body'>
-                <div class='row'>
-                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
-                        <a class='btn btn-primary btn-block' href='#basics'>Game Basics</a>
-                    </div>
-                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
-                        <a class='btn btn-primary btn-block' href='#navigation'>Navigation</a>
-                    </div>
-                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
-                        <a class='btn btn-primary btn-block' href='#explore'>Exploring</a>
-                    </div>
-                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
-                        <a class='btn btn-primary btn-block' href='#training'>Training</a>
-                    </div>
-                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
-                        <a class='btn btn-primary btn-block' href='#combat'>Combat</a>
-                    </div>
-                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
-                        <a class='btn btn-primary btn-block' href='#guilds'>Guilds</a>
-                    </div>
-                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
-                        <a class='btn btn-primary btn-block' href='#settings'>Account Settings</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class='col-12'>
-        <div class='card'>
-            <div class='card-header'>
-                <a name='basics'><b>Game Basics</b></a>
-            </div>
-            <div class='card-body'>
-                <div class='row'>
-                    <div class='col-12'>
-                        <i>{$set['WebsiteName']}</i> is a Text Themed RPG, meaning everything you do is by clicking on links, 
-                            or by writing out responses. For example, to view your inventory, you would click the Inventory link using the menu on the left.
-                    </div>
-                    <div class='col-12 col-xl-6'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <u><b>Personal Information</b></u>
-                            </div>
-                            <div class='col-12'>
-                                If you click the <i>{$set['WebsiteName']}</i> on the top left corner, it'll open a window where you can
-                            	view your personal information. This page shows your Stats, Level, Copper Coins, Chivalry Tokens, VIP Days,
-                            	Health, Experience, Will, Brave and Energy. You can also update your Personal Notepad here as well.
-                            </div>
-                            <div class='col-12'>
-                                <b>ENERGY</b> is used for training and attacking.
-                            </div>
-                            <div class='col-12'>
-                                <b>BRAVE</b> is used to commit crimes. The more difficult the crime is, the more brave it'll require. Do note that
-	                               committing crimes have other requirements to succeed.
-                            </div>
-                            <div class='col-12'>
-                                <b>WILL</b> effects how much you gain while training, so in turn, a low will level means low gains in the gym.
-                            </div>
-                            <div class='col-12'>
-                                <b>XP</b> is your experience towards the next level.
-                            </div>
-                            <div class='col-12'>
-                                <b>HP</b> is your health. You will lose this in combat. When zero, you are unconscious.
-                            </div>
-                            <div class='col-12'>
-                                <b>MINING ENERGY</b> is your mining energy. You should go mine.
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-12 col-xl-6'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <u><b>Personal Stats</b></u>
-                            </div>
-                            <div class='col-12'>
-                                There are currently six stats in <i>{$set['WebsiteName']}</i>: Strength, Agility, Guard, IQ, Labor and Luck.
-                            </div>
-                            <div class='col-12'>
-                                <b>STRENGTH</b> is how hard you can potentially hit.
-                            </div>
-                            <div class='col-12'>
-                                <b>AGILITY</b> increases your chances dodging attacks, while also increasing the chance your attacks connect.
-                            </div>
-                            <div class='col-12'>
-                                <b>GUARD</b> is how hard it hurts when you take damage.
-                            </div>
-                            <div class='col-12'>
-                                <b>IQ</b> Misc stat
-                            </div>
-                            <div class='col-12'>
-                                <b>LABOR</b> Used for numerous tasks, like mining or street begging.
-                            </div>
-                            <div class='col-12'>
-                                <b>LUCK</b> is how often something lucky may go your way.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+yourself. Declare war on a person, or a whole guild. The choice is yours.
+<hr />
+<h3>Glossary</h3>
+	<a href='#basics'>Game Basics</a><br />
+	<a href='#navigation'>Navigation</a><br />
+	<a href='#explore'>Exploring</a><br />
+	<a href='#training'>Training</a><br />
+	<a href='#combat'>Combat</a><br />
+	<a href='#guilds'>Guilds</a><br />
+	<a href='#settings'>Account Settings</a><br />
+<hr>
+<a name='basics'><h4>Game Basics</h4></a>
+	{$set['WebsiteName']} is a Text Themed RPG, meaning everything you do is by clicking on links, or by writing out
+	respones. For example, to view your inventory, you would click the Inventory link at the top of the page.
+	<br />
+	<br />
+	<u>Personal Information</u>
+	<br />
+	If you click the {$set['WebsiteName']} on the top left corner, it'll redirect you to the main index where you can
+	view your personal information. This page shows your Stats, Level, " . constant("primary_currency") . ", " . constant("secondary_currency") . ", VIP Days,
+	Health, Experience, Will, Brave and Energy. You can also update your Personal Notepad here as well.
+	<br />Energy is used for training and attacking.
+	<br />Will effects how much you gain while training, so in turn, a low will level means low gains in the gym.
+	<br />Brave is used to commit crimes. The more difficult the crime is, the more brave it'll require. Do note that
+	committing crimes have other requirements to succeed.
+	<br />Experience is how close you are to leveling up.
+	<br />Health shows how healthy your character is. You lose Health when you receive a hit in combat.
+	<br />
+	<br />
+	<u>Personal Stats</u>
+	<br />
+	There are currently five stats in-game: " . constant("stat_strength") . ", " . constant("stat_agility") . ", " . constant("stat_guard") . ", 
+	" . constant("stat_labor") . " and " . constant("stat_iq") . ".
+	<br />Increasing your " . constant("stat_strength") . " will increase how much damage you can dish out in combat.
+	<br />Increasing " . constant("stat_agility") . " will increase your chance of one of your strikes connecting with your opponent.
+	<br />Increasing your " . constant("stat_guard") . " will decrease the damage your opponents do to you.
+	<br />" . constant("stat_iq") . " and " . constant("stat_labor") . " are miscellaneous stats used around the game. It's good to have these at a fairly decent level.
+	<br />
+	<br />
+<hr />
 <a name='navigation'><h4>Navigation</h4></a>
-	Being able to view and navigate through <i>{$set['WebsiteName']}</i> is important! The top navigation bar (or dropdown, if
-	you're on mobile) is where you will find access to the rest of the game.
+	Being able to view and navigate through {$set['WebsiteName']} is important! The pop-out menu is where you will find access to the rest of the game.
 	<br />
 	<br />
-	<u>Navigation Bar</u>
+	<u>Pop-out Menu</u>
 	<br />
-	The navigation bar (or dropdown) is your gateway to the game.
-	<br />Clicking on <i>{$set['WebsiteName']}</i> in the top left corner will open a window to your Personal Info page.
+	The Pop-out is your gateway to the game.
+	<br />Clicking on the game name in the top left corner will take you to your Personal Info page.
 	<br />Clicking on Explore will allow you to explore many of the features of the game. (More information on this later!)
-	<br />Clicking Mail will take you to your personal mailbox where you can write and read letters to others.
-	<br />Notifications will take you to your notification box, where game events will be posted if they involve you.
+	<br />Clicking the envelope icon will take you to your personal mailbox where you can write and read letters to others.
+	<br />Clicking on the bell icon will take you to your notification box, where game events will be posted if they involve you.
 	<br />Clicking Inventory will allow you to view the items you have in your inventory, along with the gear you have
 	equipped.
 	<br />
 	<br />
-	<u>Navigation Bar Dropdown</u>
-	<br />
-    Clicking the 'Hello, {$ir['username']}' Dropdown will display more information.
-    <br />Clicking on Profile will take you to your personal profile page. This is what others see when they click on
-    your name in-game.
-    <br />Clicking on Settings will take you to your account settings. Here you can change your display picture,
-    password, username, and forum signature!
-	<br />Clicking Game Rules will show you the rules of the game. It's recommended that you read these over so you
-     know what you can and cannot do.
-     <br />Clicking Privacy Policy will show you what <i>{$set['WebsiteName']}</i> does with your information.
-     <br />Finally, clicking Logout will terminate your session.
-    <br />
-    <br />
 <hr>
 <a name='explore'><h4>Exploring</h4></a>
 	Exploring is the best way around the game. The explore page is the highway to all other game features.
 	<br />
 	<br />
 	<u>Shops</u>
-	<br />
-	Hovering over the Shops category will display the numerous ways you can buy things in the game.
-	<br /><a href='shops.php'>Local Shops</a> are the game-created shops in your town. You'll find an infinite amount of items in these shops.
-	<br />However, if you're wanting something a little more flashy, the <a href='itemmarket.php'>Item Market</a> is a market ran exclusively by other players. You'll find all sorts
+	<br />Local Shops are the game-created shops in your town. You'll find an infinite amount of items in these shops.
+	<br />However, if you're wanting something a little more flashy, the Item Market is a market ran exclusively by other players. You'll find all sorts
 	of items for sale here. Note, that players also set their own pricing.
-	<br />Not finding the item you want? The <a href='itemrequest.php'>Item Request</a> page will allow you to request an item, along with your price.
-	<br />The <a href='secmarket.php'>Chivalry Tokens Market</a> is an easy way to convert your Chivalry Tokens into Copper Coins, depending on the market demand.
+	<br />The " . constant("secondary_currency") . " Market is an easy way to convert your Secondary
+	Currency into " . constant("primary_currency") . ", depending on the market demand.
 	<br />
 	<br />
-	<u>Financial</u><br />
-	Hovering over Financial will greet you with a category of ways to use your currency.
-	<br /><a href='work.php'>Work Center</a> is where you begin your long life of working for 'the man'. You need to have special requirements
+	<u>Financial</u>
+	<br />Work Center is where you begin your long life of working for 'the man'. You need to have special requirements
 	to join some jobs, however.
-	<br />The <a href='bank.php'>City Bank</a> will allow you safely store your Copper Coins. Storing in the Bank will keep your money safe from
-	 being robbed from you, and even gain you interest at midnight each night. As you progress in <i>{$set['WebsiteName']}</i>, more banks may become available to you.
-	 <br />The <a href='tokenbank.php'>Chivalry Token Bank</a> will allow you store your Chivalry Tokens. You will not gain interest.
-	 <br />Clicking <a href='estates.php'>Estate Agent</a> will allow you to view the estates available to purchase. Buying an estate will increase
+	<br />The Bank will allow you safely store your " . constant("primary_currency") . ". Storing in the Bank will keep your money safe from
+	 being robbed from you, and even gain you interest at midnight each night.
+	 <br />Clicking Estates will allow you to view the estates available to purchase. Buying an estate will increase
 	 your Maximum Will, thus improving your gains while training.
-	 <br />If you're starting to hate the town you're in, visiting the <a href='travel.php'>Travel Agent</a> will be your ticket to other towns. Mind you, towns
+	 <br />If you're starting to hate the town you're in, Horse Travel is your ticket to other towns. Mind you, towns
 	 may have Level requirements, and varying tax levels.
-	 <br />The <a href='temple.php'>Temple of Fortune</a> is where you can spend your Chivalry Tokens. You can refill your Energy, Will, and
-	 Brave here. You may also purchase IQ and bodyguard protection. You may also convert your Chivalry Tokens to Copper at 1 for 1,000 Copper Coins.
+	 <br />The Temple of Fortune is where you can spend your " . constant("secondary_currency") . ". You can refill your Energy, Will, and
+	 Brave here. You may also purchase " . constant("stat_iq") . ".
 	<br />
 	<br />
 	<u>Working</u>
-	<br />
-    You will find that the work category is where you will spend a lot of your time at.
-    <br />Visiting the <a href='mine.php'>Dangerous Mines</a> is a great way to find riches. Be careful though, as nearby warriors may get jealous of your haul.
+    <br />Mining is a great place to find riches. Be careful though, as nearby warriors may get jealous of your haul.
     If you're too careless, you could also ignite a gas pocket, placing yourself into the Infirmary.
-    <br />The <a href='smelt.php'>Blacksmith's Smeltery</a> can be used to smelt your items gained while  mining, into better items. Obviously, you will need
-     the required items for this to work.
-	 <br />The <a href='bottent.php'>NPC Battle List</a> will allow you to quickly attack NPCs. If you mug the NPCs
+    <br />The Smeltery can be used to smelt your items gained while  mining, into better items. Obviously, you will need
+     the required items for this to work. The NPC Battle List will allow you to quickly attack NPCs. If you mug the NPCs
      listed, you will be able to get a special item drop. Note that this can only happen once per each bot's cooldown
      time.
-     <br /><a href='gym.php'>The Gym</a> is the palce you'll want to visit if you have any hope of taking down an enemy. You'll be able 
-	 to train your Strength, Guard, Agility and Labor here.
-	 <br />The <a href='chivalry_gym.php'>Chivalry Gym</a> is just like the normal Gym, however, you must have a 
-	 <a href='iteminfo.php?ID=18'>Chivalry Gym Scroll</a> to use it, but you will receive four times the gains you would have normally.
-     <br />The Criminal Center is where you may commit crimes to gain treasure or goods. You need Bravery and good IQ
+     <br />The Gym is the palce you'll want to visit if you have any hope of taking down an enemy.
+     <br />The Criminal Center is where you may commit crimes to gain treasure or goods. You need Bravery and good " . constant("stat_iq") . "
      for your level.
      <br />The Learning Academy is where you may enroll in a course that increase your stats in exchange for a lengthy
      studying period.
     <br />
     <br />
 	<u>Administration</u>
-	<br />
-	This category has no general theme, to be honest.
 	<br />Checking out User List will list all the registered users in-game, and allow you to organize them by Level,
-	ID, Copper Coins or name.
+	ID, " . constant("primary_currency") . " or name.
 	<br />Clicking Users Online will list the players online in the last 15 minutes. You can customize this to any
 	duration you wish.
 	<br />Staff List will list all in-game staff. These players uphold the law and order of the game. If you have any
 	issues, you should contact them!
 	<br />The Federal Dungeon is where bad folks go. If you follow the rules, you won't ever have to get locked up. If
 	you get locked up, you will lose access to almost all game features.
-	<br />Game Stats will list your game statistics. There's a lot shown here, so check it out to get an idea!
+	<br />Game Statistics will list your game statistics. There's a lot shown here, so check it out to get an idea!
 	<br />If you suspect a player breaking a rule, use the Player Report link to report them. Reports here are
 	anonymous, and your information won't be used in investigations against players. If you abuse this form, however,
 	you will be dealt with harshly.
@@ -221,21 +147,17 @@ echo "
 	<br />The Item Appendix lists all in-game items. You can use this to see how many items are in circulation.
 	<br />
 	<br />
-	<u>Games</u><br />
-	We have several games for you to play to keep your mind off the stress of the game. Games inside of a game. Isn't
-	this how you destroy the world?
-	<br />In either case, Russian Roulette is a deadly game that you can challenge your friends to. You point a gun to
+	<u>Games</u>
+	<br />Russian Roulette is a deadly game that you can challenge your friends to. You point a gun to
 	each other's heads until someone is shot. If you're shot, game over.
 	<br />If that's too high risk for you, how about trying out High/Low? Simply decide if the next drawn number will be
-	 higher or lower than the current number. If you're right, you pocket some extra Copper Coins.
+	 higher or lower than the current number. If you're right, you pocket some extra " . constant("primary_currency") . ".
 	 <br />If you want a little more thrill, check out Roulette! Pick a number, bet on it, and hope you win!
 	 <br />Finally, if you want to play a game of chance, how about betting at the Slot Machines?
 	<br />
 	<br />
 	<u>Guilds</u>
-	<br />
-	Hovering over the Guilds section will display links pertaining to guilds.
-	<br />Firstly, if you have joined a guild, Your Guild will take you to view your guild.
+	<br />Firstly, if you have joined a guild, 'Visit Your Guild' will take you to view your guild.
 	<br />However, this is useless if you aren't in a guild. To join a guild, or view possible enemies of your own guild,
 	 clicking on Guild List will list all the guilds in the game.
 	 <br />Clicking on a guild's name will allow you to view detailed information about the guild.
@@ -244,15 +166,8 @@ echo "
 	<br />
 	<br />
 	<u>Social</u>
-	<br />
-	Opening the Social section will allow you to view numerous things to do around the game.
-	<br />Firstly, the Dungeon will list the players in the dungeon. You will be placed here if you are caught
-	committing crimes.
-	<br />The Infirmary will show those who are receiving medical treatment. You will be placed here if you sustain
-	excessive injuries.
 	<br />The Forums are a great place to talk to other members of the game. Please note that its likely someone will give
-	 you a hard time. Simlpy don't take it too hard. It's all in the name of fun.
-	<br />The Game newspaper can be used to place ads in-game for whatever reason.
+	 you a hard time. Simply don't take it too hard. It's all in the name of fun.
 	<br />The Polling Center is used when the game administration wishes to receive input on something. Voting is optional,
 	but recommended if you wish to have any input on changes in-game.
 	<br />The Hall of Fame lists the top 20 players in each category. If you're not on this list, don't feel bad! Take some
@@ -260,18 +175,11 @@ echo "
 	<br />The Game Tutorial tells you how to play the game. Click this if you're confused... oh wait... you already did.
 	<br />
 	<br />
-	<u>Top 10 Players</u>
-	<br />
-	The Top 10 Players listing will list the top ten strongest players in the game, in order of total stats. These are
-	the players you want to beat. It's a high honor to be a part of this list. It takes lots of time and dedication to
-	get here. Don't be upset if you can't get here.
-	<br />
-	<br />
 	<u>Referral Link</u>
 	<br />
 	Your referral link is your personal registration link. Giving this to your friends will allow you to receive
-	rewards when your friends register. Post this link anywhere you see fit. <u>Just don't be a jerk and spam it on
-	other games.</u>
+	rewards when your friends register. Post this link anywhere you see fit. Just don't be a jerk and spam it on
+	other games.
 	<br />
 	<br />
 <hr />
@@ -293,20 +201,20 @@ echo "
 	<br />
 	Power training is the term used to describe when you spend excessive amounts of time, patience and skill training
 	your stats to have a significant increase. Power training blows through your resources quickly, so it's a good idea
-	to make sure you have enough Chivalry Tokens before you start power training.
+	to make sure you have enough Secondary Currency before you start power training.
 	<br />The idea is to have your Will maxed out, and train using all your Energy in one session, then refilling both
 	your Energy and Will before training again. This is complex, so don't worry if you do not understand how this works.
 	 <br />There's also many ways of doing this, so you may end up creating your own style of power training.
 	<hr />
 	<a name='combat'><h4>Combat</h4></a>
 	To get almost anywhere in our game, you need to fight others in combat. The weak will fall, and the strong will
-	reign supreme. Increasing your Agility, Strength, and Guard will increase your chance of success in combat.
+	reign supreme. Increasing your " . constant("stat_agility") . ", " . constant("stat_strength") . ", and " . constant("stat_guard") . " will increase your chance of success in combat.
 	<br />
 	<br />
 	<u>Robbing</u>
 	<br />
 	After successfully besting your opponent in combat, you can choose to Mug them. This will allow you to steal some
-	of their Copper Coins, and place them into the Infirmary. The amount you steal is based upon how much you are
+	of their " . constant("primary_currency") . ", and place them into the Infirmary. The amount you steal is based upon how much you are
 	able to snatch from their person. Obviously, if they have nothing on their person, you won't get anything.
 	<br />
 	<br />
@@ -349,7 +257,7 @@ echo "
 	<u>Creation</u>
 	<br />
 	You can create a guild once you reach level {$set['GUILD_LEVEL']} for " . number_format($set['GUILD_PRICE']) . "
-	Copper Coins. You are given an option to choose its name, and a friendly (or not so friendly) description. Once
+	" . constant("primary_currency") . ". You are given an option to choose its name, and a friendly (or not so friendly) description. Once
 	you purchase a guild, you become its owner. You have full control of that guild!
 	<br />
 	<br />
@@ -383,7 +291,7 @@ echo "
 	<br />
 	<hr>
 	<a name='settings'><h4>Account Settings</h4></a>
-	By going to your preferences page (from the dropdown), you'll be able to change key information about your account.
+	By going to your preferences page (by selecting the gear icon from the menu), you'll be able to change key information about your account.
 	It is highly recommended you check out this page, as more options may end up becoming available.
 	<br />
 	<br />
@@ -396,15 +304,7 @@ echo "
 	<u>Password Change</u>
 	<br />
 	You may change your password at will. We highly recommend using a password you haven't used elsewhere, and cycling
-	your password out every 3 months or so. We take reasonable steps to ensure your password isn't stolen. Every time 
-	you change your password, your encryption code for your in-game messages gets changed. This basically means that message 
-	you wrote prior the password change will no longer be read by you, or the person you sent it to.
-	<br />
-	<br />
-	<u>Email Change</u>
-	<br />
-	You may change your account's linked email address. This simply changes the email you use to login with, and the email address you 
-	wish to receive game communications from.
+	your password out every 3 months or so. We take reasonable steps to ensure your password isn't stolen.
 	<br />
 	<br />
 	<u>Email Opt Setting</u>
@@ -428,66 +328,5 @@ echo "
 	<br />
 	<u>Forum Signature</u>
 	<br />
-	You can change your forum signature. You may use BBCode. Please keep it PG-13
-	<br />
-	<br />
-	<u>Disable Alerts</u>
-	<br />
-	Tired of the blue notifications alerting you whenever you have unread mail or notifications? You can disable those annoying 
-	things here.
-	<br />
-	<br />
-	<u>Player Description Change</u>
-	<br />
-	Want other players to know what you're all about in-game? Write a bio about you which will show on your profile here. Please 
-	keep whatever you write within the Game Rules. We'd hate to have to remove your wonderful writing skills.
-	<br />
-	<br />
-	<u>Quick-Use Item Change</u>
-	<br />
-	IYou can choose to use other dungeon or infirmary items here if you don't have leeches or lockpicks, or just want to remove more 
-	time for less clicks. The choice is yours, naturally.
-	<br />
-	<br />
-	<u>Forum Notifications</u>
-	<br />
-	This will send you a notification every time someone responds to a forum thread you've created. This is off by default. If you are 
-	a social butterfly, you'd probably want this on.
-	<br />
-	<br />
-	<u>User Input Setting</u>
-	<br />
-	Change how you select other users in game. By default, everyone uses the dropdown. If you don't like it, you may manually enter 
-	User ID's instead.
-	<br />
-	<br />
-	<u>Theme Change</u>
-	<br />
-	The default theme too bland for you? You can change how the game looks to you here. There should be plenty 
-	of themes that suit your liking. Note, however, some themes require you to own VIP days to use. But don't worry, once you 
-	tick the theme, you'll continue to use it until you choose another.
-	<br />
-	<br />
-	<u>Class Reset</u>
-	<br />
-	If you do not like the class you chose when you first started the game, you may change it once for 10,000 IQ. Note that you will lose 25% of each 
-	of your combat stats in the process. You may reset your class more times if you purchase the respective item from the VIP Store.
-	<br />
-	<br />
-	<u>Tutorial Toggle</u>
-	<br />
-	Toggled on by default, the on-page tutorial will give you tips on each page you visit.
-	<br />
-	<br />
-	<u>Analytics</u>
-	<br />
-	You can choose to opt-out of analytical tracking, but we recommend you keep them on. They help the staff know where in the game needs 
-	improvement.
-	<br />
-	<br />
-	<u>Item Icons</u>
-	<br />
-	Disable item icons here. Disabling icons may improve game performance for some players.
-	<br />
-	<br />";
+	You can change your forum signature. You may use BBCode. Please keep it PG-13";
 $h->endpage();

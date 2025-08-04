@@ -1,153 +1,125 @@
 <?php
 /*
-	File: lib/basic_error_handler.php
-	Created: 6/17/2016 at 5:32PM Eastern Time
-	Info: An error handler that will show human readable error messages in-game.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine
+	File: 		lib/basic_error_handler.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		The in-game error handler.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 // Change to true to show the user more information (for development)
 define('DEBUG', true);
-define('CONTEXT_TRACE', false);
-define('SEND_DEBUG', false);
-define('DEBUG_RECEIVE', 1); //user id of player to receive the mails.
 
 function error_critical($human_error, $debug_error, $action, $context = array())
 {
-    global $set, $h;
-    echo "<title>Critical Error</title>";
-    if (isset($set) && is_array($set) && array_key_exists('WebsiteName', $set)) 
-    {
-        echo "<h1>Critical Error</h1>";
+    global $userid, $domain, $set;
+    echo "<title>{$set['WebsiteName']} - Critical Error</title>";
+    if (isset($set) && is_array($set) && array_key_exists('WebsiteName', $set)) {
+        echo "<h1>{$set['WebsiteName']} - Critical Error</h1>";
     } else {
         echo '<h1>Internal Server Error</h1>';
     }
-    if (DEBUG) 
-    {
-        echo "<b>{$debug_error}</b> {$action}<hr />Check out Chivalry is 
-        Dead on <a href='https://www.facebook.com/officialcidgame/'>Facebook</a> or 
-        <a href='https://twitter.com/cidgame'>Twitter</a> for more information if you cannot use the 
-        game. ";
+    if (DEBUG) {
+        echo 'A critical error has occurred, and page execution has stopped. If this issue persists, please notify an admin or web developer right away!<br />'
+            . 'Below are the details:<br /><pre>' . $debug_error
+            . '<br /><br />' . '<strong>Action taken:</strong> ' . $action
+            . '<br /><br /></pre>';
         // Only uncomment the below if you know what you're doing,
         // for debug purposes.
-        if (CONTEXT_TRACE) 
+        /*
+		if (is_array($context) && count($context) > 0)
         {
-    		if (is_array($context) && count($context) > 0)
-            {
-                        alert('info',"<strong>Error context</strong>", nl2br(print_r($context, true)), false);
-            }
+            echo '<strong>Context at error time:</strong> ' . '<br /><br />'
+                    . nl2br(print_r($context, true));
         }
-    } 
-    else 
-    {
-        alert("danger","Critical Error!","It appears you've ran into an error and execution of this script was halted. We're sorry for the inconvenience.<hr />Check out Chivalry is 
-        Dead on <a href='https://www.facebook.com/officialcidgame/'>Facebook</a> or 
-        <a href='https://twitter.com/cidgame'>Twitter</a> for more information if you cannot use the 
-        game.",false);
-        if (!empty($human_error)) 
-        {
+		*/
+    } else {
+        echo 'A critical error has occurred, and this page cannot be displayed. '
+            . 'Try again later. If this error persists, please alert an admin as soon as possible!';
+        if (!empty($human_error)) {
             echo '<br />' . $human_error;
         }
     }
     error_log($debug_error);
-    if (isset($h))
-        $h->endpage();
+	file_put_contents('../error.log', $debug_error, FILE_APPEND);
     exit;
 }
 
 function error_php($errno, $errstr, $errfile = '', $errline = 0, $errcontext = array())
 {
-    global $db;
-    if ($errno == E_WARNING) 
-    {
+    if ($errno == E_WARNING) {
         error_critical('',
             '<strong>PHP Warning:</strong> ' . $errstr . ' (' . $errno
             . ')', 'Line executed: ' . $errfile . ':' . $errline,
             $errcontext);
-    } 
-    else if ($errno == E_RECOVERABLE_ERROR) 
-    {
+    } else if ($errno == E_RECOVERABLE_ERROR) {
         error_critical('',
             '<strong>PHP Recoverable Error:</strong> ' . $errstr . ' ('
             . $errno . ')',
             'Line executed: ' . $errfile . ':' . $errline, $errcontext);
-    } 
-    else if ($errno == E_USER_ERROR) 
-    {
+    } else if ($errno == E_USER_ERROR) {
         error_critical('',
             '<strong>Engine Error:</strong> ' . $errstr . ' (' . $errno
             . ')', 'Line executed: ' . $errfile . ':' . $errline,
             $errcontext);
-    } 
-    else if ($errno == E_USER_WARNING) 
-    {
+    } else if ($errno == E_USER_WARNING) {
         error_critical('',
             '<strong>Engine Warning:</strong> ' . $errstr . ' (' . $errno
             . ')', 'Line executed: ' . $errfile . ':' . $errline,
             $errcontext);
-    }
-    else if ($errno == E_ERROR)
-    {
-        error_critical('',
-            '<strong>Engine Warning:</strong> ' . $errstr . ' (' . $errno
-            . ')', 'Line executed: ' . $errfile . ':' . $errline,
-            $errcontext);
-    }
-    else 
-    {
-        if (DEBUG) 
-        {
+    } else {
+        if (DEBUG) {
             $errname = 'Unknown Error';
-            switch ($errno) 
-            {
+            switch ($errno) {
                 case E_NOTICE:
                     $errname = 'PHP Notice';
                     break;
                 case E_USER_NOTICE:
                     $errname = 'User Notice';
                     break;
-                case E_DEPRECATED:
+                case 8192:
                     $errname = 'PHP Deprecation Notice';
                     break;
-                case E_USER_DEPRECATED:
+                case 16384:
                     $errname = 'User Deprecation Notice';
                     break;
-                default:
-                    $errname = 'Unspecified Error';
-                    break;
             }
-            alert('warning',"","<b>{$errname} ({$errno})</b> {$errstr} on {$errfile}, line {$errline}.", false);
-            //Enable above.
-            if (CONTEXT_TRACE) 
+            echo '<pre>A non-critical error has occurred. Page execution will continue. '
+                . 'Below are the details:<br /><strong>' . $errname
+                . '</strong>: ' . $errstr . ' (' . $errno . ')'
+                . '<br /><br />' . '<strong>Line executed</strong>: '
+                . $errfile . ':' . $errline . '<br /><br />';
+            // Only uncomment the below if you know what you're doing,
+            // for debug purposes.
+            /*
+			if (is_array($errcontext) && count($errcontext) > 0)
             {
-    			if (is_array($errcontext) && count($errcontext) > 0)
-                {
-                    alert('danger',"Dumping context at error time",nl2br(print_r($errcontext, true)),false);
-    			}
-            }
-            //Enable above.
-            if (SEND_DEBUG)
-            {
-                if (isset($db))
-                {
-                    if (!isset($_SESSION['userid']))
-                        $_SESSION['userid'] = 1;
-                    $subj = "{$errname} ({$errno})";
-                    $msg = "{$errstr} on {$errfile}, line {$errline}. (Called from " . basename(__FILE__) . ")";
-                    $msg=encrypt_message($msg,$_SESSION['userid'], DEBUG_RECEIVE);
-                    $time = time();
-                    $db->query("INSERT INTO `mail`
-    				(`mail_to`, `mail_from`, `mail_status`, `mail_subject`, `mail_text`, `mail_time`)
-    				VALUES
-    				('" . DEBUG_RECEIVE . "', '{$_SESSION['userid']}', 'unread', '{$subj}', '{$msg}', '{$time}');");
-                }
-            }
+				echo '<strong>Context at error time:</strong> '
+				. '<br /><br />' . nl2br(print_r($errcontext, true));
+			}
+			*/
+            echo "</pre>";
         }
     }
-}
-
-function exception_handler($exception)
-{
-    $error = "<b>Fatal Error</b> {$exception->getMessage()}";
-    error_critical("", $error, $exception->getTraceAsString());
 }

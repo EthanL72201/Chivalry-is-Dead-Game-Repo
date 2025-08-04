@@ -1,64 +1,79 @@
 <?php
+/*
+	File:		login.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Main page when a user is not authenticated.
+	Author:		TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
 if ((!file_exists('./installer.lock')) && (file_exists('installer.php'))) {
     header("Location: installer.php");
     die();
 }
 require("globals_nonauth.php");
-require('lib/bbcode_engine.php');
-$AnnouncementQuery = $db->query("/*qc=on*/SELECT `ann_text`,`ann_time` FROM `announcements` ORDER BY `ann_time` desc LIMIT 1");
-$ANN = $db->fetch_row($AnnouncementQuery);
-$ANN['ann_text']=substr($ANN['ann_text'], 0, 330);
-$parser->parse($ANN['ann_text']);
 $last24hr=time()-86400;
 $totalplayers=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users`"));
 $playersonline=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users` WHERE `laston` > {$last24hr}"));
 $signups=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users` WHERE `registertime` > {$last24hr}"));
 $currentpage = $_SERVER['REQUEST_URI'];
 $cpage = strip_tags(stripslashes($currentpage));
-$domain = determine_game_urlbase();
-$csrf = request_csrf_html('login');
+$domain = getGameURL();
+$csrf = getHtmlCSRF('login');
 echo "
 <div class='row'>
-    <div class='col-md-6 col-lg-5 col-xxl-3'>
+    <div class='col-sm-4'>
         <div class='card'>
-            <div class='card-header'>
-                <div class='row'>
-                <div class='col'>
-                        Sign In
-                    </div>
-                <div class='col'>
-                     <a href='pwreset.php'>Forgot Password?</a>
-                    </div>
-                </div>
+            <div class='card-header bg-dark text-white'>
+                Sign In <a href='pwreset.php'>Forgot Password?</a>
             </div>
             <div class='card-body'>
                 <form method='post' action='authenticate.php'>
                     {$csrf}
                     <input type='email' name='email' class='form-control' required='true' placeholder='Your email address'><br />
                     <input type='password' name='password' class='form-control' required='true' placeholder='Your password'><br />
-                    <input type='submit' class='btn btn-primary btn-block' value='✅ Sign In'><br />
+                    <input type='submit' class='btn btn-primary' value='Sign In'><br />
                     New here? <a href='register.php'>Sign up</a> for an account!
-                </form>";
-				//loginbutton("rectangle");
-            echo "</div>
+                </form>
+            </div>
         </div>
-        <br />
     </div>
-    <div class='col-md-6 col-lg-7 col-xl-7 col-xxl-4'>
+    <div class='col-sm-8'>
         <div class='card'>
-            <div class='card-header'>
-            😡 Warrior with no empathy
+            <div class='card-header bg-dark text-white'>
+            {$set['WebsiteName']} Info
             </div>
             <div class='card-body'>
                 {$set['Website_Description']}
             </div>
         </div>
-        <br />
     </div>
-    <div class='col-md-6 col-lg-5 col-xxl-5'>
+</div>
+<div class='row'>
+    <div class='col-sm-4'>
         <div class='card'>
-            <div class='card-header'>
-                Highest Ranked Players 🎗️
+            <div class='card-header bg-dark text-white'>
+                Highest Ranked Players
             </div>
             <div class='card-body'>";
                 $Rank = 0;
@@ -74,92 +89,38 @@ echo "
                                 LIMIT 10");
                 while ($pdata = $db->fetch_row($RankPlayerQuery)) {
                     $Rank = $Rank + 1;
-                    echo "<div class='row'>
-                        <div class='col-auto'>
-                            {$Rank}
-                        </div>
-                        <div class='col'>
-                            " . parseUsername($pdata['userid']) . " " . parseUserID($pdata['userid']) . "
-                        </div>
-                        <div class='col'>
-                            Level " . shortNumberParse($pdata['level']) . "
-                        </div>
-                    </div>";
+                    echo "{$Rank}) {$pdata['username']} [{$pdata['userid']}] (Level {$pdata['level']})<br />";
                 }
                 echo"
             </div>
         </div>
-        <br />
     </div>
-	<div class='col-md-6 col-lg-7 col-xl-7 col-xxl-3'>
+</div>
+<div class='row'>
+    <div class='col-sm-4'>
         <div class='card'>
-            <div class='card-header'>
-            ℹ️ Gameplay
+            <div class='card-header bg-dark text-white'>
+                No Installation Required!
             </div>
             <div class='card-body'>
-                Players must get stronger in order to defeat those who oppose them. How they get there is entirely up to them!
-				Players may commit crimes and become a crimelord, or hit the training grounds to become a well rounded warrior. 
-				Estates are available purchase to accomodate yourself growing as the warrior they claim to be. <br />
-				Other warriors will attempt you from reaching the number one warrior spot... but are you really going to be stopped?
+                Free Registration<br />
+                " . number_format($playersonline) . " Players Online Today<br />
+                " . number_format($totalplayers) . " Total Players<br />
+                " . number_format($signups) . " New Players Today
             </div>
         </div>
-        <br />
     </div>
-    <div class='col-md-6 col-lg-5 col-xl-5 col-xxl-3'>
+    <div class='col-sm-8'>
         <div class='card'>
-            <div class='card-header'>
-                ✅ No Installation Required!
+            <div class='card-header bg-dark text-white'>
+                Powered by FOSS!
             </div>
             <div class='card-body'>
-                <div class='row'>
-                    <div class='col-auto'>" . shortNumberParse($playersonline) . " Players Online Today</div>
-                <div class='col-auto'>" . shortNumberParse($totalplayers) . " Total Players</div>
-                <div class='col-auto'>" . shortNumberParse($signups) . " New Players Today</div>
-				<div class='col-auto'>Most Users Online: " . shortNumberParse($set['mostUsersOn']) . " Users on " . DateTime_Parse($set['mostUsersOnTime']) . "</div>
-                </div>
+                This game runs on <a href='https://github.com/MasterGeneral156/chivalry-engine/tree/v2'>Chivalry Engine 
+                version {$set['Version_Number']}</a>, created by <a href='https://twitter.com/DaMG156'>MasterGeneral156
+                </a>.
             </div>
         </div>
-        <br />
-    </div>
-	<div class='col-md-6 col-lg-7 col-xl-7 col-xxl-3'>
-        <div class='card'>
-            <div class='card-header'>
-                📣 Latest Announcement
-            </div>
-            <div class='card-body'>
-                <div class='row'>
-                    <div class='col-12'>" . $parser->getAsHtml() . "</div>
-				    <div class='col-12'><small>" . DateTime_Parse($ANN['ann_time']) . "</small></div>
-                </div>
-            </div>
-        </div>
-        <br />
-    </div>";
-    $displaypic = "<img src='" . parseDisplayPic($set['random_player_showcase']) . "' class='img-thumbnail' height='75'>";
-echo"
-    <div class='col-md-6 col-lg-5 col-xl-4 col-xxl-3'>
-        <div class='card'>
-            <div class='card-header'>
-                👑 Player of the Week
-            </div>
-            <div class='card-body'>
-                <div class='row'>
-                    <div class='col-12 col-sm col-md-5'>
-                        {$displaypic}
-                    </div>
-                    <div class='col-12 col-sm-12 col-md'>
-                        <div class='row'>
-                            <div class='col-auto'>
-                                " . parseUsername($set['random_player_showcase']) . " " . parseUserID($set['random_player_showcase']) . "
-                            </div>
-                            <div class='col-auto'>
-                                Level: " . shortNumberParse($api->UserInfoGet($set['random_player_showcase'], "level")) . "
-                            </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <br />
     </div>
 </div>";
 $h->endpage();

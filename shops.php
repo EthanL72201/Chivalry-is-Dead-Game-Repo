@@ -1,18 +1,34 @@
 <?php
 /*
 	File:		shops.php
-	Created: 	4/5/2016 at 12:25AM Eastern Time
-	Info: 		Allows players to visit shops, and buy items from the
-				shop's inventory.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows players to visit in-game shops to buy in-game items.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require("globals.php");
-if ($api->UserStatus($userid,'dungeon') || $api->UserStatus($userid,'infirmary'))
-{
-	alert('danger',"Uh Oh!","You cannot visit the shops while in the infirmary or dungeon.",true,'index.php');
-	die($h->endpage());
-}
+require_once("includes/vip-benefits.php");
 if (!isset($_GET['action'])) {
     $_GET['action'] = '';
 }
@@ -30,46 +46,31 @@ switch ($_GET['action']) {
 function home()
 {
     global $db, $ir;
-    $q = $db->query("/*qc=on*/SELECT `shopID`, `shopNAME`, `shopDESCRIPTION` FROM `shops` WHERE `shopLOCATION` = {$ir['location']}");
-    if ($db->num_rows($q) == 0) 
-	{
+    echo "You begin looking through town to see the shops that interest you. You find a small handful.<br />";
+    $q = $db->query("SELECT `shopID`, `shopNAME`, `shopDESCRIPTION` FROM `shops` WHERE `shopLOCATION` = {$ir['location']}");
+    if ($db->num_rows($q) == 0) {
         echo "This town doesn't have any shops, funny enough.";
-    } 
-	else 
-	{
-	    echo "<div class='card'>
-                <div class='card-header'>
-                    Town Shops
-                </div>
-                <div class='card-body'>";
-        while ($r = $db->fetch_row($q)) 
-		{
-           echo "     
-                <div class='row'>
-                    <div class='col-12 col-lg-4 col-xl-3 col-xxxl-2'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Shop Name</b></small>
-                            </div>
-                            <div class='col-12'>
-                                <a href='?action=shop&shop={$r['shopID']}'>{$r['shopNAME']}</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-12 col-lg'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Shop Description</b></small>
-                            </div>
-                            <div class='col-12'>
-                                {$r['shopDESCRIPTION']}
-                            </div>
-                        </div>
-                    </div>
-                </div>";
+    } else {
+		echo "<div class='row'>
+				<div class='col-sm'>
+					<h4>Shop Name</h4>
+				</div>
+				<div class='col-sm'>
+					<h4>Shop Desc</h4>
+				</div>
+			</div>
+			<hr />";
+        while ($r = $db->fetch_row($q)) {
+			echo "<div class='row'>
+					<div class='col-sm'>
+						<a href='?action=shop&shop={$r['shopID']}'>{$r['shopNAME']}</a>
+					</div>
+					<div class='col-sm'>
+						{$r['shopDESCRIPTION']}
+					</div>
+				</div>
+				<hr />";
         }
-        echo "</div></div><br />
-		<img src='https://cdn.chivalryisdeadgame.com/assets/img/menu/shop/shop.jpg' class='img-thumbnail img-responsive'>";
         $db->free_result($q);
     }
 }
@@ -77,18 +78,40 @@ function home()
 function shop()
 {
     global $db, $ir, $api, $userid;
+    
+    // Initialize VIP benefits
+    $vipBenefits = getVIPBenefits($db, $userid);
     $_GET['shop'] = abs($_GET['shop']);
-    $sd = $db->query("/*qc=on*/SELECT `shopLOCATION`, `shopNAME` FROM `shops` WHERE `shopID` = {$_GET['shop']}");
+    $sd = $db->query("SELECT `shopLOCATION`, `shopNAME` FROM `shops` WHERE `shopID` = {$_GET['shop']}");
     if ($db->num_rows($sd) > 0) {
         $shopdata = $db->fetch_row($sd);
-        if ($shopdata['shopLOCATION'] == $ir['location']) 
-		{
-		    //Bargaining Skill
-			$specialnumber = ((getUserSkill($userid, 12) * getSkillBonus(12)) / 100);
-            alert('info',"","You have " . shortNumberParse($ir['primary_currency']) . " " . loadImageAsset("menu/coin-copper.svg") . " to spend while you're at the {$shopdata['shopNAME']} shop.",false);
+        if ($shopdata['shopLOCATION'] == $ir['location']) {
+            echo "You begin browsing the stock at {$shopdata['shopNAME']}<br />";
+            
+            // Show VIP discount info if user is VIP
+            if ($vipBenefits->isVIP()) {
+                echo "<div class='alert alert-warning mb-3'>
+                        <i class='fas fa-crown'></i> <strong>VIP Member Discount:</strong> 
+                        You receive 10% off all purchases! {$vipBenefits->getVIPBadge()}
+                      </div>";
+            }
+            
+            echo "<div class='row'>
+				<div class='col-sm'>
+					<h4>Item</h4>
+				</div>
+				<div class='col-sm'>
+					<h4>Price</h4>
+				</div>
+				<div class='col-sm'>
+					<h4>Purchase</h4>
+				</div>
+			</div>
+			<hr />";
             $qtwo =
                 $db->query(
-                    "/*qc=on*/SELECT `i`.*, `itmtypename`, `sitemID`
+                    "SELECT `itmtypename`, `itmname`, `itmdesc`, `itmid`,
+                             `itmbuyprice`, `itmsellprice`, `sitemID`
                              FROM `shopitems` AS `si`
                              INNER JOIN `items` AS `i`
                              ON `si`.`sitemITEMID` = `i`.`itmid`
@@ -98,169 +121,44 @@ function shop()
                              ORDER BY `itmtype` ASC, `itmbuyprice` ASC,
                              `itmname` ASC");
             $lt = "";
-			echo "
-			<div class='accordion' id='inventoryAccordian'>";
-            while ($r = $db->fetch_row($qtwo)) 
-			{
-				$r['itmbuyprice']=$r['itmbuyprice']-($r['itmbuyprice']*$specialnumber);
-				$r['itmbuyprice'] = $api->SystemReturnTax($r['itmbuyprice']);
-                if ($lt != $r['itmtypename']) 
-				{
-					$lt = $r['itmtypename'];
-					echo "<div class='card'>
-							<div class='card-body' id='heading{$r['itmid']}'>
-								<h4 class='mb-0'>
-									{$lt}
-								</h4>
+            while ($r = $db->fetch_row($qtwo)) {
+                if ($lt != $r['itmtypename']) {
+                    $lt = $r['itmtypename'];
+                    echo "<div class='row'>
+							<div class='col-sm'>
+								<h5><u><b>{$lt}</b></u></h5>
 							</div>
-						</div>";
-				}
-				$r['itmdesc'] = htmlentities($r['itmdesc'], ENT_QUOTES);
-				$rcon = returnIcon($r['itmid'],2);
-				$armory=$db->fetch_single($db->query("/*qc=on*/SELECT SUM(`gaQTY`) FROM `guild_armory` WHERE `gaITEM` = {$r['itmid']} AND `gaGUILD` != 1"));
-				$rnvent=$db->fetch_single($db->query("/*qc=on*/SELECT SUM(`inv_qty`) FROM `inventory` WHERE `inv_itemid` = {$r['itmid']} AND `inv_userid` != 1"));
-				$market=$db->fetch_single($db->query("/*qc=on*/SELECT SUM(`imQTY`) FROM `itemmarket` WHERE `imITEM` = {$r['itmid']}"));
-				$primary=$db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`equip_primary`) FROM `users` WHERE `equip_primary` = {$r['itmid']} AND `userid` != 1"));
-				$secondary=$db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`equip_secondary`) FROM `users` WHERE `equip_secondary` = {$r['itmid']} AND `userid` != 1"));
-				$armor=$db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`equip_armor`) FROM `users` WHERE `equip_armor` = {$r['itmid']} AND `userid` != 1"));
-				$badge=$db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`equip_badge`) FROM `users` WHERE `equip_badge` = {$r['itmid']} AND `userid` != 1"));
-				$trink=$db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`equip_slot`) FROM `user_equips` WHERE `itemid` = {$r['itmid']}"));
-				$total=$rnvent+$armory+$market+$primary+$secondary+$armor+$badge+$trink;
-				echo "
-				<div class='card'>
-					<div class='card-header' id='heading{$r['itmid']}'>
-						<h2 class='mb-0'>
-							<button class='btn btn-block btn-block text-left' type='button' data-toggle='collapse' data-target='#collapse{$r['itmid']}' aria-expanded='true' aria-controls='collapse{$r['itmid']}'>
-								<div class='row'>
-									<div class='col-2 col-md-1'>
-										{$rcon}
-									</div>
-									<div class='col-10 col-sm-5 col-md-7'>
-										<div class='row'>
-											<div class='col'>
-												{$r['itmname']}
-											</div>
-											<div class='col'>
-												<b>Price</b><br />
-												<small>" . shortNumberParse($r['itmbuyprice']) . " " . loadImageAsset("menu/coin-copper.svg") . "</small>
-											</div>
-											<br />
-										</div>
-									</div>
-									<div class='col'>
-										<form action='?action=buy&ID={$r['sitemID']}' method='post'>
-											<div class='row'>
-												<div class='col'>
-													<span class='sr-only'>Buy Quantity: </span>
-													<input class='form-control' type='number' min='1' name='qty' placeholder='Buy quantity' aria-label='Buy Quantity' title='Input buy quantity' />
-												</div>
-												<div class='col-sm-3 col-4'>
-														<input class='btn btn-primary btn-block' type='submit' value='Buy' />
-													</form>
-												</div>
-											</div>
-										</form>
-									</div>
-								</div>
-							</button>
-						</h2>
-					</div>
-					<div id='collapse{$r['itmid']}' class='collapse' aria-labelledby='heading{$r['itmid']}' data-parent='#inventoryAccordian'>
-					<div class='card-body'>
-						<div class='row'>
-							<div class='col-md-1'>
-								" . returnIcon($r['itmid'],3.5) . "
-							</div>
-							<div class='col-md-8 text-left'>
-								<b>{$r['itmname']}</b> is a {$lt} item.<br />
-								<i>{$r['itmdesc']}</i>";
-								$start=0;
-								for ($enum = 1; $enum <= 3; $enum++) 
-								{
-									if ($r["effect{$enum}_on"] == 'true') 
-									{
-										if ($start == 0)
-										{
-											echo "<br /><b>Effect</b> ";
-											$start = 1;
-										}
-										$einfo = unserialize($r["effect{$enum}"]);
-										$einfo['inc_type'] = ($einfo['inc_type'] == 'percent') ? '%' : '';
-										$einfo['dir'] = ($einfo['dir'] == 'pos') ? '+' : '-';
-										$stats =
-											array("energy" => "Energy", "will" => "Will",
-												"brave" => "Bravery", "level" => "Level",
-												"hp" => "Health", "strength" => "Strength",
-												"agility" => "Agility", "guard" => "Guard",
-												"labor" => "Labor", "iq" => "IQ",
-												"infirmary" => "Infirmary minutes", "dungeon" => "Dungeon minutes",
-											    "primary_currency" => loadImageAsset("menu/coin-copper.svg"), "secondary_currency"
-											    => loadImageAsset("menu/coin-chivalry.svg"), "crimexp" => "Experience", "vip_days" =>
-												"VIP Days", "luck" => "Luck", "premium_currency" => "Mutton");
-										$statformatted = $stats["{$einfo['stat']}"];
-										echo "{$einfo['dir']}" . number_format($einfo['inc_amount']) . "{$einfo['inc_type']} {$statformatted}.";
-									}
-								}
-					echo "</div>";
-					if ($api->UserMemberLevelGet($userid, 'Admin'))
-					{
-						echo "<div class='col-md'>
-							<div class='row'>
-								<div class='col'>
-									<a class='btn btn-primary' href='staff/staff_shops.php?action=delstock&id={$r['sitemID']}'>Remove From Shop</a>
-								</div>
-							</div>
-						</div>";
-					}
-					echo"	
-					</div>
-						<hr />
-						<div class='row'>
-							<div class='col'>
-								<b>Sell</b><br />
-								<small>" . shortNumberParse($r['itmsellprice']) . " " . loadImageAsset("menu/coin-copper.svg") . "</small>
-							</div>
-							<div class='col'>
-								<b>Circulating</b><br />
-								<small>" . shortNumberParse($total) . "</small>
-							</div>";
-							if ($r['weapon'] > 0)
-							{
-								echo "
-								<div class='col'>
-									<b>Weapon</b><br />
-									<small>" . shortNumberParse($r['weapon']) . "</small>
-								</div>";
-							}
-							if ($r['ammo'] > 0)
-							{
-								echo "
-								<div class='col'>
-									<b>Projectile</b><br />
-									<small><a href='iteminfo.php?ID={$r['ammo']}'>{$api->SystemItemIDtoName($r['ammo'])}</a></small>
-								</div>";
-							}
-							if ($r['armor'] > 0)
-							{
-								echo "
-								<div class='col'>
-									<b>Armor</b><br />
-									<small>" . shortNumberParse($r['armor']) . "</small>
-								</div>";
-							}
-							echo"
 						</div>
-						<hr />
-						<div class='row'>
+						<hr />";
+                }
+                // Apply VIP discount to displayed price
+                $originalPrice = $r['itmbuyprice'];
+                $displayPrice = $vipBenefits->applyShopDiscount($originalPrice);
+                $discountText = '';
+                
+                if ($vipBenefits->isVIP() && $displayPrice < $originalPrice) {
+                    $discountText = "<span class='text-muted'><del>" . number_format($originalPrice) . "</del></span> ";
+                }
+
+				echo "<div class='row'>
+						<div class='col-sm'>
+							<a href='iteminfo.php?ID={$r['itmid']}' data-toggle='tooltip'"; ?> title="<?php echo $r['itmdesc']; ?>" <?php echo ">{$r['itmname']}</a>
+						</div>
+						<div class='col-sm'>
+							{$discountText}<span class='text-success fw-bold'>" . number_format($displayPrice) . "</span>
+						</div>
+						<div class='col-sm'>
+							<form action='?action=buy&ID={$r['sitemID']}' method='post'>
+                            		Quantity <input class='form-control' type='number' min='1' name='qty' value='1' />
+                            		<input class='btn btn-primary' type='submit' value='Buy' />
+                            	</form>
 						</div>
 					</div>
-				</div>
-			</div>";
+					<hr />";
             }
             $db->free_result($qtwo);
-            echo "</div>";
-        } 
-		else {
+            echo "</table>";
+        } else {
             alert('danger', "Uh Oh!", "You are not in the same location as this shop, and thus, cannot view its stock.", true, "shops.php");
         }
     } else {
@@ -272,55 +170,69 @@ function shop()
 function buy()
 {
     global $db, $userid, $ir, $api, $h;
+    
+    // Initialize VIP benefits
+    $vipBenefits = getVIPBenefits($db, $userid);
     $_GET['ID'] = (isset($_GET['ID']) && is_numeric($_GET['ID'])) ? abs(($_GET['ID'])) : '';
     $_POST['qty'] = (isset($_POST['qty']) && is_numeric($_POST['qty'])) ? abs(($_POST['qty'])) : '';
-    if (permission('CanBuyFromGame', $userid) == true) {
-        if (empty($_GET['ID']) OR empty($_POST['qty'])) {
-            alert('danger', "Uh Oh!", "Please fill out the form completely before submitting it.", true, "shops.php");
-        } else {
-            $q = $db->query("/*qc=on*/SELECT `itmid`, `itmbuyprice`, `itmname`, `itmbuyable`, `shopLOCATION`
-							FROM `shopitems` AS `si`
-							INNER JOIN `shops` AS `s`
-							ON `si`.`sitemSHOP` = `s`.`shopID`
-							INNER JOIN `items` AS `i`
-							ON `si`.`sitemITEMID` = `i`.`itmid`
-							WHERE `sitemID` = {$_GET['ID']}");
-            if ($db->num_rows($q) == 0) {
-                alert('danger', "Uh Oh!", "You are trying to buy from a non-existent shop.", true, "shops.php");
-            } else {
-                $itemd = $db->fetch_row($q);
-                $specialnumber = ((getUserSkill($userid, 12) * getSkillBonus(12)) / 100);
-				$itemd['itmbuyprice'] = $itemd['itmbuyprice'] - ($itemd['itmbuyprice'] * $specialnumber);
-				$price = ($api->SystemReturnTax($itemd['itmbuyprice']) * $_POST['qty']);
-				if ($ir['primary_currency'] < $price) {
-				    alert('danger', "Uh Oh!", "You do not have enough Copper Coins to buy 
-                            " . shortNumberParse($_POST['qty']) . " {$itemd['itmname']}(s). You need 
-                            " . shortNumberParse($price) . " Copper coins, but only have ". shortNumberParse($ir['primary_currency']) . ".", true, "shops.php");
-                    die($h->endpage());
-                }
-                if ($itemd['itmbuyable'] == 'false') {
-                    alert('danger', "Uh Oh!", "You cannot buy {$itemd['itmname']}s this way.", true, "shops.php");
-                    die($h->endpage());
-                }
-                if ($itemd['shopLOCATION'] != $ir['location']) {
-                    alert('danger', "Uh Oh!", "You are not in the same town as this shop and cannot buy from it.", true, "shops.php");
-                    die($h->endpage());
-                }
-
-				addToEconomyLog('Game Shops', 'copper', (($itemd['itmbuyprice'] * $_POST['qty'])*-1));
-                item_add($userid, $itemd['itmid'], $_POST['qty']);
-                $db->query(
-                    "UPDATE `users`
-						 SET `primary_currency` = `primary_currency` - $price
-						 WHERE `userid` = $userid");
-                $ib_log = $db->escape("{$ir['username']} bought " . shortNumberParse($_POST['qty']) . " {$itemd['itmname']}(s) for " . shortNumberParse($price) . " Copper Coins.");
-                alert('success', "Success!", "You have bought " . shortNumberParse($_POST['qty']) . " {$itemd['itmname']}(s) for " . shortNumberParse($price) . " Copper Coins.", true, "shops.php");
-                $api->SystemLogsAdd($userid, 'itembuy', $ib_log);
-                $api->SystemCreditTax($api->SystemReturnTaxOnly($itemd['itmbuyprice']* $_POST['qty']), 1, -1);
-            }
-            $db->free_result($q);
-        }
-    }
+	if (empty($_GET['ID']) OR empty($_POST['qty'])) {
+		alert('danger', "Uh Oh!", "Please fill out the form completely before submitting it.", true, "shops.php");
+	} else {
+		$q = $db->query("SELECT `itmid`, `itmbuyprice`, `itmname`, `itmbuyable`, `shopLOCATION`
+						FROM `shopitems` AS `si`
+						INNER JOIN `shops` AS `s`
+						ON `si`.`sitemSHOP` = `s`.`shopID`
+						INNER JOIN `items` AS `i`
+						ON `si`.`sitemITEMID` = `i`.`itmid`
+						WHERE `sitemID` = {$_GET['ID']}");
+		if ($db->num_rows($q) == 0) {
+			alert('danger', "Uh Oh!", "You are trying to buy from a non-existent shop.", true, "shops.php");
+		} else {
+			$itemd = $db->fetch_row($q);
+			
+			// Apply VIP discount to the actual purchase price
+			$originalPrice = $itemd['itmbuyprice'] * $_POST['qty'];
+			$finalPrice = $vipBenefits->applyShopDiscount($itemd['itmbuyprice']) * $_POST['qty'];
+			$discount = $originalPrice - $finalPrice;
+			
+			if ($ir['primary_currency'] < $finalPrice) {
+				alert('danger', "Uh Oh!", "You do not have enough " . constant("primary_currency") . " to buy {$_POST['qty']} {$itemd['itmname']}(s).", true, "shops.php");
+				die($h->endpage());
+			}
+			if ($itemd['itmbuyable'] == 'false') {
+				alert('danger', "Uh Oh!", "You cannot buy {$itemd['itmname']}s this way.", true, "shops.php");
+				die($h->endpage());
+			}
+			if ($itemd['shopLOCATION'] != $ir['location']) {
+				alert('danger', "Uh Oh!", "You are not in the same town as this shop and cannot buy from it.", true, "shops.php");
+				die($h->endpage());
+			}
+			
+			addItem($userid, $itemd['itmid'], $_POST['qty']);
+			$db->query(
+				"UPDATE `users`
+					 SET `primary_currency` = `primary_currency` - $finalPrice
+					 WHERE `userid` = $userid");
+			
+			// Log VIP benefit usage if discount was applied
+			if ($discount > 0) {
+				$vipBenefits->logBenefitUsage('shop_discount', $discount);
+			}
+			
+			$ib_log = $db->escape("{$ir['username']} bought {$_POST['qty']} {$itemd['itmname']}(s) for {$finalPrice}");
+			
+			// Show different success message for VIP vs regular users
+			$successMessage = "You have bought {$_POST['qty']} {$itemd['itmname']}(s) for " . number_format($finalPrice) . " " . constant("primary_currency");
+			if ($discount > 0) {
+				$successMessage .= " <span class='text-warning'>(VIP Discount: -" . number_format($discount) . " " . constant("primary_currency") . ")</span>";
+			}
+			$successMessage .= ".";
+			
+			alert('success', "Success!", $successMessage, true, "shops.php");
+			$api->game->addLog($userid, 'itembuy', $ib_log);
+		}
+		$db->free_result($q);
+	}
 }
 
 $h->endpage();

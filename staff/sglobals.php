@@ -1,43 +1,49 @@
 <?php
 /*
-	File: staff/sglobals.php
-	Created: 6/21/2016 at 2:02PM Eastern Time
-	Info: Functions for staff-only actions.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine/
+	File: 		staff/sglobals.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Basic loading needed for the staff panel pages.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
-include('../forms/include_top.php');
-@ini_set('zlib.output_compression', 1);
-require "../lib/basic_error_handler.php";
-set_error_handler('error_php');
-set_exception_handler("exception_handler");
-ob_implicit_flush(true);
 if (strpos($_SERVER['PHP_SELF'], "sglobals.php") !== false) {
     exit;
 }
-if (strpos($_SERVER['PHP_SELF'], "globals_nonauth.php") !== false) {
-    exit;
-}
-if (isset($_SERVER['HTTP_PURPOSE']) && $_SERVER['HTTP_PURPOSE'] == 'prefetch') {
-    // This is a prefetch request, so avoid triggering critical operations
-    exit();
-} elseif (isset($_SERVER['HTTP_X_PURPOSE']) && $_SERVER['HTTP_X_PURPOSE'] == 'preview') {
-    // This is a prerender request
-    exit();
-}
-session_name('CENGINE');
+session_name('CEV3');
 session_start();
 $time = time();
 header('X-Frame-Options: SAMEORIGIN');
-header("X-DNS-Prefetch-Control: off");
 if (!isset($_SESSION['started'])) {
     session_regenerate_id();
     $_SESSION['started'] = true;
 }
 ob_start();
-require "../lib/dev_help.php";
+require "../lib/basic_error_handler.php";
+set_error_handler('error_php');
 require "../global_func.php";
-$domain = determine_game_urlbase();
+$domain = getGameURL();
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] == 0) {
     $login_url = "../login.php";
     header("Location: {$login_url}");
@@ -51,50 +57,42 @@ $_SESSION['last_active'] = time();
 $userid = isset($_SESSION['userid']) ? $_SESSION['userid'] : 0;
 require "sheader.php";
 include "../config.php";
-global $_CONFIG;
 define("MONO_ON", 1);
-require "../class/class_db_{$_CONFIG['driver']}.php";
+require "../class/class_db_" . constant("db_driver") . ".php";
 $db = new database;
-$db->configure($_CONFIG['hostname'], $_CONFIG['username'], $_CONFIG['password'], $_CONFIG['database'], $_CONFIG['persistent']);
+$db->configure(constant("db_host"), constant("db_username"), constant("db_password"), constant("db_database"), 0);
 $db->connect();
 $c = $db->connection_id;
 $set = array();
-$settq = $db->query("/*qc=on*/SELECT * FROM `settings`");
+$settq = $db->query("SELECT * FROM `settings`");
 while ($r = $db->fetch_row($settq)) {
     $set[$r['setting_name']] = $r['setting_value'];
 }
 global $jobquery, $housequery;
 if (isset($jobquery) && $jobquery) {
-    $is = $db->query("/*qc=on*/SELECT `u`.*, `us`.*, `j`.*, `jr`.*
+    $is = $db->query("SELECT `u`.*, `us`.*, `j`.*, `jr`.*
                      FROM `users` AS `u`
                      INNER JOIN `userstats` AS `us`
                      ON `u`.`userid`=`us`.`userid`
-					 INNER JOIN `user_settings` AS `uas`
-                     ON `u`.`userid`=`uas`.`userid`
                      LEFT JOIN `jobs` AS `j` ON `j`.`jRANK` = `u`.`job`
                      LEFT JOIN `job_ranks` AS `jr`
                      ON `jr`.`jrID` = `u`.`jobrank`
                      WHERE `u`.`userid` = '{$userid}'
                      LIMIT 1");
 } else if (isset($housequery) && $housequery) {
-    $is = $db->query("/*qc=on*/SELECT `u`.*, `us`.*, `h`.*
+    $is = $db->query("SELECT `u`.*, `us`.*, `h`.*
                      FROM `users` AS `u`
                      INNER JOIN `userstats` AS `us`
                      ON `u`.`userid`=`us`.`userid`
-					 INNER JOIN `user_settings` AS `uas`
-                     ON `u`.`userid`=`uas`.`userid`
                      LEFT JOIN `houses` AS `h` ON `h`.`hWILL` = `u`.`maxwill`
                      WHERE `u`.`userid` = '{$userid}'
                      LIMIT 1");
 } else {
-    $is = $db->query(
-            "/*qc=on*/SELECT `u`.*, `us`.*, `uas`.*
+    $is = $db->query("SELECT `u`.*, `us`.*
                      FROM `users` AS `u`
                      INNER JOIN `userstats` AS `us`
                      ON `u`.`userid`=`us`.`userid`
-					 INNER JOIN `user_settings` AS `uas`
-                     ON `u`.`userid`=`uas`.`userid`
-                     WHERE `u`.`userid` = {$userid}
+                     WHERE `u`.`userid` = '{$userid}'
                      LIMIT 1");
 }
 $ir = $db->fetch_row($is);
@@ -113,19 +111,18 @@ if (($ir['last_login'] > $_SESSION['last_login']) && !($ir['last_login'] == $_SE
     header("Location: {$login_url}");
     exit;
 }
+//Include API file.
 include("../class/class_api.php");
 $api = new api;
-//Load game sound system
-include('../class/class_audio.php');
-$sound = new sound;
-if (!$api->UserMemberLevelGet($userid, 'forum moderator')) {
+$api->user = new user;
+$api->guild = new guild;
+$api->game = new game;
+if (!$api->user->getStaffLevel($userid, 'forum moderator')) {
     $index = ('../index.php');
     header("Location: {$index}");
 }
-check_level();
-check_data();
-getOS($_SERVER['HTTP_USER_AGENT']);
-getBrowser($_SERVER['HTTP_USER_AGENT']);
+checkLevel();
+checkData();
 $h = new headers;
 $h->startheaders();
 $fm = number_format($ir['primary_currency']);
@@ -133,11 +130,10 @@ $cm = number_format($ir['secondary_currency']);
 $lv = date('F j, Y, g:i a', $ir['laston']);
 global $atkpage;
 $staffpage = 1;
-if ($atkpage) {
+if ($atkpage)
     $h->userdata($ir, 0);
-} else {
+else
     $h->userdata($ir);
-}
-/*foreach (glob("../crons/*.php") as $filename) {
+foreach (glob("../crons/*.php") as $filename) {
     include $filename;
-} */
+} 

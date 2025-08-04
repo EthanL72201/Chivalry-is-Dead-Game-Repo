@@ -1,686 +1,408 @@
 <?php
 /*
-	File: marriage.php
-	Created: 5/11/2017 at 3:42PM Eastern Time.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/
-	Info: Allows players to propose and marry others.
-	Couples can send love letters to each other, and move
-	into another's house if their happiness is high enough.
-	To increase happiness, couples may "sleep" together.
-	(I PROMISE ITS JUST SLEEP. YOU KNOW... SLEEP)
-	Copyright: Copyright (C) 2017 TheMasterGeneral
-	License: http://www.dbad-license.org/
+    File: marriage.php
+    Created: Marriage system interface
+    Info: Handles marriage proposals, viewing spouse, divorce, etc.
 */
-require('globals.php');
-echo "<h3><i class='game-icon game-icon-linked-rings'></i> Marriage Center</h3><hr />";
-if (!isset($_GET['action']))
-{
+require("globals.php");
+
+// Check if marriage tables exist
+$tables_exist = true;
+try {
+    $db->query("SELECT 1 FROM marriages LIMIT 1");
+    $db->query("SELECT 1 FROM marriage_proposals LIMIT 1");
+} catch (Exception $e) {
+    $tables_exist = false;
+}
+
+if (!$tables_exist) {
+    echo "<div class='container-fluid'>";
+    echo "<div class='alert alert-warning'>";
+    echo "<h4><i class='fas fa-exclamation-triangle'></i> Marriage System Not Set Up</h4>";
+    echo "<p>The marriage system database tables need to be created first.</p>";
+    if ($api->user->getStaffLevel($userid, 'admin')) {
+        echo "<p><a href='create_marriage_tables.php' class='btn btn-primary'>Set Up Marriage System</a></p>";
+    } else {
+        echo "<p>Please contact an administrator to set up the marriage system.</p>";
+    }
+    echo "</div>";
+    echo "</div>";
+    $h->endpage();
+    exit;
+}
+
+require_once("includes/marriage-system.php");
+
+// Initialize marriage system
+$marriageSystem = getMarriageSystem($db, $userid);
+
+if (!isset($_GET['action'])) {
     $_GET['action'] = '';
 }
-$mi=$db->query("/*qc=on*/SELECT * FROM `marriage_tmg` WHERE (`proposer_id` = {$userid} OR `proposed_id` = {$userid}) AND `together` = 1");
-$po=$db->query("/*qc=on*/SELECT * FROM `marriage_tmg` WHERE (`proposer_id` = {$userid} OR `proposed_id` = {$userid}) AND `together` = 0");
-if ($db->num_rows($mi) == 0)
-{
-	switch ($_GET['action'])
-	{
-		default:
-			home_unwed();
-			break;
-	}
+
+switch ($_GET['action']) {
+    case 'propose':
+        propose();
+        break;
+    case 'respond':
+        respond();
+        break;
+    case 'divorce':
+        divorce();
+        break;
+    case 'send_gift':
+        sendGift();
+        break;
+    default:
+        home();
+        break;
 }
-else
-{
-	switch ($_GET['action'])
-	{
-		case "argue":
-			argue();
-			break;
-		case "sleep":
-			slept();
-			break;
-		case "sendlove":
-			letter();
-			break;
-		case "divorce":
-			divorce();
-			break;
-		default:
-			home_wed();
-			break;
-	}
-}
-function home_unwed()
-{
-	global $db,$ir,$h,$mi,$userid,$po,$api;
-	$proposed=$db->query("/*qc=on*/SELECT * FROM `marriage_tmg` WHERE `proposed_id` = {$userid} AND `together` = 0");
-	$p=$db->fetch_row($po);
-	//If player is unwed, and has no proposals inbound.
-	if ($db->num_rows($po) == 0)
-	{
-		if (isset($_POST['user']))
-		{
-			if (!isset($_POST['verf']) || !verify_csrf_code('marriage_propose', stripslashes($_POST['verf'])))
-			{
-				alert('danger',"Uh Oh!","Your request has been blocked for your security. Please propose quicker next time.");
-				die($h->endpage());
-			}
-			$user=(isset($_POST['user']) && is_numeric($_POST['user'])) ? abs(intval($_POST['user'])) : 0;
-			if (empty($user))
-			{
-				alert('danger',"Uh Oh!","Invalid input.");
-				die($h->endpage());
-			}
-			if ($user == $userid)
-			{
-				alert('danger',"Uh Oh!","You cannot be so lonely that you would want to marry yourself, right?");
-				die($h->endpage());
-			}
-			$q=$db->query("/*qc=on*/SELECT `user_level` FROM `users` WHERE `userid` = {$user}");
-			if ($db->num_rows($q) == 0)
-			{
-				alert('danger',"Uh Oh!","User is invalid or does not exist.");
-				die($h->endpage());
-			}
-			if ($db->num_rows($mi) > 0)
-			{
-				alert('danger',"Uh Oh!","You cannot marry more than one person at a time.");
-				die($h->endpage());
-			}
-			$my=$db->query("/*qc=on*/SELECT * FROM `marriage_tmg` WHERE (`proposer_id` = {$user} OR `proposed_id` = {$user}) AND `together` = true");
-			if ($db->num_rows($my) > 0)
-			{
-				alert('danger',"Uh Oh!","You cannot propose to another player while they're married.");
-				die($h->endpage());
-			}
-			$api->GameAddNotification($user,"{$ir['username']} has proposed to marry you. You may accept or decline by clicking <a href='marriage.php'>here</a>.");
-			$db->query("INSERT INTO `marriage_tmg` (`proposer_id`, `proposed_id`, `together`, `happiness`) VALUES ('{$userid}', '{$user}', '0', '0')");
-			alert('success',"Success","Your proposal has been sent. Best of luck.",true,'explore.php');
-		}
-		else
-		{
-			$csrf=request_csrf_html('marriage_propose');
-			echo "Welcome to the marriage center {$ir['username']}. Do you wish to propose marriage to someone today?<br />
-			<form method='post'>
-				" . user_dropdown('user',$userid) . "
-				{$csrf}
-				<input type='submit' class='btn btn-primary' value='Propose!'>
-			</form>";
-		}
-	}
-	//If player has a proposal inbound.
-	elseif ($db->num_rows($proposed) > 0)
-	{
-		$un=$db->fetch_single($db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$p['proposer_id']}"));
-		if (isset($_POST['action']))
-		{
-			if (!isset($_POST['verf']) || !verify_csrf_code('marriage_proposed', stripslashes($_POST['verf'])))
-			{
-				alert('danger',"Uh Oh!","Your action has been blocked for your security. Try filling out the form quicker next time.");
-				die($h->endpage());
-			}
-			$proid=$db->query("/*qc=on*/SELECT `marriage_id` FROM `marriage_tmg` WHERE (`proposer_id` = {$p['proposer_id']} AND `proposed_id` = {$userid}) AND `together` = 0");
-			$proidq=$db->fetch_single($proid);
-			if ($db->num_rows($proid) == 0)
-			{
-				alert('danger',"Uh Oh!","Invalid or non-existent marriage proposal.");
-				die($h->endpage());
-			}
-			if ($_POST['action'] == 'decline')
-			{
-				alert('success',"Success!","You have successfully declined this marriage proposal.",true,'explore.php');
-				$api->GameAddNotification($p['proposer_id'],"{$ir['username']} has declined your marriage proposal. :(");
-				$db->query("DELETE FROM `marriage_tmg` WHERE `marriage_id` = {$proidq}");
-				die($h->endpage());
-			}
-			elseif ($_POST['action'] == 'accept')
-			{
-				$already_married=$db->query("/*qc=on*/SELECT `marriage_id` FROM `marriage_tmg` WHERE (`proposer_id` = {$p['proposer_id']} AND `proposed_id` = {$p['proposer_id']}) AND `together` = 1");
-				if ($db->num_rows($already_married) > 0)
-				{
-					alert('danger',"Uh Oh!","You cannot accept this proposal as the sender has already gotten married. We're going to remove this proposal for you.");
-					$api->GameAddNotification($p['proposer_id'],"{$ir['username']} wanted to acccept your marriage proposal, but you were already married, so... no.");
-					$db->query("DELETE FROM `marriage_tmg` WHERE `marriage_id` = {$proidq}");
-					die($h->endpage());
-				}
-				alert('success',"Success!","You have successfully accepted this marriage proposal.",true,'explore.php');
-				$api->GameAddNotification($p['proposer_id'],"{$ir['username']} has accepted your marriage proposal! Congratulations!");
-				$db->query("UPDATE `marriage_tmg` SET `together` = 1 WHERE `marriage_id` = {$proidq}");
-				die($h->endpage());
-			}
-			else
-			{
-				alert('danger',"Uh Oh!","Invalid action specified. Check your source and try again.");
-				die($h->endpage());
-			}
-		}
-		else
-		{
-			$csrf=request_csrf_html('marriage_proposed');
-			echo "You currently have a proposal from {$un}. Do you wish to accept or decline this?<br />
-			<form method='post'>
-				{$csrf}
-				<input type='hidden' name='action' value='decline'>
-				<input type='submit' class='btn btn-danger' value='Decline'>
-			</form>
-			<form method='post'>
-				{$csrf}
-				<input type='hidden' name='action' value='accept'>
-				<input type='submit' class='btn btn-success' value='Accept'>
-			</form>";
-		}
-	}
-	//If player has proposal outbound.
-	else
-	{
-	    $un=parseUsername($p['proposed_id']);
-		if (isset($_POST['divorce']))
-		{
-			if (!isset($_POST['verf']) || !verify_csrf_code('marriage_cancel', stripslashes($_POST['verf'])))
-			{
-				alert('danger',"Uh Oh!","Your request has been blocked for your security. Try to be quicker next time.");
-				die($h->endpage());
-			}
-			alert('success',"Success!","You have successfully withdrawn your proposal. Better luck next time.");
-			$api->GameAddNotification($p['proposed_id'],"{$ir['username']} has withdrawn their marriage proposal.");
-			$db->query("DELETE FROM `marriage_tmg` WHERE `marriage_id` = {$p['marriage_id']}");
-			die($h->endpage());
-		}
-		else
-		{
-			$csrf=request_csrf_html('marriage_cancel');
-			echo "You currently have a proposal sent out to <a href='profile.php?user={$p['proposed_id']}'>{$un}</a>. Do you wish to cancel it?<br />
-			<form method='post'>
-				{$csrf}
-				<input type='hidden' name='divorce' value='do'>
-				<input type='submit' class='btn btn-danger' value='Withdraw Proposal'>
-			</form>";
-		}
-	}
-}
-function home_wed()
-{
-	global $db,$ir,$userid,$h,$mi,$api;
-	$mt=$db->fetch_row($mi);
-	if ($mt['proposer_id'] == $userid)
-	{
-		$un=$db->fetch_single($db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$mt['proposed_id']}"));
-		$title1=$ir['username'];
-		$title2=$un;
-		$p1=$ir;
-		$p2=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposed_id']}"));
-		$p1['ring']=getUserItemEquippedSlot($mt['proposer_id'], slot_wed_ring);
-		$p2['ring']=getUserItemEquippedSlot($mt['proposed_id'], slot_wed_ring);
-	}
-	else
-	{
-		$un=$db->fetch_single($db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$mt['proposer_id']}"));
-		$title1=$un;
-		$title2=$ir['username'];
-		$p1=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposer_id']}"));
-		$p2=$ir;
-		$p2['ring']=getUserItemEquippedSlot($mt['proposer_id'], slot_wed_ring);
-        $p1['ring']=getUserItemEquippedSlot($mt['proposed_id'], slot_wed_ring);
+
+function home() {
+    global $marriageSystem, $ir, $db;
+    
+    echo "<div class='container-fluid'>";
+    echo "<div class='row mb-4'>";
+    echo "<div class='col-12'>";
+    echo "<div class='card bg-gradient-primary text-white'>";
+    echo "<div class='card-body'>";
+    echo "<h2 class='mb-0'><i class='fas fa-heart me-2'></i>Marriage Center</h2>";
+    echo "<p class='mb-0 mt-2'>Find love, propose, and build relationships</p>";
+    echo "</div>";
+    echo "</div>";
+    echo "</div>";
+    echo "</div>";
+    
+    if ($marriageSystem->isMarried()) {
+        // Show spouse information
+        $spouse = $marriageSystem->getSpouse();
+        $stats = $marriageSystem->getMarriageStats();
         
-	}
-	$p1['estate'] = $db->fetch_single($db->query("/*qc=on*/SELECT `house_name` FROM `estates` WHERE `house_will` = {$p1['maxwill']}"));
-	$p2['estate'] = $db->fetch_single($db->query("/*qc=on*/SELECT `house_name` FROM `estates` WHERE `house_will` = {$p2['maxwill']}"));
-	$p1['primary_currency'] = ($p1['primary_currency'] <= 0) ? 'Broke' : shortNumberParse($p1['primary_currency']);
-	$p2['primary_currency'] = ($p2['primary_currency'] <= 0) ? 'Broke' : shortNumberParse($p2['primary_currency']);
-	$p1['bank'] = ($p1['bank'] == -1) ? 'Unpurchased account' : shortNumberParse($p1['bank']);
-	$p2['bank'] = ($p2['bank'] == -1) ? 'Unpurchased account' : shortNumberParse($p2['bank']);
-	$p1['bigbank'] = ($p1['bigbank'] == -1) ? 'Unpurchased account' : shortNumberParse($p1['bigbank']);
-	$p2['bigbank'] = ($p2['bigbank'] == -1) ? 'Unpurchased account' : shortNumberParse($p2['bigbank']);
-	$p1['vaultbank'] = ($p1['vaultbank'] == -1) ? 'Unpurchased account' : shortNumberParse($p1['vaultbank']);
-	$p2['vaultbank'] = ($p2['vaultbank'] == -1) ? 'Unpurchased account' : shortNumberParse($p2['vaultbank']);
-	$p1['tokenbank'] = ($p1['tokenbank'] == -1) ? 'Unpurchased account' : shortNumberParse($p1['tokenbank']);
-	$p2['tokenbank'] = ($p2['tokenbank'] == -1) ? 'Unpurchased account' : shortNumberParse($p2['tokenbank']);
-	if ($mt['happiness'] == 0)
-		$mt['happiness']=$mt['happiness'];
-	if ($mt['happiness'] < 0)
-		$mt['happiness']="<span class='text-danger'>{$mt['happiness']}</span>";
-	if ($mt['happiness'] > 0)
-		$mt['happiness']="<span class='text-success'>{$mt['happiness']}</span>";
-	echo "
-    <div class='row'>
-        <div class='col-12 col-md-6'>
-            <div class='card'>
-                <div class='card-header'>
-                    <b>{$title1}'s Info</b>
-                </div>
-                <div class='card-body'>
-                    <div class='row'>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Copper Coins</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p1['primary_currency']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Bank</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p1['bank']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Fed Bank</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p1['bigbank']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Vault Bank</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p1['vaultbank']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Token Bank</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p1['tokenbank']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Ring</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$api->SystemItemIDtoName($p1['ring'])}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Estate</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    " . getNameFromUserEstate($p1['userid']) . "
-                                </div>
-                            </div>
-                        </div>
-                    </div> 
-                </div>
-            </div>
-        </div>
-        <br />
-        <div class='col-12 col-md-6'>
-            <div class='card'>
-                <div class='card-header'>
-                    <b>{$title2}'s Info</b>
-                </div>
-                <div class='card-body'>
-                    <div class='row'>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Copper Coins</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p2['primary_currency']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Bank</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p2['bank']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Fed Bank</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p2['bigbank']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Vault Bank</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p2['vaultbank']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Token Bank</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$p2['tokenbank']}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Ring</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    {$api->SystemItemIDtoName($p2['ring'])}
-                                </div>
-                            </div>
-                        </div>
-                        <div class='col-12 col-sm-6'>
-                            <div class='row'>
-                                <div class='col-6 col-sm-12'>
-                                    <b>Estate</b>
-                                </div>
-                                <div class='col-6 col-sm-12'>
-                                    " . getNameFromUserEstate($p2['userid']) . "
-                                </div>
-                            </div>
-                        </div>
-                    </div> 
-                </div>
-            </div>
-        </div>
-    </div>
-    <br />
-    <div class='row'>
-        <div class='col-12'>
-            <div class='card'>
-                <div class='card-header'>
-                    <div class='row'>
-                        <div class='col-6'>
-                            <b>Marriage Actions</b>
-                        </div>
-                        <div class='col-6'>
-                            {$mt['happiness']}
-                        </div>
-                    </div>
-                </div>
-                <div class='card-body'>
-                    <div class='row'>
-                        <div class='col-6 col-xl-3'>
-                            <a href='?action=argue' class='btn btn-danger btn-block updateHoverBtn'>Argue With</a><br />
-                        </div>
-                        <div class='col-6 col-xl-3'>
-                            <a href='?action=sleep' class='btn btn-success btn-block updateHoverBtn'>Sleep With</a><br />
-                        </div>
-                        <div class='col-6 col-xl-3'>
-                            <a href='?action=sendlove' class='btn btn-primary btn-block updateHoverBtn'>Love Letter</a><br />
-                        </div>
-                        <div class='col-6 col-xl-3'>
-                            <a href='?action=divorce' class='btn btn-secondary btn-block updateHoverBtn'>Divorce</a><br />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <br />";
-}
-function argue()
-{
-	global $db,$ir,$userid,$h,$mi,$api;
-	$mt=$db->fetch_row($mi);
-	if ($mt['proposer_id'] == $userid)
-	{
-		$p1=$ir;
-		$p2=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposed_id']}"));
-		$event=$p2['userid'];
-	}
-	else
-	{
-		$p1=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposer_id']}"));
-		$p2=$ir;
-		$event=$p1['userid'];
-	}
-	if ($api->UserStatus($userid, 'infirmary') || $api->UserStatus($userid, 'dungeon'))
-	{
-		alert('danger',"Uh Oh!","There's no point in arguing from the dungeon or infirmary.",true,'marriage.php');
-		die($h->endpage());
-	}
-	if ($ir['energy'] < $ir['maxenergy'])
-	{
-		alert('danger',"Uh Oh!","You do not have the energy to argue with your spouse.",true,'marriage.php');
-		die($h->endpage());
-	}
-	$outcome=Random(1,4);
-	if ($outcome == 1)
-	{
-		alert('danger',"Uh Oh!","You begin to argue with your spouse. After a little while, they humiliate you. You've lost your will to continue for now. Your marriage loses one happiness point.",true,'marriage.php');
-		$db->query("UPDATE `users` SET `will` = 0 WHERE `userid` = {$userid}");
-		$db->query("UPDATE `marriage_tmg` SET `happiness` = `happiness` - 1 WHERE `marriage_id` = {$mt['marriage_id']}");
-		$api->GameAddNotification($event,"Your spouse, {$ir['username']}, started an argument with you and you humiliated them. Your marriage lost one happiness point.");
-		$api->SystemLogsAdd($userid,'marriage',"Argued with their spouse and got humiliated.");
-        $happiness=$mt['happiness']-1;
-		$api->SystemLogsAdd($event,'marriage',"Argued with their spouse and humiliated their spouse.");
-	}
-	if ($outcome == 2)
-	{
-		alert('success',"Success!","You begin to argue with your spouse. After a little while, you humiliate Them. They've lost their will to continue the day. Your marriage loses one happiness point.",true,'marriage.php');
-		$db->query("UPDATE `users` SET `will` = 0 WHERE `userid` = {$p2['userid']}");
-		$db->query("UPDATE `marriage_tmg` SET `happiness` = `happiness` - 1 WHERE `marriage_id` = {$mt['marriage_id']}");
-		$api->GameAddNotification($event,"Your spouse, {$ir['username']}, started an argument with you and you were humiliated. You've lost all your will, and your marriage lost one happiness point.");
-		$api->SystemLogsAdd($event,'marriage',"Argued with their spouse and got humiliated.");
-        $happiness=$mt['happiness']-1;
-		$api->SystemLogsAdd($userid,'marriage',"Argued with their spouse and humiliated their spouse.");
-	}
-	if ($outcome == 3)
-	{
-		$infirm=Random(10,50);
-		$dung=$infirm*2;
-		alert('success',"Success!","You begin to argue with your spouse. After a little while, you lose your temper and punch them in the eye. They end up having to go to the infirmary, and you need to spend some time in dungeon. Your marriage loses 5 happiness points.",true,'marriage.php');
-		$api->UserStatusSet($event, 'infirmary', $infirm, "Spousal Abuse");
-		$api->UserStatusSet($userid, 'dungeon', $dung, "Spousal Abuse");
-        $happiness=$mt['happiness']-5;
-		$db->query("UPDATE `marriage_tmg` SET `happiness` = `happiness` - 5 WHERE `marriage_id` = {$mt['marriage_id']}");
-		$api->GameAddNotification($event,"Your spouse, {$ir['username']}, started an argument with you and you punched you in the eye. You are resting in the infirmary, and they're resting in the dungeon. Your marriage lost 5 happiness points.");
-		$api->SystemLogsAdd($event,'marriage',"Argued with their spouse and got punched.");
-		$api->SystemLogsAdd($userid,'marriage',"Argued with their spouse and punched their spouse.");
-	}
-	if ($outcome == 4)
-	{
-		$infirm=Random(10,50);
-		$dung=$infirm*2;
-		alert('success',"Success!","You begin to argue with your spouse. After a little while, they lose their temper and punch you in the eye. You end up having to go to the infirmary, and they need to spend some time in the dungeon. Your marriage loses 5 happiness points.",true,'marriage.php');
-		$api->UserStatusSet($userid, 'infirmary', $infirm, "Spousal Abuse");
-		$api->UserStatusSet($event, 'dungeon', $dung, "Spousal Abuse");
-        $happiness=$mt['happiness']-5;
-		$db->query("UPDATE `marriage_tmg` SET `happiness` = `happiness` - 5 WHERE `marriage_id` = {$mt['marriage_id']}");
-		$api->GameAddNotification($event,"Your spouse, {$ir['username']}, started an argument with you and you punched them in the eye. You are resting in the dungeon, and they're resting in the infirmary. Your marriage lost one happiness point.");
-		$api->SystemLogsAdd($userid,'marriage',"Argued with their spouse and got punched.");
-		$api->SystemLogsAdd($event,'marriage',"Argued with their spouse and punched their spouse.");
-	}
-    if ($mt['happiness'] >= 10)
-    {
-        if ($happiness < 10)
-        {
-            alert('info',"Information!","Your marriage's happiness dropped too low for you and your spouse to wear your rings.",false);
-            $api->GameAddNotification($event, "Your marriage's happiness dropped too low. You've removed your ring and put it back in your inventory.");
-            $api->UserGiveItem($mt['proposer_id'],$mt['proposer_ring'],1);
-            $api->UserGiveItem($mt['proposed_id'],$mt['proposed_ring'],1);
-            $db->query("UPDATE `marriage_tmg` SET `proposer_ring` = 0, `proposed_ring` = 0 WHERE `marriage_id` = {$mt['marriage_id']}");
+        echo "<div class='row mb-4'>";
+        echo "<div class='col-md-6'>";
+        echo "<div class='card'>";
+        echo "<div class='card-header bg-success text-white'>";
+        echo "<h4><i class='fas fa-ring'></i> Your Marriage</h4>";
+        echo "</div>";
+        echo "<div class='card-body'>";
+        echo "<div class='d-flex align-items-center mb-3'>";
+        if ($spouse['display_pic']) {
+            echo "<img src='{$spouse['display_pic']}' class='rounded-circle me-3' width='60' height='60'>";
+        } else {
+            echo "<div class='bg-secondary rounded-circle me-3 d-flex align-items-center justify-content-center' style='width: 60px; height: 60px;'>";
+            echo "<i class='fas fa-user fa-2x text-white'></i>";
+            echo "</div>";
         }
+        echo "<div>";
+        echo "<h5 class='mb-1'><a href='profile.php?user={$spouse['userid']}'>{$spouse['username']}</a></h5>";
+        echo "<p class='text-muted mb-0'>Level {$spouse['level']}</p>";
+        echo "</div>";
+        echo "</div>";
+        
+        echo "<div class='row text-center'>";
+        echo "<div class='col-4'>";
+        echo "<div class='border-end'>";
+        echo "<h3 class='text-primary'>{$stats['days_married']}</h3>";
+        echo "<small class='text-muted'>Days Married</small>";
+        echo "</div>";
+        echo "</div>";
+        echo "<div class='col-4'>";
+        echo "<div class='border-end'>";
+        echo "<h3 class='text-success'>{$stats['gifts_sent']}</h3>";
+        echo "<small class='text-muted'>Gifts Sent</small>";
+        echo "</div>";
+        echo "</div>";
+        echo "<div class='col-4'>";
+        echo "<h3 class='text-info'>{$stats['gifts_received']}</h3>";
+        echo "<small class='text-muted'>Gifts Received</small>";
+        echo "</div>";
+        echo "</div>";
+        
+        echo "<div class='mt-3'>";
+        echo "<p><strong>Married since:</strong> " . date('F j, Y', $spouse['marriage_date']) . "</p>";
+        $lastOnline = $spouse['laston'] > 0 ? dateTimeParse($spouse['laston']) : 'Never';
+        echo "<p><strong>Last seen:</strong> {$lastOnline}</p>";
+        echo "</div>";
+        
+        echo "<div class='mt-3'>";
+        echo "<a href='?action=send_gift' class='btn btn-primary me-2'><i class='fas fa-gift'></i> Send Gift</a>";
+        echo "<a href='inbox.php?action=compose&to={$spouse['userid']}' class='btn btn-success me-2'><i class='fas fa-envelope'></i> Send Message</a>";
+        echo "<a href='?action=divorce' class='btn btn-danger' onclick='return confirm(\"Are you sure you want to divorce? This cannot be undone!\")'><i class='fas fa-heart-broken'></i> Divorce</a>";
+        echo "</div>";
+        
+        echo "</div>";
+        echo "</div>";
+        echo "</div>";
+        
+        // Recent gifts section
+        echo "<div class='col-md-6'>";
+        echo "<div class='card'>";
+        echo "<div class='card-header bg-info text-white'>";
+        echo "<h4><i class='fas fa-gifts'></i> Recent Gifts</h4>";
+        echo "</div>";
+        echo "<div class='card-body'>";
+        
+        $gifts = $db->query("
+            SELECT g.*, u.username as sender_name, i.itmname 
+            FROM marriage_gifts g
+            LEFT JOIN users u ON g.sender_id = u.userid
+            LEFT JOIN items i ON g.item_id = i.itmid
+            WHERE g.marriage_id = {$stats['marriage_id']}
+            ORDER BY g.sent_date DESC
+            LIMIT 5
+        ");
+        
+        if ($db->num_rows($gifts) > 0) {
+            while ($gift = $db->fetch_row($gifts)) {
+                echo "<div class='d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded'>";
+                echo "<div>";
+                echo "<strong>{$gift['sender_name']}</strong> sent ";
+                if ($gift['gift_type'] == 'money') {
+                    echo number_format($gift['gift_value']) . " " . constant('primary_currency');
+                } elseif ($gift['gift_type'] == 'item') {
+                    echo "{$gift['quantity']}x {$gift['itmname']}";
+                } else {
+                    echo "a message";
+                }
+                echo "</div>";
+                echo "<small class='text-muted'>" . dateTimeParse($gift['sent_date']) . "</small>";
+                echo "</div>";
+            }
+        } else {
+            echo "<p class='text-muted'>No gifts exchanged yet.</p>";
+        }
+        
+        echo "</div>";
+        echo "</div>";
+        echo "</div>";
+        echo "</div>";
+        
+    } else {
+        // Show proposal interface for single users
+        echo "<div class='row'>";
+        echo "<div class='col-md-8'>";
+        
+        // Pending proposals
+        $proposals = $marriageSystem->getPendingProposals();
+        if (!empty($proposals)) {
+            echo "<div class='card mb-4'>";
+            echo "<div class='card-header bg-warning text-dark'>";
+            echo "<h4><i class='fas fa-heart'></i> Marriage Proposals</h4>";
+            echo "</div>";
+            echo "<div class='card-body'>";
+            
+            foreach ($proposals as $proposal) {
+                echo "<div class='card mb-3'>";
+                echo "<div class='card-body'>";
+                echo "<div class='d-flex align-items-center mb-3'>";
+                if ($proposal['proposer_pic']) {
+                    echo "<img src='{$proposal['proposer_pic']}' class='rounded-circle me-3' width='50' height='50'>";
+                } else {
+                    echo "<div class='bg-secondary rounded-circle me-3 d-flex align-items-center justify-content-center' style='width: 50px; height: 50px;'>";
+                    echo "<i class='fas fa-user text-white'></i>";
+                    echo "</div>";
+                }
+                echo "<div class='flex-grow-1'>";
+                echo "<h5><a href='profile.php?user={$proposal['proposer_id']}'>{$proposal['proposer_name']}</a></h5>";
+                echo "<p class='text-muted mb-0'>Level {$proposal['proposer_level']} • Proposed " . dateTimeParse($proposal['proposal_date']) . "</p>";
+                echo "</div>";
+                echo "</div>";
+                
+                if ($proposal['proposal_message']) {
+                    echo "<div class='alert alert-light'>";
+                    echo "<strong>Message:</strong> " . htmlspecialchars($proposal['proposal_message']);
+                    echo "</div>";
+                }
+                
+                echo "<div class='d-flex gap-2'>";
+                echo "<a href='?action=respond&id={$proposal['proposal_id']}&response=accept' class='btn btn-success'><i class='fas fa-heart'></i> Accept</a>";
+                echo "<a href='?action=respond&id={$proposal['proposal_id']}&response=reject' class='btn btn-danger'><i class='fas fa-times'></i> Decline</a>";
+                echo "</div>";
+                echo "</div>";
+                echo "</div>";
+            }
+            
+            echo "</div>";
+            echo "</div>";
+        }
+        
+        // Propose to someone
+        echo "<div class='card'>";
+        echo "<div class='card-header bg-primary text-white'>";
+        echo "<h4><i class='fas fa-heart'></i> Send Marriage Proposal</h4>";
+        echo "</div>";
+        echo "<div class='card-body'>";
+        echo "<form method='post' action='?action=propose'>";
+        echo "<input type='hidden' name='verf' value='" . getCodeCSRF('marriage_propose') . "'>";
+        echo "<div class='mb-3'>";
+        echo "<label for='proposed_to' class='form-label'>Player ID or Username</label>";
+        echo "<input type='text' class='form-control' id='proposed_to' name='proposed_to' required>";
+        echo "<div class='form-text'>Enter the player ID or username of who you want to propose to</div>";
+        echo "</div>";
+        echo "<div class='mb-3'>";
+        echo "<label for='message' class='form-label'>Proposal Message (Optional)</label>";
+        echo "<textarea class='form-control' id='message' name='message' rows='3' placeholder='Express your feelings...'></textarea>";
+        echo "</div>";
+        echo "<button type='submit' class='btn btn-primary'><i class='fas fa-heart'></i> Send Proposal</button>";
+        echo "</form>";
+        echo "</div>";
+        echo "</div>";
+        
+        echo "</div>";
+        
+        echo "<div class='col-md-4'>";
+        echo "<div class='card'>";
+        echo "<div class='card-header bg-info text-white'>";
+        echo "<h4><i class='fas fa-info-circle'></i> Marriage Benefits</h4>";
+        echo "</div>";
+        echo "<div class='card-body'>";
+        echo "<ul class='list-unstyled'>";
+        echo "<li class='mb-2'><i class='fas fa-gift text-primary'></i> Send gifts to your spouse</li>";
+        echo "<li class='mb-2'><i class='fas fa-heart text-danger'></i> Special relationship status</li>";
+        echo "<li class='mb-2'><i class='fas fa-users text-success'></i> Shared profile connection</li>";
+        echo "<li class='mb-2'><i class='fas fa-envelope text-info'></i> Enhanced messaging</li>";
+        echo "<li class='mb-2'><i class='fas fa-calendar text-warning'></i> Anniversary celebrations</li>";
+        echo "</ul>";
+        echo "</div>";
+        echo "</div>";
+        echo "</div>";
+        
+        echo "</div>";
     }
-	$db->query("UPDATE `users` SET `energy` = 0 WHERE `userid` = {$userid}");
+    
+    echo "</div>";
 }
-function slept()
-{
-	global $db,$ir,$userid,$h,$mi,$api;
-	$mt=$db->fetch_row($mi);
-	if ($mt['proposer_id'] == $userid)
-	{
-		$p1=$ir;
-		$p2=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposed_id']}"));
-		$event=$p2['userid'];
-	}
-	else
-	{
-		$p1=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposer_id']}"));
-		$p2=$ir;
-		$event=$p1['userid'];
-	}
-	if ($api->UserStatus($userid, 'infirmary') || $api->UserStatus($userid, 'dungeon'))
-	{
-		alert('danger',"Uh Oh!","You can only sleep with one person while in the infirmary and/or dungeon, and trust me when I say its not your spouse.",true,'marriage.php');
-		die($h->endpage());
-	}
-	if ($ir['brave'] < $ir['maxbrave']/2)
-	{
-		alert('danger',"Uh Oh!","You must have 50% bravery to even attempt to sleep with your spouse.",true,'marriage.php');
-		die($h->endpage());
-	}
-	$outcome=Random(1,100);
-	if (getUserSkill($userid, 19))
-	    $outcome = Random(1,100 - (getUserSkill($userid, 19) * getSkillBonus(19)));
-	if ($outcome <= 33)
-	{
-		alert('success',"Success!","You and your spouse enjoy snuggling each other in bed. You both wake up feeling well rested. This increases your marriage's happiness by one point.",true,'marriage.php');
-		$db->query("UPDATE `marriage_tmg` SET `happiness` = `happiness` + 1 WHERE `marriage_id` = {$mt['marriage_id']}");
-		$api->GameAddNotification($event,"Your spouse, {$ir['username']}, slept with you. You both snuggled and woke up refreshed. This increases your marriage's happiness by one point.");
-		$api->SystemLogsAdd($userid,'marriage',"Slept with their spouse.");
-		$api->SystemLogsAdd($event,'marriage',"Slept with their spouse.");
-	}
-	elseif (($outcome > 33) && ($outcome <= 66))
-	{
-	    alert('success',"Success!","You and your spouse attempt to fall asleep. Except, there's very little sleeping! ;) Time flies, and you're drained, and they're super happy. Morning comes, and you still question what happened, but you both are full of energy! This increases your marriage happiness by two points!",true,'marriage.php');
-	    $db->query("UPDATE `users` SET `energy` = 0 WHERE `userid` = {$userid} AND {$mt['marriage_id']}");
-	    $db->query("UPDATE `marriage_tmg` SET `happiness` = `happiness` + 2 WHERE `marriage_id` = {$mt['marriage_id']}");
-	    $api->GameAddNotification($event,"Your spouse, {$ir['username']}, slept with you. You both had a very fun evening. Your marriage happiness increases by two!");
-	    $api->SystemLogsAdd($userid,'marriage',"Slept with their spouse and stayed up all night.");
-	    $api->SystemLogsAdd($event,'marriage',"Slept with their spouse and stayed up all night.");
-	}
-	else
-	{
-		alert('success',"Success!","You and your spouse attempt to fall asleep on your crappy mattress. It takes you bother forever to fall asleep, but once you do, its only for an hour. Time to get up. You both lose all your energy.",true,'marriage.php');
-		$db->query("UPDATE `users` SET `energy` = 0 WHERE `userid` = {$userid} AND {$mt['marriage_id']}");
-		$api->GameAddNotification($event,"Your spouse, {$ir['username']}, slept with you. You both had a hard time falling asleep. You have no energy for this upcoming day.");
-		$api->SystemLogsAdd($userid,'marriage',"Slept with their spouse and got no sleep.");
-		$api->SystemLogsAdd($event,'marriage',"Slept with their spouse and got no sleep.");
-	}
-	$api->UserInfoSet($userid,'brave',-50,true);
+
+function propose() {
+    global $marriageSystem, $h;
+    
+    if (!checkCSRF('marriage_propose', $_POST['verf'])) {
+        alert('danger', "Security Error!", "Session expired. Please try again.", true, 'marriage.php');
+        die($h->endpage());
+    }
+    
+    $proposed_to = trim($_POST['proposed_to']);
+    $message = trim($_POST['message']);
+    
+    // Try to find user by username or ID
+    if (is_numeric($proposed_to)) {
+        $target_id = (int)$proposed_to;
+    } else {
+        global $db;
+        $proposed_to = $db->escape($proposed_to);
+        $user = $db->fetch_row($db->query("SELECT userid FROM users WHERE username = '{$proposed_to}'"));
+        $target_id = $user ? $user['userid'] : 0;
+    }
+    
+    if (!$target_id) {
+        alert('danger', "Error!", "User not found.", true, 'marriage.php');
+        die($h->endpage());
+    }
+    
+    $result = $marriageSystem->sendProposal($target_id, $message);
+    
+    $type = $result['success'] ? 'success' : 'danger';
+    $title = $result['success'] ? 'Proposal Sent!' : 'Error!';
+    
+    alert($type, $title, $result['message'], true, 'marriage.php');
+    die($h->endpage());
 }
-function letter()
-{
-	global $db,$ir,$userid,$h,$mi,$api;
-	$mt=$db->fetch_row($mi);
-	if ($mt['proposer_id'] == $userid)
-	{
-		$p1=$ir;
-		$p2=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposed_id']}"));
-		$event=$p2['userid'];
-	}
-	else
-	{
-		$p1=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposer_id']}"));
-		$p2=$ir;
-		$event=$p1['userid'];
-	}
-	if (isset($_POST['letter']))
-	{
-		if (!isset($_POST['verf']) || !verify_csrf_code('marriage_loveletter', stripslashes($_POST['verf'])))
-		{
-			alert('danger',"Uh Oh!","Your request has been blocked for your security. Try to be quicker next time.",true,'marriage.php');
-			die($h->endpage());
-		}
-		$msg = $db->escape(str_replace("\n", "<br />", strip_tags(stripslashes($_POST['letter']))));
-		if (empty($msg))
-		{
-			alert('danger',"Uh Oh!","Please fill in a message to be sent.",true,'marriage.php');
-			die($h->endpage());
-		}
-		if (strlen($msg) > 250)
-		{
-			alert('danger',"Uh Oh!","Love letters may only be 250 characters in length, at maximum.",true,'marriage.php');
-			die($h->endpage());
-		}
-		$api->GameAddMail($event,"Spouse Love Letter", $msg, $userid);
-		if (getUserSkill($userid, 22) > 0)
-		{
-		    //Flirty Words
-		    $chance = getUserSkill($userid, 22) * getSkillBonus(22);
-		    if (Random(1,100) <= $chance)
-		        $db->query("UPDATE `marriage_tmg` SET `happiness` = `happiness` + 1 WHERE `marriage_id` = {$mt['marriage_id']}");
-		}
-		alert('success',"Success!","You have successfully sent your love letter. May their knees tremble at what you have said.",true,'marriage.php');
-	}
-	else
-	{
-		$csrf=request_csrf_html('marriage_loveletter');
-		echo "Write a lover letter for your spouse! I'm sure they'll enjoy it. Remember, staff may read what you write.. so uh, you know... keep it clean.<br />
-		<form method='post'>
-			<input type='text' class='form-control' name='letter' required='1'>
-			<input type='submit' class='btn btn-primary' value='Send Letter'>
-			{$csrf}
-		</form>";
-	}
+
+function respond() {
+    global $marriageSystem, $h;
+    
+    $proposal_id = (int)$_GET['id'];
+    $response = $_GET['response'];
+    
+    if (!in_array($response, ['accept', 'reject'])) {
+        alert('danger', "Error!", "Invalid response.", true, 'marriage.php');
+        die($h->endpage());
+    }
+    
+    $result = $marriageSystem->respondToProposal($proposal_id, $response);
+    
+    $type = $result['success'] ? 'success' : 'danger';
+    $title = $result['success'] ? ($response === 'accept' ? 'Congratulations!' : 'Response Sent') : 'Error!';
+    
+    alert($type, $title, $result['message'], true, 'marriage.php');
+    die($h->endpage());
 }
-function divorce()
-{
-	global $db,$ir,$userid,$h,$mi,$api;
-	$mt=$db->fetch_row($mi);
-	if ($mt['proposer_id'] == $userid)
-	{
-		$p1=$ir;
-		$p2=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposed_id']}"));
-		$event=$p2['userid'];
-	}
-	else
-	{
-		$p1=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposer_id']}"));
-		$p2=$ir;
-		$event=$p1['userid'];
-	}
-	if (isset($_POST['divorce']))
-	{
-		if (!isset($_POST['verf']) || !verify_csrf_code('marriage_divorce', stripslashes($_POST['verf'])))
-		{
-			alert('danger',"Uh Oh!","Your request has been blocked for your security. Try to be quicker next time.",true,'marriage.php');
-			die($h->endpage());
-		}
-		if (getUserItemEquippedSlot($mt['proposer_id'], slot_wed_ring) > 0)
-		    unequipUserSlot($mt['proposer_id'], slot_wed_ring);
-	    if (getUserItemEquippedSlot($mt['proposed_id'], slot_wed_ring) > 0)
-	        unequipUserSlot($mt['proposed_id'], slot_wed_ring);
-		alert('success',"Success!","You have successfully divorced your spouse. You have also removed your wedding ring.",true,'index.php');
-		$api->GameAddNotification($event,"Your spouse, {$ir['username']}, has divorced you.");
-		$api->UserInfoSetStatic($userid, "will", 0);
-		$api->UserInfoSetStatic($event, "will", 0);
-		$db->query("DELETE FROM `marriage_tmg` WHERE `marriage_id` = {$mt['marriage_id']}");
-	}
-	else
-	{
-		$csrf=request_csrf_html('marriage_divorce');
-		echo "Are you sure you wish to divorce your spouse? There is no confirmation after this point, so be sure!
-		<form method='post'>
-			<input type='hidden' name='divorce' value='fuckingdoit'>
-			<input type='submit' class='btn btn-danger' value='Divorce'>
-			{$csrf}
-		</form>";
-	}
+
+function divorce() {
+    global $marriageSystem, $h;
+    
+    $result = $marriageSystem->requestDivorce('Mutual agreement');
+    
+    $type = $result['success'] ? 'success' : 'danger';
+    $title = $result['success'] ? 'Divorced' : 'Error!';
+    
+    alert($type, $title, $result['message'], true, 'marriage.php');
+    die($h->endpage());
 }
+
+function sendGift() {
+    global $marriageSystem, $ir, $h;
+    
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (!checkCSRF('marriage_gift', $_POST['verf'])) {
+            alert('danger', "Security Error!", "Session expired. Please try again.", true, 'marriage.php');
+            die($h->endpage());
+        }
+        
+        $gift_type = $_POST['gift_type'];
+        $amount = (int)$_POST['amount'];
+        $message = trim($_POST['message']);
+        
+        if ($gift_type === 'money') {
+            if ($amount > $ir['primary_currency']) {
+                alert('danger', "Error!", "You don't have enough money.", true, 'marriage.php?action=send_gift');
+                die($h->endpage());
+            }
+            $result = $marriageSystem->sendGiftToSpouse('money', $amount, 0, 1, $message);
+        }
+        
+        $type = $result['success'] ? 'success' : 'danger';
+        $title = $result['success'] ? 'Gift Sent!' : 'Error!';
+        
+        alert($type, $title, $result['message'], true, 'marriage.php');
+        die($h->endpage());
+    }
+    
+    // Show gift form
+    echo "<div class='container-fluid'>";
+    echo "<div class='row justify-content-center'>";
+    echo "<div class='col-md-6'>";
+    echo "<div class='card'>";
+    echo "<div class='card-header bg-primary text-white'>";
+    echo "<h4><i class='fas fa-gift'></i> Send Gift to Spouse</h4>";
+    echo "</div>";
+    echo "<div class='card-body'>";
+    echo "<form method='post'>";
+    echo "<input type='hidden' name='verf' value='" . getCodeCSRF('marriage_gift') . "'>";
+    echo "<div class='mb-3'>";
+    echo "<label class='form-label'>Gift Type</label>";
+    echo "<select class='form-control' name='gift_type' required>";
+    echo "<option value='money'>Money</option>";
+    echo "</select>";
+    echo "</div>";
+    echo "<div class='mb-3'>";
+    echo "<label class='form-label'>Amount</label>";
+    echo "<input type='number' class='form-control' name='amount' min='1' max='{$ir['primary_currency']}' required>";
+    echo "<div class='form-text'>You have " . number_format($ir['primary_currency']) . " " . constant('primary_currency') . "</div>";
+    echo "</div>";
+    echo "<div class='mb-3'>";
+    echo "<label class='form-label'>Message (Optional)</label>";
+    echo "<textarea class='form-control' name='message' rows='3'></textarea>";
+    echo "</div>";
+    echo "<button type='submit' class='btn btn-primary'><i class='fas fa-gift'></i> Send Gift</button>";
+    echo "<a href='marriage.php' class='btn btn-secondary ms-2'>Cancel</a>";
+    echo "</form>";
+    echo "</div>";
+    echo "</div>";
+    echo "</div>";
+    echo "</div>";
+    echo "</div>";
+}
+
 $h->endpage();
+?>

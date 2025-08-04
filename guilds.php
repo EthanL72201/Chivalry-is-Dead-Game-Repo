@@ -1,11 +1,32 @@
 <?php
 /*
 	File:		guilds.php
-	Created: 	4/5/2016 at 12:06AM Eastern Time
-	Info: 		Lists all the in-game guilds, and allows a user to
-				apply to a guild, or create their own.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Displays the in-game guilds, and allows the user to 
+				select a guild to view, and potentially, join.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require("globals.php");
 if (!isset($_GET['action'])) {
@@ -33,137 +54,61 @@ switch ($_GET['action']) {
 }
 function menu()
 {
-    global $db, $set;
-    echo "<h3><i class='game-icon game-icon-dozen'></i> Guild Listing</h3>
-	<a href='?action=create'>Create a Guild - " . shortNumberParse($set['GUILD_PRICE']) . " Copper</a><hr />";
-    echo "<div class='row'>
-            <div class='col'>
-            <div class='card'>
-                <div class='card-header'>
-                    Known Guilds
-                </div>
-                <div class='card-body'>";
+    global $db;
+    echo "<h3>Guild Listing</h3>
+	<a href='?action=create'>Create a Guild</a><hr />";
+    echo "<div class='container'>
+<div class='row'>
+		<div class='col-sm'>
+		    <h4>Guild Info</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Members</h4>
+		</div>
+</div><hr />";
     $gq = $db->query(
-        "/*qc=on*/SELECT `guild_id`, `guild_town_id`, `guild_owner`, `guild_name`, `guild_debt_time`, `guild_primcurr`,
-			`userid`, `username`, `guild_level`, `guild_capacity`, `guild_pic`, `guild_hasarmory`, `guild_ba`
+        "SELECT `guild_id`, `guild_owner`, `guild_name`,
+			`userid`, `username`, `guild_level`, `guild_capacity`
 			FROM `guild` AS `g`
 			LEFT JOIN `users` AS `u` ON `g`.`guild_owner` = `u`.`userid`
 			ORDER BY `g`.`guild_id` ASC");
     //List all the in-game guilds.
-    while ($gd = $db->fetch_row($gq)) 
-    {
-		$gd['guild_capacity']=calculateGuildMemberCapacity($gd['guild_id']);
-		$hasarmory = (guildOwnsAsset($gd['guild_id'], "guild_armory")) ? "<span class='text-success'>Owns Armory</span>" : "<span class='text-danger'>No Armory</span>";
-        $appacc = ($gd['guild_ba'] == 0) ? "<span class='text-success'>Accepting Applications</span>" : "<span class='text-danger'>Recruitment Closed.</span>";
-        $indebt = ($gd['guild_primcurr'] > 0) ? "" : "<span class='text-danger'>In Debt</span>";
-		$gd['guild_pic'] = ($gd['guild_pic']) ? "<img src='" . parseImage($gd['guild_pic']) . "' class='img-fluid' style='max-width: 75px;'>" : '';
-		$cnt = shortNumberParse($db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`userid`)
-                    										FROM `users`
-                    										WHERE `guild` = {$gd['guild_id']}")));
-		$gd['username']=parseUsername($gd['userid']);
-        echo "<div class='row'>
-                <div class='col-12 col-md-3 col-xl-2'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <b><small>Guild Name</small></b>
-                        </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col col-xl-12'>
-                                    {$gd['guild_pic']}
-                                </div>
-                                <div class='col col-xl-12'>
-                                    <a href='?action=view&id={$gd['guild_id']}'>{$gd['guild_name']}</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class='col col-xl-2'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <b><small>Guild Level</small></b>
-                        </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    {$gd['guild_level']}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class='col col-xl-2'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <b><small>Guild Members</small></b>
-                        </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    {$cnt} / " . shortNumberParse($gd['guild_capacity']) . "
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class='col-12 col-md col-xl-2'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <b><small>Guild Leader</small></b>
-                        </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <a href='profile.php?user={$gd['userid']}'>{$gd['username']}</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class='col-12 col-xl'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <b><small>Quick Glimpse</small></b>
-                        </div>
-                        <div class='col-12'>
-                            <div class='row'>
-                                <div class='col-6 col-xl-12'>
-                                    {$appacc}
-                                </div>
-                                <div class='col-6 col-xl-12'>
-                                    {$hasarmory}
-                                </div>
-                                <div class='col-6 col-xl-12'>
-                                    {$indebt}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>";
+    while ($gd = $db->fetch_row($gq)) {
+        echo "
+		<div class='row'>
+			<div class='col-sm'>
+				<a href='?action=view&id={$gd['guild_id']}'>{$gd['guild_name']}</a><br />
+				Level: {$gd['guild_level']}<br />
+				Leader: <a href='profile.php?user={$gd['userid']}'>{$gd['username']}</a>
+			</div>
+			<div class='col-sm'>";
+        $cnt = number_format($db->fetch_single
+        ($db->query("SELECT COUNT(`userid`)
+										FROM `users` 
+										WHERE `guild` = {$gd['guild_id']}")));
+        echo "{$cnt} / {$gd['guild_capacity']}";
+        echo "</div>
+		</div><hr />";
     }
-    echo "</div>
-            </div>
-            </div>
-        </div>";
+    echo "</div>";
 
 }
 
 function create()
 {
     global $db, $userid, $api, $ir, $set, $h;
+    echo "<h3>Create a Guild</h3><hr />";
     $cg_price = $set['GUILD_PRICE'];
     $cg_level = $set['GUILD_LEVEL'];
-    //User does not have the minimum required Copper Coins.
-    if (!($api->UserHasCurrency($userid, 'primary', $cg_price))) {
+    //User does not have the minimum required primary currency.
+    if (!($api->user->hasCurrency($userid, 'primary', $cg_price))) {
         alert("danger", "Uh Oh!", "You do not have enough cash to create a guild! You need
-		    " . number_format($cg_price) . " Copper Coins.", true, 'index.php');
+		    " . number_format($cg_price) . ".", true, 'index.php');
         die($h->endpage());
     } //User level is too low to create a guild.
-    elseif (($api->UserInfoGet($userid, 'level', false)) < $cg_level) {
+    elseif (($api->user->getInfo($userid, 'level', false)) < $cg_level) {
         alert("danger", "Uh Oh!", "You are too low of a level to create a guild. Please level up to Level
-		    " . number_format($cg_level) . " and try again.", true, 'index.php');
+		    " . number_format($cg_level) . " and try again..", true, 'index.php');
         die($h->endpage());
     } //User is already in a guild.
     elseif ($ir['guild']) {
@@ -172,7 +117,7 @@ function create()
     } else {
         if (isset($_POST['name'])) {
             //User fails the CSRF verification.
-            if (!isset($_POST['verf']) || !verify_csrf_code('createguild', stripslashes($_POST['verf']))) {
+            if (!isset($_POST['verf']) || !checkCSRF('createguild', stripslashes($_POST['verf']))) {
                 alert('danger', "CSRF Error!", "The action you were trying to do was blocked. It was blocked because you
 				    loaded another page on the game. If you have not loaded a different page during this time, change
 				    your password immediately, as another person may have access to your account!");
@@ -181,77 +126,73 @@ function create()
             $name = $db->escape(htmlentities(stripslashes($_POST['name']), ENT_QUOTES, 'ISO-8859-1'));
             $desc = $db->escape(htmlentities(stripslashes($_POST['desc']), ENT_QUOTES, 'ISO-8859-1'));
             //Guild name is already in use.
-            if ($db->num_rows($db->query("/*qc=on*/SELECT `guild_id` FROM `guild` WHERE `guild_name` = '{$name}'")) > 0) 
-            {
+            if ($db->num_rows($db->query("SELECT `guild_id` FROM `guild` WHERE `guild_name` = '{$name}'")) > 0) {
                 alert("danger", "Uh Oh!", "A guild with the name you've chosen already exists!", true, 'back');
                 die($h->endpage());
             }
-            $i = createGuild($name, $desc, $userid);
-            $api->UserTakeCurrency($userid, 'primary', $cg_price);
-            
+            $db->query("INSERT INTO `guild`
+						(`guild_owner`, `guild_coowner`, `guild_primcurr`, 
+						`guild_seccurr`, `guild_hasarmory`, `guild_capacity`, `guild_name`, `guild_desc`, 
+						`guild_level`, `guild_xp`) 
+						VALUES ('{$userid}', '{$userid}', '0', '0', 'false', '5', 
+						'{$name}', '{$desc}', '1', '0')");
+            $i = $db->insert_id();
+            //Take user's primary currency, and have player join the guild.
+            $api->user->takeCurrency($userid, 'primary', $cg_price);
+            $db->query("UPDATE `users` SET `guild` = {$i} WHERE `userid` = {$userid}");
             //Tell user they've created a guild.
-            alert('success', "Success!", "You have successfully created a guild for " . shortNumberParse($cg_price) . " Copper Coins.", true, "viewguild.php", "View Guild");
+            alert('success', "Success!", "You have successfully created a guild.", true, "viewguild.php");
             //Log the purchase, and that they've joined a guild.
-            $api->SystemLogsAdd($userid, 'guilds', "Purchased a guild.");
-            $api->SystemLogsAdd($userid, 'guilds', "Joined Guild ID {$i}");
-            $api->GuildAddNotification($i, "Your guild was created!");
-            addToEconomyLog("Guild Upkeep", "copper", $cg_price * -1);
+            $api->game->addLog($userid, 'guilds', "Purchased a guild.");
+            $api->game->addLog($userid, 'guilds', "Joined Guild ID {$i}");
         } else {
             //Request the CSRF form.
-            $csrf = request_csrf_html('createguild');
-            echo "<form action='?action=create' method='post'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <div class='card'>
-                                <div class='card-header'>
-                                    Creating Guild for " . shortNumberParse($cg_price) . " Copper Coins
-                                </div>
-                                <div class='card-body'>
-                                    <div class='row'>
-                                        <div class='col-12'>
-                                            <div class='row'>
-                                                <div class='col-12'>
-                                                    <b><small>Guild Name</small></b>
-                                                </div>
-                                                <div class='col-12'>
-                                                    <input type='text' required='1' class='form-control' name='name' />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class='col-12'>
-                                            <div class='row'>
-                                                <div class='col-12'>
-                                                    <b><small>Guild Description</small></b>
-                                                </div>
-                                                <div class='col-12'>
-                                                    <textarea name='desc' required='1' class='form-control'></textarea>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class='col-12'>
-                                            <hr />
-                                            <input type='submit' value='Create Guild' class='btn btn-primary btn-block'>
-                                            {$csrf}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-            </form>";
+            $csrf = getHtmlCSRF('createguild');
+            echo "<form action='?action=create' method='post'>";
+            echo "
+			<div class='container'>
+				<div class='row'>
+					<th colspan='2'>
+						Creating a guild. Guilds cost " . number_format($cg_price) . " " . constant("primary_currency") . "
+					</div>
+				</div><hr />
+				<div class='row'>
+					<div class='col-sm'>
+						Guild Name
+					</div>
+					<div class='col-sm'>
+						<input type='text' required='1' class='form-control' name='name' />
+					</div>
+				</div><hr />
+				<div class='row'>
+					<div class='col-sm'>
+						Guild Description
+					</div>
+					<div class='col-sm'>
+						<textarea name='desc' required='1' class='form-control' cols='40' rows='7'></textarea>
+					</div>
+				</div><hr />
+				<div class='row'>
+					<td colspan='2'>
+						<input type='submit' value='Create Guild for " . number_format($cg_price) . "!' class='btn btn-primary'>
+					</div>
+				</div><hr />
+				{$csrf}
+			</div>
+			</form>";
         }
     }
 }
 
 function view()
 {
-    global $db, $h, $api, $ir;
-    $_GET['id'] = abs($_GET['id']);
+    global $db, $h, $api;
+    $guild_id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT) ?: 0;
     //Guild ID has not been entered, so redirect them to main guild listing.
     if (empty($_GET['id'])) {
         header("Location: guilds.php");
     } else {
-        $gq = $db->query("/*qc=on*/SELECT * FROM `guild` WHERE `guild_id` = {$_GET['id']}");
+        $gq = $db->query("SELECT * FROM `guild` WHERE `guild_id` = {$guild_id}");
         //Guild does not exist.
         if ($db->num_rows($gq) == 0) {
             alert('danger', "Uh Oh!", "The guild you are trying to view does not exist.", true, "guilds.php");
@@ -259,246 +200,84 @@ function view()
         }
         //List all the guild's information.
         $gd = $db->fetch_row($gq);
-        $maxMembers = calculateGuildMemberCapacity($gd['guild_id']);
-        $memberCount = countGuildMembers($gd['guild_id']);
-        $gymBonus = calculateGuildGymBonus($gd['guild_id']);
-        $appDisabled = ($ir['guild'] != 0) ? "disabled" : "";
-        $toQuery = $db->query("SELECT * FROM `town` WHERE `town_guild_owner` = {$gd['guild_id']}");
-        if ($db->num_rows($toQuery) == 0)
-            $townOwned = "N/A";
-        else
-        {
-            $toRow = $db->fetch_row($toQuery);
-            $townOwned = "<a href='travel.php?to={$toRow['town_id']}'>{$toRow['town_name']}</a>";
-        }
-        
-        $hasArmory = (guildOwnsAsset($gd['guild_id'], "guild_armory")) ? "<span class='text-success'>Yes</span>" : "<span class='text-danger'>No</span>";
-        $hasGym = (guildOwnsAsset($gd['guild_id'], "guild_gym")) ? "<span class='text-success'>Yes</span>" : "<span class='text-danger'>No</span>";
-        
-        $acceptApps = ($gd['guild_ba'] == 0) ? "<span class='text-success'>Open</span>" : "<span class='text-danger'>Closed</span>";
-        $inDebt = ($gd['guild_primcurr'] > 0) ? "<span class='text-success'>Good</span>" : "<span class='text-danger'>Bad</span>";
-        
-        $allyQ=$db->query("/*qc=on*/SELECT *
-							FROM `guild_alliances`
-							WHERE (`alliance_a` = {$gd['guild_id']} OR `alliance_b` = {$gd['guild_id']})
-							AND `alliance_true` = 1");
         echo "<h3>{$gd['guild_name']} Guild</h3>";
         echo "
-        <div class='row'>
-            <div class='col-12 col-xl-6 col-xxxl-3'>
-                <div class='card'>
-                    <div class='card-header'>
-                        {$gd['guild_name']} Guild
-                    </div>
-                    <div class='card-body'>
-                        <div class='row'>";
-                        if (!empty($gd['guild_pic']))
-                        {
-                            echo "<div class='col-12'>
-                                <img src='" . parseImage($gd['guild_pic']) . "' 
-                                    placeholder='The {$gd['guild_name']} guild picture.' 
-                                    title='The {$gd['guild_name']} guild picture.' class='img-fluid'><br />
-                            </div>";
-                        }
-                        echo "<div class='col-12'>
-                                {$gd['guild_desc']}
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Leader</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        <a href='profile.php?user={$gd['guild_owner']}'> " . parseUsername($gd['guild_owner']) . "</a> [{$gd['guild_owner']}]
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Co-leader</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        <a href='profile.php?user={$gd['guild_coowner']}'> " . parseUsername($gd['guild_coowner']) . "</a> [{$gd['guild_coowner']}]
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <br />
-            </div>
-            <div class='col-12 col-xl-6 col-xxxl-4'>
-                <div class='card'>
-                    <div class='card-header'>
-                        {$gd['guild_name']} Information
-                    </div>
-                    <div class='card-body'>
-                        <div class='row'>
-                            <div class='col-12 col-sm-4'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Level</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        " . shortNumberParse($gd['guild_level']) . "
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12 col-sm-4'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Members</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        " . shortNumberParse($memberCount) . " / " . shortNumberParse($maxMembers) . "
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12 col-sm-4'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Town Owned</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        {$townOwned}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12 col-sm-4'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Has Armory</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        {$hasArmory}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12 col-sm-4'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Has Gym</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        {$hasGym}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12 col-sm-4'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Recruitment</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        {$acceptApps}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12 col-sm-4'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Finances</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        {$inDebt}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12 col-sm-4'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small>Gym Bonus</small>
-                                    </div>
-                                    <div class='col-12'>
-                                        " . $gymBonus * 100 . "%
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <br />
-            </div>";
-            if ($db->num_rows($allyQ) > 0)
-            {
-                echo "
-                <div class='col-12 col-xl-6 col-xxxl-3'>
-                    <div class='card'>
-                        <div class='card-header'>
-                            {$gd['guild_name']} Alliances
-                        </div>
-                        <div class='card-body'>
-                            <div class='row'>";
-                                while ($r=$db->fetch_row($allyQ))
-                                {
-                                    $type = ($r['alliance_type'] == 1) ? "Alliance" : "Non-aggressive";
-                                    if ($r['alliance_a'] == $_GET['id'])
-                                        $otheralliance=$r['alliance_b'];
-                                    else
-                                        $otheralliance=$r['alliance_a'];
-                                    echo "
-                                    <div class='col-12 col-sm-6'>
-                                        <div class='row'>
-                                            <div class='col-12'>
-                                                <small>{$type}</small>
-                                            </div>
-                                            <div class='col-12'>
-                                                <a href='?action=view&id={$otheralliance}'>{$api->GuildFetchInfo($otheralliance,'guild_name')}</a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class='col-12 col-sm-6'>
-                                        <div class='row'>
-                                            <div class='col-12'>
-                                                <small>Guild Members</small>
-                                            </div>
-                                            <div class='col-12'>
-                                                " . shortNumberParse(countGuildMembers($otheralliance)) . "
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <hr />";
-                                }
-                                echo "
-                            </div>
-                        </div>
-                    </div>
-                    <br />
-                </div>";
-            }
-        echo"<div class='col-12 col-xl-6 col-xxxl-2'>
-                <div class='card'>
-                    <div class='card-header'>
-                        Actions
-                    </div>
-                    <div class='card-body'>
-                        <div class='row'>
-                            <div class='col-12 col-sm-6 col-xxxl-12'>
-                                <a href='?action=memberlist&id={$gd['guild_id']}' class='btn btn-primary btn-block'>View Members</a><br />
-                            </div>
-                            <div class='col-12 col-sm-6 col-xxxl-12'>
-                                <a href='?action=apply&id={$gd['guild_id']}' class='btn btn-success btn-block {$appDisabled}'>Send Application</a><br />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <br />
-            </div>
-        </div>";
+		<div class='container'>
+			<div class='row'>
+				<div class='col-sm'>
+					Guild Leader
+				</div>
+				<div class='col-sm'>
+					<a href='profile.php?user={$gd['guild_owner']}'> " . $api->user->getNameFromID($gd['guild_owner']) . "</a>
+				</div>
+			</div><hr />
+			<div class='row'>
+				<div class='col-sm'>
+					Guild Co-Leader
+				</div>
+				<div class='col-sm'>
+					<a href='profile.php?user={$gd['guild_coowner']}'> " . $api->user->getNameFromID($gd['guild_coowner']) . "</a>
+				</div>
+			</div><hr />
+			<div class='row'>
+				<div class='col-sm'>
+					Guild Level
+				</div>
+				<div class='col-sm'>
+					" . number_format($gd['guild_level']) . "
+				</div>
+			</div><hr />
+			<div class='row'>
+				<div class='col-sm'>
+					{$gd['guild_name']} Description
+				</div>
+				<div class='col-sm'>
+					{$gd['guild_desc']}
+				</div>
+			</div><hr />
+			<div class='row'>
+				<div class='col-sm'>
+					Members
+				</div>
+				<div class='col-sm'>";
+        //Count players in this guild.
+        $cnt = number_format($db->fetch_single
+        ($db->query("SELECT COUNT(`userid`)
+										FROM `users` 
+										WHERE `guild` = {$_GET['id']}")));
+        echo number_format($cnt) . " / " . number_format($gd['guild_capacity']) . "
+				</div>
+			</div><hr />
+			<div class='row'>
+				<div class='col-sm'>
+					Guild Location
+				</div>
+				<div class='col-sm'>";
+        echo $api->game->getTownNameFromID($gd['guild_town_id']) . "
+				</div>
+			</div><hr />
+			<div class='row'>
+				<div class='col-sm'>
+					<a href='?action=memberlist&id={$_GET['id']}'>View Members</a>
+				</div>
+				<div class='col-sm'>
+					<a href='?action=apply&id={$_GET['id']}'>Apply</a>
+				</div>
+			</div><hr />
+		</div>";
     }
 }
 
 function memberlist()
 {
     global $db, $h;
-    $_GET['id'] = abs($_GET['id']);
+    $guild_id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT) ?: 0;
     //Guild is not specified.
-    if (empty($_GET['id'])) {
+    if (empty($guild_id )) {
         alert('danger', "Uh Oh!", "Please specify the guild you wish to view.", true, "guilds.php");
         die($h->endpage());
     }
-    $gq = $db->query("/*qc=on*/SELECT * FROM `guild` WHERE `guild_id` = {$_GET['id']}");
+    $gq = $db->query("SELECT * FROM `guild` WHERE `guild_id` = {$guild_id }");
     //Guild does not exist.
     if ($db->num_rows($gq) == 0) {
         alert('danger', "Uh Oh!", "You are trying to view a non-existent guild.", true, "guilds.php");
@@ -506,43 +285,43 @@ function memberlist()
     }
     $gd = $db->fetch_row($gq);
     echo "<h3>Members Enlisted in the {$gd['guild_name']} guild</h3>
-	<table class='table table-bordered'>
-		  	<tr>
-		  		<th>
-					User
-				</th>
-		  		<th>
-					Level
-				</th>
-		  	</tr>";
-    $q = $db->query("/*qc=on*/SELECT `userid`, `username`, `level`
+	<div class='container'>
+		  	<div class='row'>
+		  		<div class='col-sm'>
+					<h4>User</h4>
+				</div>
+		  		<div class='col-sm'>
+					<h4>Level</h4>
+				</div>
+		  	</div><hr />";
+    $q = $db->query("SELECT `userid`, `username`, `level`
                      FROM `users`
                      WHERE `guild` = {$gd['guild_id']}
                      ORDER BY `level` DESC");
     //List players in the guild.
     while ($r = $db->fetch_row($q)) {
-        echo "<tr>
-        		<td>
-					<a href='profile.php?user={$r['userid']}'>" . parseUsername($r['userid']) . "</a>
-				</td>
-        		<td>
-					" . shortNumberParse($r['level']) . "
-				</td>
-			</tr>";
+        echo "<div class='row'>
+        		<div class='col-sm'>
+					<a href='profile.php?user={$r['userid']}'>{$r['username']}</a> [{$r['userid']}]
+				</div>
+        		<div class='col-sm'>
+					{$r['level']}
+				</div>
+			</div><hr />";
     }
-    echo "</table>";
+    echo "</div>";
 }
 
 function apply()
 {
     global $db, $userid, $ir, $api, $h;
-    $_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs($_GET['id']) : '';
+    $guild_id = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_NUMBER_INT) ?: 0;
     //Guild is not specified.
-    if (empty($_GET['id'])) {
+    if (empty($guild_id)) {
         alert('danger', "Uh Oh!", "Please specify the guild you wish to view.", true, "guilds.php");
         die($h->endpage());
     }
-    $gq = $db->query("/*qc=on*/SELECT * FROM `guild` WHERE `guild_id` = {$_GET['id']}");
+    $gq = $db->query("SELECT * FROM `guild` WHERE `guild_id` = {$guild_id}");
     //Guild does not exist.
     if ($db->num_rows($gq) == 0) {
         alert('danger', "Uh Oh!", "You are trying to apply to a non-existent guild.", true, "guilds.php");
@@ -554,21 +333,16 @@ function apply()
         alert('danger', "Uh Oh!", "You cannot write applications if you're already in a guild.", true, "guilds.php?action=view&id={$_GET['id']}");
         die($h->endpage());
     }
-	if ($gd['guild_ba'] == 1)
-	{
-		alert('danger', "Uh Oh!", "This guild is currently blocking all applications.", true, "guilds.php?action=view&id={$_GET['id']}");
-        die($h->endpage());
-	}
     echo "<h3>Submitting an Application to join the {$gd['guild_name']} guild.</h3><hr />";
     if (isset($_POST['application'])) {
         //User fails CSRF verification
-        if (!isset($_POST['verf']) || !verify_csrf_code('guild_apply', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('guild_apply', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "The action you were trying to do was blocked. It was blocked because you loaded
                 another page on the game. If you have not loaded a different page during this time, change your password
                 immediately, as another person may have access to your account!", true, 'back');
             die($h->endpage());
         }
-        $cnt = $db->query("/*qc=on*/SELECT * FROM `guild_applications` WHERE `ga_user` = {$userid} && `ga_guild` = {$_GET['id']}");
+        $cnt = $db->query("SELECT * FROM `guild_applications` WHERE `ga_user` = {$userid} && `ga_guild` = {$guild_id}");
         //User has already submitted an application to this guild.
         if ($db->num_rows($cnt) > 0) {
             alert('danger', "Uh Oh!", "You have already filled out an application to join this guild. Please wait until a
@@ -576,7 +350,12 @@ function apply()
             die($h->endpage());
         }
         //Tell the guild's owner and co-owner that the user has sent an application.
-        guildSendStaffNotif($_GET['id'], "{$ir['username']} has filled out an app to join your guild.");
+        if ($gd['guild_owner'] == $gd['guild_coowner']) {
+            $api->user->addNotification($gd['guild_owner'], "{$ir['username']} has filled and submitted an application to join your guild.");
+        } else {
+            $api->user->addNotification($gd['guild_owner'], "{$ir['username']} has filled and submitted an application to join your guild.");
+            $api->user->addNotification($gd['guild_coowner'], "{$ir['username']} has filled and submitted an application to join your guild.");
+        }
         $time = time();
         $application = (isset($_POST['application']) && is_string($_POST['application'])) ? $db->escape(htmlentities(stripslashes($_POST['application']), ENT_QUOTES, 'ISO-8859-1')) : '';
         //Insert the application, notify the guild and tell the user they were successful.
@@ -589,7 +368,7 @@ function apply()
         alert('success', "Success!", "You application has been submitted successfully.", true, "guilds.php?action=view&id={$_GET['id']}");
     } else {
         //Request CSRF form.
-        $csrf = request_csrf_html('guild_apply');
+        $csrf = getHtmlCSRF('guild_apply');
         echo "
 		<form action='?action=apply&id={$_GET['id']}' method='post'>
 			Write your application to join this guild here. The more information you can provide, the higher chance you
@@ -605,31 +384,31 @@ function wars()
 {
     global $db, $api;
     $time = time();
-    echo "<h3><i class='game-icon game-icon-mounted-knight'></i> Guild Wars</h3><hr />";
-    $q = $db->query("/*qc=on*/SELECT * FROM `guild_wars`
+    echo "<h3>Known Guild Wars</h3><hr />";
+    $q = $db->query("SELECT * FROM `guild_wars`
                     WHERE `gw_winner` = 0 AND 
                     `gw_end` > {$time} 
                     ORDER BY `gw_id` DESC");
     //There is at least one active guild war.
     if ($db->num_rows($q) > 0) {
-        echo "<table class='table table-bordered'>";
+        echo "<div class='container'>";
         //List the active guild wars.
         while ($r = $db->fetch_row($q)) {
-            echo "<tr>
-				<td>
-					<a href='guilds.php?action=view&id={$r['gw_declarer']}'>{$api->GuildFetchInfo($r['gw_declarer'],'guild_name')}</a><br />
+            echo "<div class='row'>
+				<div class='col-sm'>
+					<a href='guilds.php?action=view&id={$r['gw_declarer']}'>{$api->guild->fetchInfo($r['gw_declarer'],'guild_name')}</a><br />
 						(Points: " . number_format($r['gw_drpoints']) . ")
-				</td>
-				<td>
+				</div>
+				<div class='col-sm'>
 					VS
-				</td>
-				<td>
-					<a href='guilds.php?action=view&id={$r['gw_declaree']}'>{$api->GuildFetchInfo($r['gw_declaree'],'guild_name')}</a><br />
+				</div>
+				<div class='col-sm'>
+					<a href='guilds.php?action=view&id={$r['gw_declaree']}'>{$api->guild->fetchInfo($r['gw_declaree'],'guild_name')}</a><br />
 						(Points: " . number_format($r['gw_depoints']) . ")
-				</td>
-			</tr>";
+				</div>
+			</div><hr />";
         }
-        echo "</table>";
+        echo "</div>";
     } //No guild wars.
     else {
         alert('danger', "Uh Oh!", "There are currently no guilds warring at this time.", false);

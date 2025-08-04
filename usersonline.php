@@ -1,52 +1,40 @@
 <?php
 /*
 	File:		usersonline.php
-	Created: 	4/5/2016 at 12:31AM Eastern Time
-	Info: 		Lists players on within the time period set. The GET
-				can be set to any integer value, and it'll check that
-				number minutes ago.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Lists the players currently in the viewing player's town.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('globals.php');
 
 //Different options for different time periods. The GET is in minutes.
-echo "<h3><i class='fas fa-toggle-on'></i> Users Online</h3><hr />
-<div class='row'>
-	<div class='col-auto'>
-		<a href='?act=5' class='btn btn-primary btn-block'>5 minutes</a>
-        <br />
-	</div>
-	<div class='col-auto'>
-		<a href='?act=15' class='btn btn-primary btn-block'>15 minutes</a>
-        <br />
-	</div>
-	<div class='col-auto'>
-		<a href='?act=60' class='btn btn-primary btn-block'>1 hour</a>
-        <br />
-	</div>
-    <div class='col-auto'>
-		<a href='?act=360' class='btn btn-primary btn-block'>6 hours</a>
-        <br />
-	</div>
-    <div class='col-auto'>
-		<a href='?act=720' class='btn btn-primary btn-block'>12 hours</a>
-        <br />
-	</div>
-	<div class='col-auto'>
-		<a href='?act=1440' class='btn btn-primary btn-block'>24 hours</a>
-        <br />
-	</div>
-	<div class='col-auto'>
-		<a href='?act=10080' class='btn btn-primary btn-block'>1 Week</a>
-        <br />
-	</div>
-	<div class='col-auto'>
-		<a href='?act=43200' class='btn btn-primary btn-block'>1 Month</a>
-        <br />
-	</div>
-</div>
-<hr />";
+echo "<h3>Users Online List</h3><hr />
+[<a href='?act=5'>5 Minutes</a>]
+[<a href='?act=15'>15 Minutes</a>]
+[<a href='?act=60'>1 Hour</a>]
+[<a href='?act=1440'>1 Day</a>]<hr />";
 
 //Time period isn't set, so set it to 15.
 if (!isset($_GET['act'])) {
@@ -56,65 +44,25 @@ $_GET['act'] = (isset($_GET['act']) && is_numeric($_GET['act'])) ? abs($_GET['ac
 $last_on = time() - ($_GET['act'] * 60);
 
 //Select all players on in the time period set in the GET.
-$q = $db->query("/*qc=on*/SELECT * FROM `users` WHERE `laston` > {$last_on} ORDER BY `laston` DESC");
-echo "
-<div class='card'>
-    <div class='card-header'>
-        Showing users online in the last " . shortNumberParse($_GET['act']) . " minutes.
-    </div>
-    <div class='card-body'>";
-//Display the users info.
-while ($r = $db->fetch_row($q))
-{
-    $r['username'] = parseUsername($r['userid']);
-    $un = $api->SystemUserIDtoName($r['userid']);
-    $displaypic = "<img src='" . parseDisplayPic($r['userid']) . "' height='75' class='hidden-sm-down' alt='{$un}&#39;s Display picture.' title='{$un}&#39;s Display picture'>";
-    $active = parseActivity($r['userid']);
-    echo "
-            <div class='row'>
-                <div class='col-auto col-md-5 col-xl-5 col-xxl-4'>
-                    <div class='row'>
-                        <div class='col-12 col-md-auto col-lg-12 col-xl'>
-				            {$displaypic}
-                        </div>
-                        <div class='col-12 col-md-auto col-lg-12 col-xl'>
-				            <a href='profile.php?user={$r['userid']}'>{$r['username']}</a> " . parseUserID($r['userid']) . "
-                        </div>
-                    </div>
-                </div>
-                <div class='col-auto col-md-2 col-xl'>
-					<div class='row'>
-                        <div class='col-12'>
-				            <small><b>Level</b></small>
-                        </div>
-                        <div class='col-12'>
-				            " . shortNumberParse($r['level']) . "
-                        </div>
-                    </div>
-				</div>
-                <div class='col-auto col-md-3 col-xl'>
-					<div class='row'>
-                        <div class='col-12'>
-				            <small><b>Copper Coins</b></small>
-                        </div>
-                        <div class='col-12'>
-				            " . shortNumberParse($r['primary_currency']) . "
-                        </div>
-                    </div>
-				</div>
-                <div class='col-auto col-md-2 col-xl'>
-					<div class='row'>
-                        <div class='col-12'>
-				            <small><b>Activity</b></small>
-                        </div>
-                        <div class='col-12'>
-				            {$active}
-                        </div>
-                    </div>
-				</div>
-            </div>
-            <hr />";
+$q = $db->query("SELECT * FROM `users` WHERE `laston` > {$last_on} ORDER BY `laston` DESC");
+echo "<table class='table table-bordered table-striped'>
+	<tr>
+		<th>
+			User
+		</th>
+		<th>
+			Last Active
+		</th>
+	</tr>";
+while ($r = $db->fetch_row($q)) {
+    echo "<tr>
+		<td>
+			<a href='profile.php?user={$r['userid']}'>{$r['username']}</a> [{$r['userid']}]
+		</td>
+		<td>
+			" . dateTimeParse($r['laston']) . "
+		</td>
+	</tr>";
 }
-echo "</div>
-	</div>";
+echo "</table>";
 $h->endpage();

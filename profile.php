@@ -1,793 +1,396 @@
 <?php
-require('globals.php');
-?><link rel="stylesheet" href="css/profile2.css"><?php
-//Include BBCode Engine. Allow players to make pretty!
-require('lib/bbcode_engine.php');
-$_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs($_GET['user']) : '';
-if (!$_GET['user']) 
-{
-    alert("danger", "Uh Oh!", "Please specify a user you wish to view.", true, 'index.php');
-	die($h->endpage());
+/*
+	File:		profile.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows the palyer to load player-based profiles.
+	Author:		TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+require("globals.php");
+require_once("includes/vip-benefits.php");
+
+// Check if marriage system is available
+$marriage_available = true;
+try {
+    $db->query("SELECT 1 FROM marriages LIMIT 1");
+    require_once("includes/marriage-system.php");
+} catch (Exception $e) {
+    $marriage_available = false;
 }
-$q = $db->query(
-            "/*qc=on*/SELECT `u`.`userid`, `user_level`, `laston`, `last_login`,
+$code = getCodeCSRF('inbox_send');
+$code2 = getCodeCSRF('cash_send');
+$_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs($_GET['user']) : '';
+if (!$_GET['user']) {
+    alert("danger", "Uh Oh!", "Please specify a user you wish to view.", true, 'index.php');
+} else {
+    $q =
+        $db->query(
+            "SELECT `u`.`userid`, `user_level`, `laston`, `last_login`,
                     `registertime`, `vip_days`, `username`, `gender`,
-					`primary_currency`, `secondary_currency`, `level`, `class`,
-					`display_pic`, `hp`, `maxhp`, `guild`, `job`, `jobrank`, 
-                    `fedjail`, `bank`, `lastip`, `lastip`, `reset`,
+					`primary_currency`, `secondary_currency`, `level`,
+					`display_pic`, `hp`, `maxhp`, `guild`,
+                    `fedjail`, `lastip`, `lastip`,
                     `loginip`, `registerip`, `staff_notes`, `town_name`,
-                    `house_name`, `guild_name`, `fed_out`, `fed_reason`, `equip_badge`, 
-					`infirmary_reason`, `infirmary_out`, `dungeon_reason`, `dungeon_out`,
-					`browser`, `os`, `description`, `location`, `vipcolor`, `town_min_level`,
-					`fb_reason`, `fb_time`, `mbREASON`, `mbTIME`
+                    COALESCE(`house_name`, 'No House') as `house_name`, 
+                    COALESCE(`guild_name`, 'No Guild') as `guild_name`, 
+                    COALESCE(`fed_out`, 0) as `fed_out`, 
+                    COALESCE(`fed_reason`, '') as `fed_reason`,
+					COALESCE(`infirmary_reason`, '') as `infirmary_reason`, 
+                    COALESCE(`infirmary_out`, 0) as `infirmary_out`, 
+                    COALESCE(`dungeon_reason`, '') as `dungeon_reason`, 
+                    COALESCE(`dungeon_out`, 0) as `dungeon_out`
                     FROM `users` `u`
-                    INNER JOIN `town` AS `t`
+                    LEFT JOIN `town` AS `t`
                     ON `u`.`location` = `t`.`town_id`
 					LEFT JOIN `infirmary` AS `i`
 					ON `u`.`userid` = `i`.`infirmary_user`
 					LEFT JOIN `dungeon` AS `d`
 					ON `u`.`userid` = `d`.`dungeon_user`
-                    INNER JOIN `user_estates` AS `e`
-                    ON `u`.`estate` = e.`ue_id`
-					INNER JOIN `estates` AS `eh`
-                    ON `e`.`estate` = eh.`house_id`
+                    LEFT JOIN `estates` AS `e`
+                    ON `u`.`maxwill` = e.`house_will`
                     LEFT JOIN `guild` AS `g`
                     ON `g`.`guild_id` = `u`.`guild`
                     LEFT JOIN `fedjail` AS `f`
                     ON `f`.`fed_userid` = `u`.`userid`
-					LEFT JOIN `mail_bans` AS `mb`
-                    ON `mb`.`mbUSER` = `u`.`userid`
-					LEFT JOIN `forum_bans` AS `fb`
-                    ON `fb`.`fb_user` = `u`.`userid`
-					LEFT JOIN `userdata` AS `ud`
-                    ON `ud`.`userid` = `u`.`userid`
-					LEFT JOIN `user_settings` AS `us`
-                    ON `us`.`userid` = `u`.`userid`
                     WHERE `u`.`userid` = {$_GET['user']}");
 
-if ($db->num_rows($q) == 0)
-{
-	$db->free_result($q);
-	alert("danger", "Uh Oh!", "The user you are trying to view does not exist, or has an account issue.", true, 'index.php');
-	die($h->endpage());
-}
-$r = $db->fetch_row($q);
-$fg = json_decode(get_fg_cache($r['lastip']), true);
-$db->free_result($q);
-$lon = ($r['laston'] > 0) ? date('F j, Y g:i:s a', $r['laston']) : "Never";
-$ula = ($r['laston'] == 0) ? 'Never' : DateTime_Parse($r['laston']);
-$ull = ($r['last_login'] == 0) ? 'Never' : DateTime_Parse($r['last_login']);
-$active = 0;
-if ($r['laston'] > time() - 300)
-	$active = 1;
-elseif (($r['laston'] < time() - 300) && ($r['laston'] > time() - 900))
-	$active = 2;
-$sup = date('F j, Y g:i:s a', $r['registertime']);
-$mi=$db->query("/*qc=on*/SELECT * FROM `marriage_tmg` WHERE (`proposer_id` = {$r['userid']} OR `proposed_id` = {$r['userid']}) AND `together` = 1");
-if ($db->num_rows($mi) == 0)
-{
-	$married="N/A";
-}
-else
-{
-	$mt=$db->fetch_row($mi);
-	if ($mt['proposer_id'] == $r['userid'])
-	{
-		$p1=$ir;
-		$p2=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposed_id']}"));
-		$event=$p2;
-		$ring=$api->SystemItemIDtoName(getUserItemEquippedSlot($mt['proposer_id'],slot_wed_ring));
-	}
-	else
-	{
-		$p1=$db->fetch_row($db->query("/*qc=on*/SELECT * FROM `users` WHERE `userid` = {$mt['proposer_id']}"));
-		$p2=$ir;
-		$event=$p1;
-		$ring=$api->SystemItemIDtoName(getUserItemEquippedSlot($mt['proposed_id'], slot_wed_ring));
-	}
-	$married="<a href='profile.php?user={$event['userid']}'>{$event['username']}</a>";
-}
-$displaypic = "<img src='" . parseDisplayPic($r['userid']) . "' class='img-thumbnail' alt='{$r['username']}&#39;s display picture' title='{$r['username']}&#39;s display picture'>";
-$user_name = parseUsername($r['userid']);
-$ref_q =
-	$db->query(
-		"/*qc=on*/SELECT COUNT(`referalid`)
-				 FROM `referals`
-				 WHERE `referal_userid` = {$r['userid']}");
-$ref = $db->fetch_single($ref_q);
-$db->free_result($ref_q);
-$friend_q =
-	$db->query(
-		"/*qc=on*/SELECT COUNT(`friend_id`)
-				 FROM `friends`
-				 WHERE `friender` = {$r['userid']}");
-$friend = $db->fetch_single($friend_q);
-$db->free_result($friend_q);
-$enemy_q =
-	$db->query(
-		"/*qc=on*/SELECT COUNT(`enemy_id`)
-				 FROM `enemy`
-				 WHERE `enemy_adder` = {$r['userid']}");
-$enemy = $db->fetch_single($enemy_q);
-$db->free_result($enemy_q);
-$CurrentTime = time();
-$r['daysold'] = DateTime_Parse($r['registertime'], false, true);
-$mb = $db->query("/*qc=on*/SELECT * FROM `mail_bans` WHERE `mbUSER` = {$userid}");
-$mbd=0;
-if ($db->num_rows($mb) != 0)
-	$mbd=1;
+    if ($db->num_rows($q) == 0) {
+        $db->free_result($q);
+        alert("danger", "Uh Oh!", "The user you are trying to view does not exist, or has an account issue.", true, 'index.php');
+    } else {
+        $r = $db->fetch_row($q);
+        $db->free_result($q);
+        $lon = ($r['laston'] > 0) ? date('F j, Y g:i:s a', $r['laston']) : "Never";
+        $ula = ($r['laston'] == 0) ? 'Never' : dateTimeParse($r['laston']);
+        $ull = ($r['last_login'] == 0) ? 'Never' : dateTimeParse($r['last_login']);
+        $sup = date('F j, Y g:i:s a', $r['registertime']);
+        $displaypic = ($r['display_pic']) ? "<img src='{$r['display_pic']}' class='img-thumbnail img-responsive' width='250' height='250'>" : '';
+        
+        // Initialize VIP benefits for the viewed user
+        $vipBenefits = getVIPBenefits($db, $r['userid']);
+        $user_name = $vipBenefits->getVIPUsernameStyle($r['username']);
+        $ref_q =
+            $db->query(
+                "SELECT COUNT(`referalid`)
+                         FROM `referals`
+                         WHERE `referal_userid` = {$r['userid']}");
+        $ref = $db->fetch_single($ref_q);
+        $db->free_result($ref_q);
+        $friend_q =
+            $db->query(
+                "SELECT COUNT(`friend_id`)
+                         FROM `friends`
+                         WHERE `friended` = {$r['userid']}");
+        $friend = $db->fetch_single($friend_q);
+        $db->free_result($friend_q);
+        $enemy_q =
+            $db->query(
+                "SELECT COUNT(`enemy_id`)
+                         FROM `enemy`
+                         WHERE `enemy_user` = {$r['userid']}");
+        $enemy = $db->fetch_single($enemy_q);
+        $db->free_result($enemy_q);
+        $CurrentTime = time();
+        $r['daysold'] = dateTimeParse($r['registertime'], false, true);
 
-//Submit comment
-if (isset($_POST['comment']))
-{
-	$comment = $db->escape(nl2br(strip_tags(htmlentities(stripslashes($_POST['comment'])))));
-	if (empty($comment))
-	{
-		alert('danger',"Uh Oh!","Please fill out the comment form before submitting.",false);
-	}
-	elseif (strlen($comment) > 500)
-	{
-		alert('danger',"Uh Oh!","Comments may not be longer than 500 characters.",false);
-	}
-	elseif ($userid == $_GET['user'])
-	{
-		alert('danger',"Uh Oh!","You cannot comment on your own profile.",false);
-	}
-	elseif (!isset($_POST['verf']) || !verify_csrf_code("comment", stripslashes($_POST['verf']))) 
-	{
-		alert('danger', "Action Blocked!", "Forms expire fairly quickly. Be quicker next time.",false);
-	}
-	elseif ($api->UserBlocked($userid,$_GET['user']))
-	{
-		alert('danger', "Uh Oh!", "This user has you blocked. You cannot send messages to players that have you blocked.", false);
-	}
-	elseif (!permission("CanComment",$userid))
-	{
-		alert('danger', "Uh Oh!", "You do not have permission to comment on another player's profile.", false);
-	}
-	elseif ($mbd == 1)
-	{
-		alert('danger', "Uh Oh!", "You cannot send profile messages if you are mail-banned.", false);
-	}
-	else
-	{
-		$db->query("INSERT INTO `comments` (`cRECEIVE`, `cSEND`, `cTIME`, `cTEXT`) VALUES ('{$_GET['user']}', '{$userid}', '" . time() . "', '{$comment}')");
-		$api->GameAddNotification($_GET['user'],"{$ir['username']} has left a comment on your profile. Click <a href='profile.php?user={$_GET['user']}'>here</a> to view it.");
-		alert('success',"Success!","Comment was posted successfully.",false);
-		$justposted=1;
-	}
-	$fiveminago=time()-300;
-	$l3c=$db->query("/*qc=on*/SELECT * FROM `comments` WHERE `cSEND` = {$userid} AND `cTIME` >= {$fiveminago}");
-	$same=0;
-	while ($ltr = $db->fetch_row($l3c))
-	{
-		if ($ltr['cTEXT'] == $comment)
-			$same=$same+1;
-	}
-	if ($same >= 3)
-	{
-		$timed=time()+259200;
-		$db->query("INSERT INTO `mail_bans`
-					(`mbUSER`, `mbREASON`, `mbBANNER`, `mbTIME`) VALUES
-					('{$userid}', 'Spamming', '1', '{$timed}')");
-		$api->GameAddNotification($userid, "You have been mail-banned for 3 days for the reason: 'Spamming'.");
-		staffnotes_entry($userid,"Mail banned for 3 for 'Spamming'.",0);
-	}
-}
-
-//Delete comment
-if (isset($_GET['del']))
-{
-	$comment = (isset($_GET['del']) && is_numeric($_GET['del'])) ? abs($_GET['del']) : '';
-	if (empty($comment))
-	{
-		alert('danger',"Uh Oh!","Please select the comment you wish to delete.",false);
-	}
-	else
-	{
-		$dc=$db->query("/*qc=on*/SELECT * FROM `comments` WHERE `cID` = {$comment}");
-		if ($db->num_rows($dc) == 0)
-		{
-			alert('danger',"Uh Oh!","This comment does not exist, or has already been deleted.",false);
-		}
-		$comRes = $db->fetch_row($dc);
-        if ($comRes['cRECEIVE'] == $userid)
-        {
-            $db->query("DELETE FROM `comments` WHERE `cID` = {$comment}");
-            alert('success',"Success!","Comment has been deleted successfully.",false);
+        $rhpperc = round($r['hp'] / $r['maxhp'] * 100);
+        echo "<h3>{$user_name}'s Profile</h3>";
+        ?>
+		<div class="row">
+			<div class="col-lg-2">
+				<?php
+        echo "{$displaypic}<br />
+                        {$r['user_level']}<br />
+						Location {$r['town_name']}<br />
+                        Level: {$r['level']}<br />";
+        echo ($r['guild']) ? "Guild: <a href='guilds.php?action=view&id={$r['guild']}'>{$r['guild_name']}</a><br />" : '';
+        echo "Health: {$r['hp']}/{$r['maxhp']}<br />";
+        
+        // Show marriage information if available
+        if ($marriage_available) {
+            $marriageSystem = getMarriageSystem($db, $r['userid']);
+            if ($marriageSystem->isMarried()) {
+                $spouse = $marriageSystem->getSpouse();
+                $stats = $marriageSystem->getMarriageStats();
+                echo "<strong>Marriage:</strong><br />";
+                echo "Married to: <a href='profile.php?user={$spouse['userid']}'>{$spouse['username']}</a><br />";
+                echo "Since: " . date('M j, Y', $spouse['marriage_date']) . "<br />";
+                echo "Days married: {$stats['days_married']}<br />";
+            } else {
+                echo "<strong>Relationship:</strong> Single<br />";
+            }
         }
-        elseif ($comRes['cSEND'] == $userid)
-		{
-		    $db->query("DELETE FROM `comments` WHERE `cID` = {$comment}");
-		    alert('success',"Success!","Comment has been deleted successfully.",false);
-		}
-		elseif ($api->UserMemberLevelGet($userid, 'assistant'))
-		{
-		    $db->query("DELETE FROM `comments` WHERE `cID` = {$comment}");
-		    alert('success',"Success!","Comment has been deleted successfully.",false);
-		}
-		else
-		{
-		    alert('danger',"Uh Oh!","You do not have permission to delete this comment.",false);
-		}
-	}
-}
-//Some default settings for the profile...
-$attbutton = 0;
-$statusTitle = "Perfectly fine.";
-$statusColor = "text-success";
-$statusDetail = "";
-$statusIcon = "check-mark";
-if (isUserInfirmary($r['userid']))
-{
-	$attbutton = 1;
-	$statusIcon = "health-increase";
-	$statusColor = "text-danger";
-	$statusTitle="In the infirmary for " . TimeUntil_Parse($r['infirmary_out']) . ".";
-	$statusDetail = "{$r['infirmary_reason']}<br />
-	[<a href='infirmary.php?action=heal&user={$r['userid']}'>Heal</a>]";
-}
-elseif (isUserInfirmary($userid))
-	$attbutton = 2;
-elseif (isUserDungeon($r['userid']))
-{
-	$statusIcon = "padlock";
-	$attbutton = 3;
-	$statusColor = "text-danger";
-	$statusTitle="In the dungeon for " . TimeUntil_Parse($r['dungeon_out']) . ".";
-	$statusDetail = "{$r['dungeon_reason']}<br />
-	[<a href='dungeon.php?action=bust&user={$r['userid']}'>Bust</a>]";
-}
-elseif (isUserDungeon($userid))
-	$attbutton = 4;
-elseif ($r['hp'] == 0)
-	$attbutton = 5;
-elseif ($ir['hp'] == 0)
-	$attbutton = 6;
-	
-if (empty($r['description']))
-	$r['description']="[i]{$r['username']} does not have a player description set yet.[/i]";
 
-$r['description']=$parser->parse($r['description']);
-$r['description']=$parser->getAsHtml();
+        ?>
+			</div>
+			<div class="col-lg-10">
+				<ul class="nav nav-tabs nav-justified">
+				  <li class="nav-item"><a class='nav-link active' data-bs-toggle="tab" href="#info"><?php echo "Physical Info"; ?></a></li>
+				  <li class='nav-item'><a class='nav-link' data-bs-toggle="tab" href="#actions"><?php echo "Actions"; ?></a></li>
+				  <li class='nav-item'><a class='nav-link' data-bs-toggle="tab" href="#financial"><?php echo "Financial Info"; ?></a></li>
+				  <?php if ($marriage_available): ?>
+				  <li class='nav-item'><a class='nav-link' data-bs-toggle="tab" href="#relationship"><?php echo "Relationship"; ?></a></li>
+				  <?php endif; ?>
+				  <?php
+        if (!in_array($ir['user_level'], array('Member', 'NPC'))) {
+            echo "<li class='nav-item'><a class='nav-link' data-bs-toggle='tab' href='#staff'>Staff</a></li>";
+        }
+        ?>
+				</ul>
+				<br />
+				<div class="tab-content">
+				  <div id="info" class="tab-pane fade show active">
+					<p>
+						<?php
+        echo
+        "
+						<table class='table table-bordered'>
+							<tr>
+								<th width='25%'>Sex</th>
+								<td>{$r['gender']}</td>
+							</tr>
+							<tr>
+								<th>Registered</th>
+								<td>{$sup}</td>
+							</tr>
+							<tr>
+								<th>Last Active</th>
+								<td>{$ula}</td>
+							</tr>
+							<tr>
+								<th>Last Login</th>
+								<td>{$ull}</td>
+							</tr>
+							<tr>
+								<th>Age</th>
+								<td>{$r['daysold']}</td>
+							</tr>";
+        if (userInInfirmary($r['userid'])) {
+            echo "
+							<tr>
+								<th>Infirmary</th>
+								<td>In the infirmary for " . timeUntilParse($r['infirmary_out']) . ".<br />
+								{$r['infirmary_reason']}
+								</td>
+							</tr>";
+        }
+        if (userInDungeon($r['userid'])) {
+            echo "
+							<tr>
+								<th>Dungeon</th>
+								<td>In the dungeon for " . timeUntilParse($r['dungeon_out']) . ".<br />
+								{$r['dungeon_reason']}
+								</td>
+							</tr>";
+        }
+        if ($r['fedjail']) {
+            echo "
+							<tr>
+								<th>Federal Dungeon</th>
+								<td>In the federal dungeon for " . timeUntilParse($r['fed_out']) . ".<br />
+								{$r['fed_reason']}
+								</td>
+							</tr>";
+        }
 
-//Active / Online button
-$cardColor = "";
-if ($active == 1)
-    $activityBadge = createSuccessBadge("Active now!");
-elseif ($active == 2)
-    $activityBadge = createWarningBadge("Idle");
-else
-    $activityBadge = createDangerBadge("Offline");
+        echo "</table>
+					</p>
+				  </div>
+				  <div id='actions' class='tab-pane fade'>
+                    <a href='inbox.php?action=compose&user={$r['userid']}' class='btn btn-primary'>Message {$r['username']}</a>
+                    <br />
+				    <br />
+				    <a href='sendcash.php?user={$r['userid']}' class='btn btn-primary'>Send {$r['username']} Cash</a>
+				    <br />
+				    <br />
+					<a href='attack.php?user={$r['userid']}' class='btn btn-danger'>Attack {$r['username']}</a>
+					<br />
+					<br />
+					<a href='hirespy.php?user={$r['userid']}' class='btn btn-primary'>Spy On {$r['username']}</a>
+					<br />
+					<br />
+					<a href='contacts.php?action=add&user={$r['userid']}' class='btn btn-primary'>Add {$r['username']} to Contact List</a>
+				  ";
+        ?>
+				  </div>
+				  <div id="financial" class="tab-pane fade">
+					<?php
+        echo
+            "
+						<table class='table table-bordered'>
+							<tr>
+								<th width='25%'>" . constant("primary_currency") . "</th>
+								<td> " . number_format($r['primary_currency']) . "</td>
+							</tr>
+							<tr>
+								<th>" . constant("secondary_currency") . "</th>
+								<td>" . number_format($r['secondary_currency']) . "</td>
+							</tr>
+							<tr>
+								<th>Estate</th>
+								<td>{$r['house_name']}</td>
+							</tr>
+							<tr>
+								<th>Referrals</th>
+								<td>" . number_format($ref) . "</td>
+							</tr>
+							<tr>
+								<th>Friends</th>
+								<td>" . number_format($friend) . "</td>
+							</tr>
+							<tr>
+								<th>Enemies</th>
+								<td>" . number_format($enemy) . "</td>
+							</tr>
+						</table>";
 
-//Gender icon / color
-if ($r['gender'] == 'Male')
-    $genderBadge = createInfoBadge("Male");
-elseif ($r['gender'] == 'Female')
-    $genderBadge = createInfoBadge("Male");
-else
-    $genderBadge = createSecondaryBadge("Other");
-$rhpperc = round($r['hp'] / $r['maxhp'] * 100);
-if ($_GET['user'] == 21)
-{
-	if (date('n') == 11)
-	{
-	    $turkeyKills=getCurrentUserPref(date('Y') . "turkeyKills",0);
-		alert("info","","You have hunted " . shortNumberParse($turkeyKills) . " turkey(s) this year.",false);
-	}
+        ?>
+				  </div>
+				  <?php if ($marriage_available): ?>
+				  <div id="relationship" class="tab-pane fade">
+				    <?php
+        $marriageSystem = getMarriageSystem($db, $r['userid']);
+        if ($marriageSystem->isMarried()) {
+            $spouse = $marriageSystem->getSpouse();
+            $stats = $marriageSystem->getMarriageStats();
+            
+            echo "<div class='card'>";
+            echo "<div class='card-header bg-success text-white'>";
+            echo "<h5><i class='fas fa-heart'></i> Marriage Information</h5>";
+            echo "</div>";
+            echo "<div class='card-body'>";
+            
+            echo "<div class='row'>";
+            echo "<div class='col-md-6'>";
+            echo "<table class='table table-borderless'>";
+            echo "<tr><td><strong>Spouse:</strong></td><td><a href='profile.php?user={$spouse['userid']}'>{$spouse['username']}</a></td></tr>";
+            echo "<tr><td><strong>Married Since:</strong></td><td>" . date('F j, Y', $spouse['marriage_date']) . "</td></tr>";
+            echo "<tr><td><strong>Days Married:</strong></td><td>{$stats['days_married']} days</td></tr>";
+            echo "<tr><td><strong>Anniversary:</strong></td><td>" . date('F j', $spouse['marriage_date']) . " (annually)</td></tr>";
+            echo "</table>";
+            echo "</div>";
+            
+            echo "<div class='col-md-6'>";
+            echo "<table class='table table-borderless'>";
+            echo "<tr><td><strong>Gifts Sent:</strong></td><td>{$stats['gifts_sent']}</td></tr>";
+            echo "<tr><td><strong>Gifts Received:</strong></td><td>{$stats['gifts_received']}</td></tr>";
+            $spouse_online = $spouse['laston'] > 0 ? dateTimeParse($spouse['laston']) : 'Never';
+            echo "<tr><td><strong>Spouse Last Seen:</strong></td><td>{$spouse_online}</td></tr>";
+            echo "</table>";
+            echo "</div>";
+            echo "</div>";
+            
+            if ($r['userid'] != $userid) {
+                echo "<div class='mt-3'>";
+                echo "<p class='text-muted'><i class='fas fa-info-circle'></i> This player is married and not available for proposals.</p>";
+                echo "</div>";
+            }
+            
+            echo "</div>";
+            echo "</div>";
+            
+        } else {
+            echo "<div class='card'>";
+            echo "<div class='card-header bg-info text-white'>";
+            echo "<h5><i class='fas fa-heart'></i> Relationship Status</h5>";
+            echo "</div>";
+            echo "<div class='card-body text-center'>";
+            echo "<i class='fas fa-heart-broken fa-3x text-muted mb-3'></i>";
+            echo "<h4>Single</h4>";
+            echo "<p class='text-muted'>This player is not currently married.</p>";
+            
+            if ($r['userid'] != $userid) {
+                echo "<div class='mt-3'>";
+                echo "<a href='marriage.php?action=propose&to={$r['userid']}' class='btn btn-primary'>";
+                echo "<i class='fas fa-heart'></i> Send Marriage Proposal";
+                echo "</a>";
+                echo "</div>";
+            }
+            
+            echo "</div>";
+            echo "</div>";
+        }
+        ?>
+				  </div>
+				  <?php endif; ?>
+				  <?php
+        echo '<div id="staff" class="tab-pane fade">';
+        if (!in_array($ir['user_level'], array('Member', 'NPC'))) {
+            $log = $db->fetch_row($db->query("SELECT `log_text`,`log_time` FROM `logs` WHERE `log_user` = {$r['userid']} ORDER BY `log_id` DESC"));
+            echo "<a href='staff/staff_punish.php?action=fedjail&user={$r['userid']}' class='btn btn-primary'>Fedjail</a>
+                <a href='staff/staff_punish.php?action=forumban&user={$r['userid']}' class='btn btn-primary'>Forum Ban</a>";
+            echo "<table class='table table-bordered'>
+							<tr>
+								<th width='33%'>Data</th>
+								<th>Output</th>
+								<th>Details</th>
+							</tr>
+							<tr>
+								<td>Last Hit</td>
+								<td>{$r['lastip']}</td>
+								<td>" . gethostbyaddr($r['lastip']) . "</td>
+							</tr>
+							<tr>
+								<td>Last Login</td>
+								<td>{$r['loginip']}</td>
+								<td>" . gethostbyaddr($r['loginip']) . "</td>
+							</tr>
+							<tr>
+								<td>Sign Up</td>
+								<td>{$r['registerip']}</td>
+								<td>" . gethostbyaddr($r['registerip']) . "</td>
+							</tr>
+							<tr>
+								<td>
+									Last Action
+								</td>
+								<td>
+									{$log['log_text']}
+								</td>
+								<td>
+									" . dateTimeParse($log['log_time']) . "
+								</td>
+							</tr>
+					</table>
+					<form action='staff/staff_punish.php?action=staffnotes' method='post'>
+						Staff Notes
+						<br />
+						<textarea class='form-control' name='staffnotes'>"
+                . htmlentities($r['staff_notes'], ENT_QUOTES, 'ISO-8859-1')
+                . "</textarea>
+						<br />
+						<input type='hidden' name='ID' value='{$_GET['user']}' />
+						<input type='submit' class='btn btn-primary' value='Update Notes' />
+					</form>";
+        }
+        ?>
+				  
+				  </div>
+				</div>
+			</div>
+		</div>
+		<?php
+    }
 }
-echo "<h3></h3>
-<div class='card'>
-    <div class='card-header'>
-        {$user_name}'s Profile
-    </div>
-    <div class='card-body'>
-<div class='row'>
-	<div class='col-auto col-lg-6 col-xxxl-4'>
-		<div class='card {$cardColor}'>
-			<div class='card-header text-left'>
-				User info
-			</div>
-			<div class='card-body'>
-				<div class='row'>
-					<div class='col-12 col-lg-6'>
-						{$displaypic}
-					</div>
-					<div class='col-auto col-lg'>
-						<div class='row'>
-							<div class='col-auto col-md col-xxl-12'>
-								<h6>Level</h6>
-								<h2>" . shortNumberParse($r['level']) . "</h2>
-							</div>
-							<div class='col-auto col-md col-xxl-12'>
-								<h6>Class</h6>
-								<h2>{$r['class']}</h2>
-							</div>
-							<div class='col-auto col-md col-xxl-12'>
-								<h6>Mastery Rank</h6>
-								<h2>" . formatMasteryRank($r['reset']) . "</h2>
-							</div>
-							<div class='col-auto col-md col-xxl-12'>
-								<h6>Age</h6>
-								<h2>{$r['daysold']}</h2>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	<div class='col-12 col-md-6 col-xxxl-4'>
-		<div class='card'>
-			<div class='card-header text-left'>
-				Actions
-			</div>
-			<div class='card-body'>
-				<div class='row'>
-					<div class='col-12'>
-						<div id='profileTxt' class='text-left'>What would you like to do?</div><br />
-						<div class='row'>
-							<div class='col-auto'>
-								<a href='attack.php?user={$r['userid']}' onmouseover='profileButtonAttack(\"{$r['username']}\", {$attbutton})' class='btn btn-danger btn-block' style='font-size: 1.75rem;'>⚔️</a><br />
-							</div>";
-						      if (currentMonth() == 10)
-						      {
-    						       echo"<div class='col-auto'>
-    								<a href='halloween.php?action=tnt&user={$r['userid']}' onmouseover='profileButtonHalloweenVisit(\"{$r['username']}\")' class='btn btn-warning btn-block' style='font-size: 1.75rem;'>🎃</a><br />
-    							</div>";   
-						      }
-						    echo"
-							<div class='col-auto'>
-								<a href='sendcash.php?user={$r['userid']}' onmouseover='profileButtonCash(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>💰</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='inbox.php?action=compose&user={$r['userid']}' onmouseover='profileButtonMail(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>✉️</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='hirespy.php?user={$r['userid']}' onmouseover='profileButtonSpy(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>🕵️‍♂️</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='bounty.php?action=addbounty&user={$r['userid']}' onmouseover='profileButtonBounty(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>⚰️</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='theft.php?user={$r['userid']}' onmouseover='profileButtonTheft(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>🤦</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='poke.php?user={$r['userid']}' onmouseover='profileButtonPoke(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>👆</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='friends.php?action=add&ID={$r['userid']}' onmouseover='profileButtonFriend(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>👍</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='enemy.php?action=add&user={$r['userid']}' onmouseover='profileButtonEnemy(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>👎</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='contacts.php?action=add&user={$r['userid']}' onmouseover='profileButtonContact(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>➕</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='blocklist.php?action=add&user={$r['userid']}' onmouseover='profileButtonBlock(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>🛑</a><br />
-							</div>
-							<div class='col-auto'>
-								<a href='playerreport.php?userid={$r['userid']}' onmouseover='profileButtonReport(\"{$r['username']}\")' class='btn btn-primary btn-block' style='font-size: 1.75rem;'>⚠️</a><br />
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-    </div>
-	<div class='col-12 col-md-6 col-xl-5 col-xxl-6 col-xxxl-4'>
-		<div class='card'>
-			<div class='card-header text-left'>
-				Status info
-			</div>
-			<div class='card-body'>
-				<div class='row'>
-					<div class='col-sm'>
-						<div class='row text-left'>
-							<div class='col-auto'>
-							<i class='game-icon game-icon-{$statusIcon} {$statusColor}' style='font-size:2rem;'></i>
-							</div>
-							<div class='col-auto'>
-								<p class='{$statusColor}'>{$statusTitle}<br />
-								<i>{$statusDetail}</i></p>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	<div class='col-12 col-xl-7 col-xxl-6'>
-		<div class='card'>
-			<div class='card-header text-left'>
-				Social info
-			</div>
-			<div class='card-body'>
-				<div class='row'>
-					<div class='col-12 col-md-3'>
-						<a href='iteminfo.php?ID={$r['equip_badge']}' data-toggle='tooltip' data-placement='bottom' title='{$api->SystemItemIDtoName($r['equip_badge'])}'>" . returnIcon($r['equip_badge'],6) . "</a><br />";
-						if (($userid == $r['userid']) && ($r['equip_badge'] > 0))
-						    echo "<a class='btn btn-primary' href='unequip.php?type=equip_badge'>Unequip</a>";
-						echo"
-					</div>
-					<div class='col-12 col-md-9'>
-						{$r['description']}
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	<div class='col-12 col-md-6'>
-		<div class='card'>
-			<div class='card-header text-left'>
-				Basic info
-			</div>
-			<div class='card-body'>
-				<div class='row'>
-					<div class='col-auto'>
-						{$activityBadge}
-					</div>
-					<div class='col-auto'>
-                        {$genderBadge}
-					</div>";
-					if ($r['vip_days'] > 0)
-					{
-						echo "
-						<div class='col-auto'>
-							" . createDangerBadge("VIP Days: " . shortNumberParse($r['vip_days'])) . "
-						</div>";
-					}
-					if ($api->UserMemberLevelGet($r['userid'], "forum moderator"))
-					{
-					    echo "
-						<div class='col-auto'>
-                            " . createBadge($r['user_level']) . "
-						</div>";
-					}
-					if ($married != "N/A")
-					{
-						echo "
-						<div class='col-auto'>
-                            " . createPrimaryBadge("Married to {$event['username']} [{$event['userid']}]") . "
-						</div>";
-					}
-					if ($r['job'] > 0)
-					{
-						$jobTitle = $db->fetch_single($db->query("SELECT `jNAME` from `jobs` WHERE `jRANK` = {$r['job']}"));
-						$jobRank = $db->fetch_single($db->query("SELECT `jrRANK` from `job_ranks` WHERE `jrID` = {$r['jobrank']}"));
-						echo "
-						<div class='col-auto'>
-                            " . createSecondaryBadge(htmlentities("{$jobRank} at {$jobTitle}", ENT_QUOTES)) . "
-						</div>";
-					}
-					if (isUserDungeon($r['userid']))
-					{
-						echo "
-						<div class='col-auto'>
-                            " . createDangerBadge(htmlentities("Dungeon for " . TimeUntil_Parse($r['dungeon_out']) . ".", ENT_QUOTES)) . "
-						</div>";
-					}
-					if (isUserInfirmary($r['userid']))
-					{
-						echo "
-						<div class='col-auto'>
-                            " . createDangerBadge(htmlentities("Infirmary for " . TimeUntil_Parse($r['infirmary_out']) . ".", ENT_QUOTES)) . "
-						</div>";
-					}
-					if ($r['guild'] > 0)
-					{
-						$gR=$db->fetch_row($db->query("SELECT * from `guild` WHERE `guild_id` = {$r['guild']}"));
-						if ($gR['guild_owner'] == $r['userid'])
-							$guildRank = "Guild Leader";
-						elseif ($gR['guild_coowner'] == $r['userid'])
-							$guildRank = "Guild Co-Leader";
-						elseif ($gR['guild_app_manager'] == $r['userid'])
-							$guildRank = "Guild App Manager";
-						elseif ($gR['guild_vault_manager'] == $r['userid'])
-							$guildRank = "Guild Vault Manager";
-						elseif ($gR['guild_crime_lord'] == $r['userid'])
-							$guildRank = "Guild Crime Lord";
-						else
-							$guildRank = "Guild Member";
-						echo "
-						<div class='col-auto'>
-                            " . createInfoBadge(htmlentities("{$guildRank} of {$gR['guild_name']}", ENT_QUOTES)) . "
-						</div>";
-					}
-					if ($r['fedjail'])
-					{
-						echo "
-						<div class='col-auto'>
-						    " . createDangerBadge(htmlentities("Fed Dungeon: {$r['fed_reason']} for " . TimeUntil_Parse($r['fed_out']) . ".", ENT_QUOTES)) . "
-                        </div>";
-					}
-					if ($r['mbTIME'])
-					{
-						echo "
-						<div class='col-auto'>
-                            " . createDangerBadge(htmlentities("Mail Banned: {$r['mbREASON']} for " . TimeUntil_Parse($r['mbTIME']) . ".", ENT_QUOTES)) . "
-						</div>";
-					}
-					if ($r['fb_time'])
-					{
-						echo "
-						<div class='col-auto'>
-                            " . createDangerBadge(htmlentities("Forum Banned: {$r['fb_reason']} for " . TimeUntil_Parse($r['fb_time']) . ".", ENT_QUOTES)) . "
-						</div>";
-					}
-					$guildName = ($r['guild'] == 0) ? "N/A" : "<a href='guilds.php?action=view&id={$r['guild']}'>{$gR['guild_name']}</a>";
-					$ringDisp = (isset($ring)) ? " ({$ring})" : "";
-					$marriageDisp = ($married == "N/A") ? "Single" : "Married to {$married}{$ringDisp}";
-					echo"
-				</div>
-				<hr />
-                    <div class='row'>
-                        <div class='col-auto col-sm-6 col-md-auto'>
-                            <div class='row'>
-                                <div class='col-12'>
-                                    <small><b>Name</b></small>
-                                </div>
-                                <div class='col-12'>
-                                    " . parseUsername($r['userid']) . " " . parseUserID($r['userid']) . "
-                                </div>
-                            </div>
-                        </div>
-                    <div class='col-auto col-sm-6 col-md-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Guild</b></small>
-                            </div>
-                            <div class='col-12'>
-                                {$guildName}
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Health</b></small>
-                            </div>
-                            <div class='col-12'>
-                                " . shortNumberParse($r['hp']) . " / " . shortNumberParse($r['maxhp']) . "
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-md-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Residence</b></small>
-                            </div>
-                            <div class='col-12'>
-                                {$r['house_name']}
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-md-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Marital Status</b></small>
-                            </div>
-                            <div class='col-12'>
-                                {$marriageDisp}
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Achievements</b></small>
-                            </div>
-                            <div class='col-12'>";
-                                   echo shortNumberParse($db->fetch_single($db->query("SELECT COUNT(`achievement`) FROM `achievements_done` WHERE `userid` = {$r['userid']}")));
-                        echo"</div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Friends</b></small>
-                            </div>
-                            <div class='col-12'>
-                            " . shortNumberParse($friend) . "
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Enemies</b></small>
-                            </div>
-                            <div class='col-12'>
-                            " . shortNumberParse($enemy) . "
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Referrals</b></small>
-                            </div>
-                            <div class='col-12'>
-                            " . shortNumberParse($ref) . "
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Last Action</b></small>
-                            </div>
-                            <div class='col-12'>
-                            {$ula}
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Last Login</b></small>
-                            </div>
-                            <div class='col-12'>
-                            {$ull}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-			</div>
-        </div>
-	</div>
-	<div class='col-12 col-md-6'>
-		<div class='card'>
-			<div class='card-header text-left'>
-				Personal info
-			</div>
-			<div class='card-body'>
-                <div class='row'>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Copper Coins</b></small>
-                            </div>
-                            <div class='col-12'>
-                                " . shortNumberParse($r['primary_currency']) . "
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Chivalry Tokens</b></small>
-                            </div>
-                            <div class='col-12'>
-                                " . shortNumberParse($r['secondary_currency']) . "
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Town</b></small>
-                            </div>
-                            <div class='col-12'>
-                                <a href='travel.php?to={$r['location']}' data-toggle='tooltip' data-placement='bottom' title='Minimum Level: {$r['town_min_level']}'>{$r['town_name']}</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-xxl-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Origin Country</b></small>
-                            </div>
-                            <div class='col-12'>
-                                " . ucfirst($fg['country']) . "
-                            </div>
-                        </div>
-                    </div>
-                    <div class='col-auto col-sm-6 col-md-auto'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <small><b>Device</b></small>
-                            </div>
-                            <div class='col-12'>
-                                {$r['browser']}/{$r['os']}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-			</div>
-		</div>
-      </div>
-        <div class='col-12'>
-		<div class='card'>
-			<div class='card-header text-left'>
-				Profile comments
-			</div>
-			<div class='card-body'>";
-			$cq=$db->query("/*qc=on*/SELECT * FROM `comments` WHERE `cRECEIVE` = {$_GET['user']}  ORDER BY `cTIME` DESC LIMIT 4");
-				while ($cr = $db->fetch_row($cq))
-				{
-					$ci['username']=parseUsername($cr['cSEND']);
-					echo "<div class='row'>
-                            <div class='col-12 col-sm-6 col-md-4 col-xxl-3 col-xxxl-2'>
-						      <a href='profile.php?user={$cr['cSEND']}'>{$ci['username']}</a><br />
-						<small>" . DateTime_Parse($cr['cTIME']);
-						if (($userid == $_GET['user']) || ($cr['cSEND'] == $userid) || ($api->UserMemberLevelGet($userid, "assistant")))
-						{
-							echo "<br /><a href='profile.php?user={$_GET['user']}&del={$cr['cID']}'>Delete</a>";
-						}
-						echo "</small>
-                        </div>";
-						echo "<div class='col-12 col-sm-6 col-md-8 col-xxl'>" .html_entity_decode($cr['cTEXT']) . "</div>";
-						echo"</div><hr />";
-				}
-				if ($userid != $_GET['user'] && empty($justposted))
-				{
-					if (!permission("CanComment",$userid))
-					{
-						alert('danger', "Uh Oh!", "You do not have permission to comment on another player's profile.", false);
-					}
-					else
-					{
-						$mb = $db->query("/*qc=on*/SELECT * FROM `mail_bans` WHERE `mbUSER` = {$userid}");
-						if ($db->num_rows($mb) == 0)
-						{
-							$csrf=request_csrf_html('comment');
-							echo"
-							<form method='post'>
-                                <textarea class='form-control' name='comment'></textarea>
-								{$csrf}
-								<br />
-								<button class='btn btn-primary btn-block' type='submit'><i class='far fa-comment'></i> Post Comment</button>
-							</form>";
-						}
-					}
-				}
-				echo"
-			</div>
-		</div>
-	</div>
-</div>
-<div class='row'>
-	<div class='col-12'>";
-		if (!in_array($ir['user_level'], array('Member', 'NPC'))) 
-		{
-			//$parseRisk = parse_risk($fg['risk_level']);
-			echo "<a href='#' class='btn btn-primary' data-toggle='modal' data-target='#staff_popup'>User's Staff Panel</a>";
-		}
-	echo "</div>
-</div>";
-	
-//new end
-echo "</div></div>";
 $h->endpage();
-function formatMasteryRank($rank)
-{
-	if ($rank > 0)
-		$rank = $rank - 1;
-	if ($rank == 0)
-		return "N/A";
-	elseif ($rank == 1)
-		return "⭐";
-	elseif ($rank == 2)
-		return "⭐⭐";
-	elseif ($rank == 3)
-		return "⭐⭐⭐";
-	elseif ($rank == 4)
-		return "⭐⭐⭐⭐";
-	elseif ($rank == 5)
-		return "⭐⭐⭐⭐⭐";
-	elseif ($rank == 6)
-		return "🌟⭐⭐⭐⭐";
-	elseif ($rank == 7)
-		return "🌟🌟⭐⭐⭐";
-	elseif ($rank == 8)
-		return "🌟🌟🌟⭐⭐";
-	elseif ($rank == 9)
-		return "🌟🌟🌟🌟⭐";
-	elseif ($rank == 10)
-		return "🌟🌟🌟🌟🌟";
-	else
-		return "> X";
-}
-include('forms/staff_popup.php');

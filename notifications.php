@@ -1,13 +1,33 @@
 <?php
 /*
 	File:		notifications.php
-	Created: 	4/5/2016 at 12:20AM Eastern Time
-	Info: 		Allows players to view their notifications.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Displays notifications belonging to the current player.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require("globals.php");
-$viewCount=getCurrentUserPref('notifView', 15);
 if (!isset($_GET['delete'])) {
     $_GET['delete'] = 0;
 }
@@ -16,7 +36,7 @@ if (!isset($_GET['deleteall'])) {
 }
 $_GET['delete'] = abs($_GET['delete']);
 if ($_GET['delete'] > 0) {
-    $d_c = $db->query("/*qc=on*/SELECT COUNT(`notif_user`)
+    $d_c = $db->query("SELECT COUNT(`notif_user`)
                       FROM `notifications`
                       WHERE `notif_id` = {$_GET['delete']}
                       AND `notif_user` = {$userid}");
@@ -35,62 +55,48 @@ if ($_GET['deleteall'] > 0) {
                  WHERE `notif_user` = {$userid}");
     alert('success', "Success!", "You have successfully deleted all your notifications.", false);
 }
-$query = $db->query("/*qc=on*/SELECT *
+echo "
+<b>Last fifteen notifications</b>
+<table class='table table-bordered table-hover table-striped'>
+<thead>
+	<tr>
+		<th width='33%'>
+			Notification Info
+		</th>
+		<th>
+			Notification Content
+		</th>
+	<tr>
+</thead>
+<tbody>";
+$query = $db->query("SELECT *
                 FROM `notifications`
                 WHERE `notif_user` = $userid
         		ORDER BY `notif_time` DESC
-        		LIMIT {$viewCount}");
-echo "<div class='card'>
-        <div class='card-header'>
-            Last {$viewCount} notifications
-        </div>
-        <div class='card-body'>";
+        		LIMIT 15");
 while ($notif = $db->fetch_row($query)) {
-    $NotificationTime = DateTime_Parse($notif['notif_time']);
+    $NotificationTime = date('F j Y, g:i:s a', $notif['notif_time']);
     if ($notif['notif_status'] == 'unread') {
-        $Status = "❌";
+        $Status = "<span class='badge badge-pill badge-danger'>Unread</span>";
     } else {
-        $Status = "✔";
+        $Status = "<span class='badge badge-pill badge-success'>Read</span>";
     }
-	if (empty($notif['notif_icon']))
-	{
-		$icon= "<i class='fas fa-question' style='font-size:3rem;'></i>";
-	}
-	else
-	{
-		if (!empty($notif['notif_color']))
-		{
-			$icon = "<i class='{$notif['notif_icon']}' style='font-size:3rem; color: {$notif['notif_color']};'></i>";
-		}
-		else
-		{
-			$icon = "<i class='{$notif['notif_icon']}' style='font-size:3rem;'></i>";
-		}
-		
-	}
     echo "
-			<div class='row'>
-				<div class='col-12'>
-					" . stripslashes($notif['notif_text']) . "
-                </div>
-                <div class='col-12 col-sm-1'>
-                    {$Status}
-                </div>
-                <div class='col-12 col-sm'>
-                    <i>{$NotificationTime}</i>
-                </div>
-                <div class='col-12 col-sm-2'>
-                    <a class='btn btn-danger btn-sm' href='?delete={$notif['notif_id']}'>🗑️</a>
-                </div>
-                <div class='col-12'>
-					&nbsp;
-                </div>
-			</div>";
+	<tr>
+		<td>
+			{$NotificationTime}<br />
+				{$Status}<br />
+				[<a href='notifications.php?delete={$notif['notif_id']}'>Delete</a>]
+		</td>
+		<td>
+			{$notif['notif_text']}
+		</td>
+	</tr>";
 }
 $db->query(
     "UPDATE `notifications`
     		 SET `notif_status` = 'read'
     		 WHERE `notif_user` = {$userid}");
-echo "
-<a class='btn btn-primary btn-block' href='?deleteall=1'>Delete All Notifications</a></div>";
+echo "</tbody></table>
+<a class='btn btn-primary' href='?deleteall=1'>Delete All Notifications</a>";
 $h->endpage();

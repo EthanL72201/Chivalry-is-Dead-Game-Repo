@@ -1,781 +1,514 @@
 <?php
-
 /*
-	File:		header.php
-	Created: 	4/5/2016 at 12:05AM Eastern Time
-	Info: 		Class file to load the template in-game.
-	Author:		TheMasterGeneral
-	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	File:		header_modern.php
+	Created: 	Modern version with Bootstrap 5 and enhanced UI
+	Info: 		Modernized in-game template for logged in users
+	Author:		Enhanced version of original by TheMasterGeneral
 */
-
 class headers
 {
-	function extraData()
-	{
-		global $db, $ir, $userid, $api;
-		$time = time();
-		$last15 = $time - 900;
-		$extras = array();
-		$extras['dung_count'] = $db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`dungeon_user`) FROM `dungeon` WHERE `dungeon_out` > {$time}"));
-		$extras['infirm_count'] = $db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`infirmary_user`) FROM `infirmary` WHERE `infirmary_out` > {$time}"));
-		$extras['forum_count'] = $db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`fp_id`) FROM `forum_posts` WHERE `fp_time` > {$last15}"));
-		$extras['newspaper_count'] = $db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`news_id`) FROM `newspaper_ads` WHERE `news_end` > {$time}"));
-		$extras['announce_class'] = ($ir['announcements'] == 0) ? "" : "text-danger font-weight-bold";
-		$extras['news_class'] = ($extras['newspaper_count'] == 0) ? "" : "text-warning";
-		$extras['forum_class'] = ($extras['forum_count'] == 0) ? "" : "text-info font-weight-bold";
-		$extras['infirm_class'] = (!$api->UserStatus($ir['userid'], 'infirmary')) ? "" : "text-danger font-weight-bold";
-		$extras['dung_class'] = (!$api->UserStatus($ir['userid'], 'dungeon')) ? "" : "text-danger font-weight-bold";
-		cslog('log', "Your level multiplier is " . levelMultiplier($ir['level'], $ir['reset']));
-		return $extras;
-	}
+    /**
+     * Check if a database table exists
+     */
+    private function tableExists($table) {
+        global $db;
+        $result = $db->query("SHOW TABLES LIKE '{$table}'");
+        return $db->num_rows($result) > 0;
+    }
+    
+    function startheaders()
+    {
+        global $ir, $set, $h, $db, $menuhide, $userid, $macropage, $api, $time;
+        
+        // Check if v3.0.0 features are installed
+        $v3_installed = false;
+        if ($this->tableExists('achievements') && $this->tableExists('daily_rewards') && 
+            $this->tableExists('guild_territories') && $this->tableExists('battle_royale_events')) {
+            $v3_installed = true;
+        }
+        
+        // Check if v3.1 features are installed
+        $v31_installed = false;
+        if ($this->tableExists('skill_trees') && $this->tableExists('world_bosses') && 
+            $this->tableExists('pets') && $this->tableExists('dungeons')) {
+            $v31_installed = true;
+        }
+        
+        // Check if v3.2 features are installed
+        $v32_installed = false;
+        if ($this->tableExists('farm_users') && $this->tableExists('asset_market')) {
+            $v32_installed = true;
+        }
+        ?>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="utf-8">
+            <meta http-equiv="X-UA-Compatible" content="IE=edge">
+            <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+            <meta name="description" content="<?php echo $set['Website_Description']; ?>">
+            <meta property="og:title" content="<?php echo $set['WebsiteName']; ?>"/>
+            <meta property="og:description" content="<?php echo $set['Website_Description']; ?>"/>
+            <meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)">
+            <meta name="theme-color" content="#1f2937" media="(prefers-color-scheme: dark)">
+            <meta name="color-scheme" content="light dark">
+            <meta name="author" content="<?php echo $set['WebsiteOwner']; ?>">
+            <?php echo "<title>{$set['WebsiteName']}</title>"; ?>
+            
+            <!-- Performance and Caching Headers -->
+            <meta http-equiv="Cache-Control" content="public, max-age=86400">
+            <meta name="format-detection" content="telephone=no">
+            <meta name="msapplication-tap-highlight" content="no">
+            
+            <!-- Preload critical resources -->
+            <link rel="preload" href="css/master-combined.css" as="style">
+            <link rel="preload" href="css/themes.css" as="style">
+            <link rel="preload" href="js/theme-switcher.js" as="script">
+            <link rel="preload" href="js/sidebar-state.js" as="script">
+            
+            <!-- Preconnect to CDNs for faster loading -->
+            <link rel="preconnect" href="https://cdn.jsdelivr.net">
+            <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            
+            <!-- Critical CSS - Load immediately -->
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="css/master-combined.css">
+            <link rel="stylesheet" href="css/themes.css">
+            
+            <!-- Non-critical CSS - Load asynchronously -->
+            <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+            <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+            
+            <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+            <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
+            
+            <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+            <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"></noscript>
+            
+            <!-- Pass user theme preference to JavaScript -->
+            <script>
+                window.userThemePreference = '<?php echo isset($ir['theme_preference']) ? $ir['theme_preference'] : 'dark'; ?>';
+                
+                // Register Service Worker for performance caching
+                if ('serviceWorker' in navigator && 'caches' in window) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/sw.js')
+                            .then(registration => {
+                                console.log('SW registered: ', registration);
+                            })
+                            .catch(registrationError => {
+                                console.log('SW registration failed: ', registrationError);
+                            });
+                    });
+                }
+            </script>
+            
+            <!-- Apply saved sidebar state immediately to prevent FOUC -->
+            <script>
+                (function() {
+                    var state = localStorage.getItem('chivalry_sidebar_state');
+                    if (state === 'open') {
+                        document.documentElement.classList.add('sidebar-will-open');
+                    }
+                })();
+            </script>
+        </head>
+        <?php
+        if (empty($menuhide))
+        {
+            $ir['mail'] = $db->fetch_single($db->query("SELECT COUNT(`mail_id`) FROM `mail` WHERE `mail_to` = {$ir['userid']} AND `mail_status` = 'unread'"));
+            $ir['notifications'] = $db->fetch_single($db->query("SELECT COUNT(`notif_id`) FROM `notifications` WHERE `notif_user` = {$ir['userid']} AND `notif_status` = 'unread'"));
+            $energy = $api->user->getInfoPercent($userid, 'energy');
+            $brave = $api->user->getInfoPercent($userid, 'brave');
+            $will = $api->user->getInfoPercent($userid, 'will');
+            $xp = round($ir['xp'] / $ir['xp_needed'] * 100);
+            $hp = $api->user->getInfoPercent($userid, 'hp');
+            // Ignore database preference - use localStorage instead
+            $toggle = '';
+            ?>
+            <body>
+            <div class="page-wrapper default-theme sidebar-bg">
+            <script>
+                // Apply saved state immediately after page wrapper is created
+                (function() {
+                    var state = localStorage.getItem('chivalry_sidebar_state');
+                    var pageWrapper = document.querySelector('.page-wrapper');
+                    if (pageWrapper) {
+                        if (state === 'open') {
+                            pageWrapper.classList.add('toggled');
+                            document.body.classList.add('sidebar-open');
+                        } else {
+                            pageWrapper.classList.remove('toggled');
+                            document.body.classList.remove('sidebar-open');
+                        }
+                    }
+                })();
+            </script>
+                <!-- Restore Original Sidebar -->
+                <div class="sidebar-overlay"></div>
+                <div id="show-sidebar" class="btn btn-sm btn-primary">
+                    <i class="fas fa-bars"></i>
+                </div>
+                <nav id="sidebar" class="sidebar-wrapper">
+                    <div class="sidebar-content">
+                        <div class="sidebar-item sidebar-brand">
+                            <a href="index.php"><?php echo $set['WebsiteName']; ?></a>
+                            <div id='close-sidebar'>
+                                <i class='fas fa-times'></i>
+                            </div>
+                        </div>
+                        
+                        <!-- User Info Card -->
+                        <div class="sidebar-item sidebar-header">
+                            <div class="user-info">
+                                <span class="user-name">
+                                    <?php 
+                                    echo $ir['username'];
+                                    // Show VIP badge if user is VIP
+                                    if (isset($ir['vip_days']) && $ir['vip_days'] > 0) {
+                                        echo " <span class='badge bg-warning text-dark'><i class='fas fa-crown'></i> VIP</span>";
+                                    }
+                                    ?>
+                                </span>
+                                <span class="user-role">Level <?php echo $ir['level']; ?> Player</span>
+                                <span class="user-status"><i class="fa fa-circle text-success"></i> Online</span>
+                                <?php if (isset($ir['vip_days']) && $ir['vip_days'] > 0): ?>
+                                <span class="user-vip"><i class="fas fa-crown text-warning"></i> <?php echo $ir['vip_days']; ?> VIP days remaining</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Stats -->
+                        <div class="sidebar-item px-3 py-1">
+                            <div class="quick-stats">
+                                <div class="stat-item" style="margin-bottom: 2px;">
+                                    <small class="text-muted d-block" style="font-size: 10px; margin-bottom: 1px;">HP</small>
+                                    <div class="progress" style="height: 14px;">
+                                        <div class="progress-bar bg-danger" id="sidebar-hp-bar" style="width: <?php echo $hp; ?>%"><?php echo $hp; ?>%</div>
+                                    </div>
+                                </div>
+                                <div class="stat-item" style="margin-bottom: 2px;">
+                                    <small class="text-muted d-block" style="font-size: 10px; margin-bottom: 1px;">Energy</small>
+                                    <div class="progress" style="height: 14px;">
+                                        <div class="progress-bar bg-warning" id="sidebar-energy-bar" style="width: <?php echo $energy; ?>%"><?php echo $energy; ?>%</div>
+                                    </div>
+                                </div>
+                                <div class="stat-item" style="margin-bottom: 2px;">
+                                    <small class="text-muted d-block" style="font-size: 10px; margin-bottom: 1px;">XP</small>
+                                    <div class="progress" style="height: 14px;">
+                                        <div class="progress-bar bg-info" id="sidebar-xp-bar" style="width: <?php echo $xp; ?>%"><?php echo $xp; ?>%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="currency-display" style="margin-top: 8px;">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span><i class="fas fa-coins text-warning"></i> <?php echo constant("primary_currency"); ?></span>
+                                    <span><?php echo number_format($ir['primary_currency']); ?></span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span><i class="fas fa-gem text-info"></i> <?php echo constant("secondary_currency"); ?></span>
+                                    <span><?php echo number_format($ir['secondary_currency']); ?></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Weather Widget -->
+                        <?php if (file_exists('includes/weather_widget.php')): ?>
+                        <div class="sidebar-item px-3 py-2">
+                            <?php 
+                            require_once('includes/weather_widget.php');
+                            if (isset($weather_widget)) {
+                                echo $weather_widget->renderWidget();
+                            }
+                            ?>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <!-- Navigation Menu -->
+                        <div class="sidebar-item sidebar-menu">
+                            <ul>
+                                <li class="header-menu">
+                                    <span>Main Navigation</span>
+                                </li>
+                                <!-- CORE FEATURES -->
+                                <li>
+                                    <a href="index.php" class="animate__animated animate__fadeIn">
+                                        <i class="fas fa-home"></i>
+                                        <span class="menu-text">Dashboard</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="inventory.php">
+                                        <i class="fas fa-bag-shopping"></i>
+                                        <span class="menu-text">Inventory</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="explore.php">
+                                        <i class="fas fa-map"></i>
+                                        <span class="menu-text">Explore City</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="attackselect.php">
+                                        <i class="fas fa-user-ninja"></i>
+                                        <span class="menu-text">Attack Players</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="gym.php">
+                                        <i class="fas fa-dumbbell"></i>
+                                        <span class="menu-text">Training</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="travel.php">
+                                        <i class="fas fa-plane"></i>
+                                        <span class="menu-text">Travel</span>
+                                    </a>
+                                </li>
+                                
+                                <!-- ACTIVITIES -->
+                                <li class="sidebar-dropdown">
+                                    <a href="#">
+                                        <i class="fas fa-briefcase"></i>
+                                        <span class="menu-text">Work & Skills</span>
+                                    </a>
+                                    <div class="sidebar-submenu">
+                                        <ul>
+                                            <li><a href="job.php"><i class="fas fa-briefcase"></i> Your Job</a></li>
+                                            <li><a href="mine.php"><i class="fas fa-mountain"></i> Mining</a></li>
+                                            <?php if ($v32_installed): ?>
+                                            <li><a href="farm.php"><i class="fas fa-tractor"></i> Farming</a></li>
+                                            <?php endif; ?>
+                                            <li><a href="crafting.php"><i class="fas fa-hammer"></i> Crafting</a></li>
+                                            <li><a href="academy.php"><i class="fas fa-graduation-cap"></i> Academy</a></li>
+                                            <li><a href="skill_tree.php"><i class="fas fa-tree"></i> Skill Trees</a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                
+                                <!-- COMBAT -->
+                                <li class="sidebar-dropdown">
+                                    <a href="#">
+                                        <i class="fas fa-sword"></i>
+                                        <span class="menu-text">Combat</span>
+                                    </a>
+                                    <div class="sidebar-submenu">
+                                        <ul>
+                                            <li><a href="criminal.php"><i class="fas fa-mask"></i> Crimes</a></li>
+                                            <li><a href="dungeons.php"><i class="fas fa-dungeon"></i> Dungeons</a></li>
+                                            <li><a href="battle_royale.php"><i class="fas fa-crown"></i> Battle Royale</a></li>
+                                            <li><a href="world_boss.php"><i class="fas fa-dragon"></i> World Boss</a></li>
+                                            <?php if ($ir['guild']): ?>
+                                            <li><a href="faction_warfare.php"><i class="fas fa-chess-knight"></i> Faction Warfare</a></li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </div>
+                                </li>
+                                
+                                <!-- ECONOMY -->
+                                <li class="sidebar-dropdown">
+                                    <a href="#">
+                                        <i class="fas fa-coins"></i>
+                                        <span class="menu-text">Economy</span>
+                                    </a>
+                                    <div class="sidebar-submenu">
+                                        <ul>
+                                            <li><a href="shops.php"><i class="fas fa-store"></i> Shops</a></li>
+                                            <li><a href="itemmarket.php"><i class="fas fa-balance-scale"></i> Item Market</a></li>
+                                            <?php if ($v32_installed): ?>
+                                            <li><a href="investmarket.php"><i class="fas fa-chart-line"></i> Stock Market</a></li>
+                                            <?php endif; ?>
+                                            <li><a href="bank.php"><i class="fas fa-university"></i> Bank</a></li>
+                                            <li><a href="estates.php"><i class="fas fa-home"></i> Estates</a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                
+                                <!-- SOCIAL -->
+                                <li class="sidebar-dropdown">
+                                    <a href="#">
+                                        <i class="fas fa-users"></i>
+                                        <span class="menu-text">Social</span>
+                                    </a>
+                                    <div class="sidebar-submenu">
+                                        <ul>
+                                            <li><a href="inbox.php"><i class="fas fa-envelope"></i> Messages <?php if($ir['mail'] > 0) echo "<span class='badge bg-danger'>{$ir['mail']}</span>"; ?></a></li>
+                                            <li><a href="forums.php"><i class="fas fa-comments"></i> Forums</a></li>
+                                            <li><a href="guilds.php"><i class="fas fa-shield-alt"></i> Guilds</a></li>
+                                            <?php if ($ir['guild']): ?>
+                                            <li><a href="guild_alliances.php"><i class="fas fa-handshake"></i> Guild Alliances</a></li>
+                                            <?php endif; ?>
+                                            <li><a href="users.php"><i class="fas fa-user-friends"></i> Player List</a></li>
+                                            <li><a href="marriage.php"><i class="fas fa-heart"></i> Marriage</a></li>
+                                            <li><a href="stats.php"><i class="fas fa-trophy"></i> Hall of Fame</a></li>
+                                            <li><a href="leaderboards.php"><i class="fas fa-trophy"></i> Leaderboards</a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                
+                                <!-- FEATURES -->
+                                <li class="sidebar-dropdown">
+                                    <a href="#">
+                                        <i class="fas fa-star"></i>
+                                        <span class="menu-text">Features</span>
+                                    </a>
+                                    <div class="sidebar-submenu">
+                                        <ul>
+                                            <li><a href="daily_rewards.php"><i class="fas fa-calendar-check"></i> Daily Rewards</a></li>
+                                            <li><a href="achievements.php"><i class="fas fa-medal"></i> Achievements</a></li>
+                                            <li><a href="pets.php"><i class="fas fa-paw"></i> Pets</a></li>
+                                            <li><a href="events.php"><i class="fas fa-calendar-alt"></i> Live Events</a></li>
+                                            <li><a href="weather_system.php"><i class="fas fa-cloud-sun"></i> Weather System</a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                
+                                <!-- GAMES -->
+                                <li class="sidebar-dropdown">
+                                    <a href="#">
+                                        <i class="fas fa-dice"></i>
+                                        <span class="menu-text">Casino</span>
+                                    </a>
+                                    <div class="sidebar-submenu">
+                                        <ul>
+                                            <li><a href="slots.php"><i class="fas fa-coins"></i> Slots</a></li>
+                                            <li><a href="roulette.php"><i class="fas fa-circle-notch"></i> Roulette</a></li>
+                                            <li><a href="hilow.php"><i class="fas fa-sort"></i> High/Low</a></li>
+                                            <li><a href="russianroulette.php"><i class="fas fa-skull"></i> Russian Roulette</a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                
+                                <!-- UTILITIES -->
+                                <li class="sidebar-dropdown">
+                                    <a href="#">
+                                        <i class="fas fa-tools"></i>
+                                        <span class="menu-text">More</span>
+                                    </a>
+                                    <div class="sidebar-submenu">
+                                        <ul>
+                                            <li><a href="infirmary.php"><i class="fas fa-hospital"></i> Infirmary</a></li>
+                                            <li><a href="dungeon.php"><i class="fas fa-dungeon"></i> Dungeon</a></li>
+                                            <li><a href="notifications.php"><i class="fas fa-bell"></i> Notifications <?php if($ir['notifications'] > 0) echo "<span class='badge bg-warning'>{$ir['notifications']}</span>"; ?></a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                <li>
+                                    <a href="preferences.php">
+                                        <i class="fas fa-cog"></i>
+                                        <span class="menu-text">Settings</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="donator.php" class="text-warning">
+                                        <i class="fas fa-crown"></i>
+                                        <span class="menu-text">VIP Membership</span>
+                                    </a>
+                                </li>
+                                <?php if ($api->user->getStaffLevel($userid, 'forum moderator')) { ?>
+                                <li>
+                                    <a href="staff.php" class="text-warning">
+                                        <i class="fas fa-shield-alt"></i>
+                                        <span class="menu-text">Staff Panel</span>
+                                    </a>
+                                </li>
+                                <?php } ?>
+                                <li>
+                                    <a href="logout.php" class="text-danger">
+                                        <i class="fas fa-sign-out-alt"></i>
+                                        <span class="menu-text">Logout</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </nav>
+                
+                <!-- Toast Container for Bootstrap 5 Notifications -->
+                <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+                </div>
+                
+                <main class="page-content">
+                    <div class="container-fluid">
+                    <?php 
+                    // Show upgrade notice if v3 or v3.1 features aren't installed
+                    if ((!$v3_installed || !$v31_installed) && $api->user->getStaffLevel($userid, 'admin')): ?>
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-triangle"></i> <strong>New Features Available!</strong>
+                            <?php if (!$v3_installed): ?>
+                            <p class="mb-2">Chivalry Engine v3.0 features are not installed. Install them to get:</p>
+                            <ul class="mb-2">
+                                <li>Achievement System with 30+ achievements</li>
+                                <li>Daily Login Rewards with streaks</li>
+                                <li>Guild Wars with territory control</li>
+                                <li>Battle Royale events</li>
+                            </ul>
+                            <?php endif; ?>
+                            <?php if (!$v31_installed): ?>
+                            <p class="mb-2">Chivalry Engine v3.1 features are not installed. Install them to get:</p>
+                            <ul class="mb-2">
+                                <li>Pet System with training and battles</li>
+                                <li>Dungeons & Raids with boss fights</li>
+                                <li>Skill Trees with 3 specializations</li>
+                                <li>Crafting & Enchanting system</li>
+                                <li>Live Events Calendar</li>
+                                <li>Leaderboards & Seasons</li>
+                                <li>World Boss cooperative battles</li>
+                            </ul>
+                            <?php endif; ?>
+                            <a href="uplift_check.php" class="btn btn-warning btn-sm">
+                                <i class="fas fa-download"></i> Run Uplift Check Now
+                            </a>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    <?php endif; ?>
+            <?php
+        }
+    }
 
-	function startheaders()
-	{
-		global $ir, $set, $h, $db, $menuhide, $userid, $macropage, $api, $time, $sound;
-		cslog('log', "Loading headers for {$set['WebsiteName']}");
-		date_default_timezone_set($set['game_time']);
-		$extras = $this->extraData();
-		//Load the meta headers.
+    function userdata($user, $showlast = true)
+    {
+        global $db, $userid, $set;
+        // This function was used to display user data in header
+        // In modern version, it's handled in the startheaders function
+        // Keep empty for compatibility
+    }
+    
+    function endpage()
+    {
+        global $db, $ir, $set, $menuhide, $userid, $api, $time;
+        if (empty($menuhide)) {
+            ?>
+                    </div>
+                </main>
+            </div>
+            
+            <!-- Critical JS - Load immediately -->
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+            <script src="js/sidebar-state.js"></script>
+            <script src="js/theme-switcher.js"></script>
+            <script src="js/lazy-loading.js"></script>
+            
+            <!-- Non-critical JS - Load asynchronously -->
+            <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+            <script src="js/game.js" defer></script>
+            <script src="js/sidebar-improved.js" defer></script>
+            <script src="js/modern-enhancements.js" defer></script>
+            <script src="js/realtime-stats.js" defer></script>
+            <script src="js/realtime-client.js" defer></script>
+            
+            <?php
+        }
+        ?>
+        </body>
+        </html>
+        <?php
+    }
+}
+$h = new headers;
 ?>
-		<!DOCTYPE html>
-		<html lang="en">
-
-		<head>
-			<?php
-			//Select count of user's unread messages.
-			$ir['mail'] = $db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`mail_id`) FROM `mail` WHERE `mail_to` = {$ir['userid']} AND `mail_status` = 'unread'"));
-			//Select count of user's unread notifications.
-			$ir['notifications'] = $db->fetch_single($db->query("/*qc=on*/SELECT COUNT(`notif_id`) FROM `notifications` WHERE `notif_user` = {$ir['userid']} AND `notif_status` = 'unread'"));
-			$title = returnGameTitle() . " - {$ir['username']}";
-			echo "<title>{$title}</title>";
-			if ($ir['disable_alerts'] == 0)
-				$notificon = "fas fa-bell";
-			else
-				$notificon = "fas fa-bell-slash";
-			$this->loadEssentialAssets();
-			$this->loadUserTheme($ir['theme']);
-			$this->returnMetadata();
-			$hdr = $this->getThemeNavbarColor($ir['theme']);
-			$sound->loadSystem();
-			cslog('warn', "Main assets have loaded successfully. Log entries after this point were created by the game or related modules, not the base engine.");
-			include('ads/ad_all.php');
-			?>
-		</head>
-		<?php
-		//If the called script wants the menu hidden.
-		if (empty($menuhide)) {
-			$energy = $api->UserInfoGet($userid, 'energy', true);
-			$brave = $api->UserInfoGet($userid, 'brave', true);
-			$will = $api->UserInfoGet($userid, 'will', true);
-			$xp = round($ir['xp'] / $ir['xp_needed'] * 100);
-			$hp = $api->UserInfoGet($userid, 'hp', true);
-			$urPic = "<img src='" . parseDisplayPic($userid) . "' height='18.4' alt='Your profile picture.' title='Your profile picture.'>";
-			if ($ir['sidemenu'] == 0)
-				$toggle = 'toggled';
-			else
-				$toggle = '';
-			echo "
-        <body>
-				<div class='page-wrapper default-theme sidebar-bg {$toggle}'>
-				<div id='show-sidebar' class='btn btn-md btn-dark'>
-					<i class='fas fa-bars'></i>
-				</div>
-				<nav id='sidebar' class='sidebar-wrapper'>
-					<div class='sidebar-content'>
-						<!-- sidebar-brand  -->
-						<div class='sidebar-item sidebar-brand'>
-							<a href='index.php' class='updateHoverBtn'>{$set['WebsiteName']}</a>
-							<div id='close-sidebar'>
-								<i class='fas fa-times'></i>
-							</div>
-						</div>
-						<!-- sidebar-menu  -->
-						<div class=' sidebar-item sidebar-menu'>
-							<ul>
-								<li class='header-menu'>
-									<span>General</span>
-								</li>
-								<li>
-									<a href='#' class='updateHoverBtn' data-toggle='modal' data-target='#userInfo'>
-										<span class='menu-text'><i class='fas fa-user-cog'></i> " . parseUsername($userid)  . " " . parseUserID($userid) . "</span>
-									</a>
-								</li>
-								<li>
-									<a href='inventory.php' class='updateHoverBtn'>
-										<span class='menu-text'>🎒 Inventory</span>
-									</a>
-								</li>
-								<li>
-									<a href='explore.php' class='updateHoverBtn'>
-										<span class='menu-text'>📜 Explore {$ir['town_name']}</span>
-									</a>
-								</li>
-								<li class='header-menu'>
-									<span>Activities</span>
-								</li>
-								<li>
-									<a href='gym.php' class='updateHoverBtn'>
-										<span class='menu-text'>🎽 {$ir['town_name']} Gym</span>
-									</a>
-								</li>
-								<li>
-									<a href='criminal.php' class='updateHoverBtn'>
-										<span class='menu-text'>😈 Crimes</span>
-									</a>
-								</li>
-								<li>
-									<a href='academy.php' class='updateHoverBtn'>
-										<span class='menu-text'>🏫 Academy</span>
-									</a>
-								</li>
-								<li>
-									<a href='dungeon.php' class='updateHoverBtn {$extras['dung_class']}'>
-										<span class='menu-text'>🏛️ Dungeon <span class='badge badge-pill badge-primary'>" . number_format($extras['dung_count']) . "</span></span>
-									</a>
-								</li>
-								<li>
-									<a href='infirmary.php' class='updateHoverBtn {$extras['infirm_class']}'>
-										<span class='menu-text'>🏥 Infirmary <span class='badge badge-pill badge-primary'>" . number_format($extras['infirm_count']) . "</span></span>
-									</a>
-								</li>
-								<li class='header-menu'>
-									<span>Social</span>
-								</li>
-								<li>
-									<a href='forums.php' class='updateHoverBtn {$extras['forum_class']}'>
-										<span class='menu-text'>💬 Forums <span class='badge badge-pill badge-primary'>" . number_format($extras['forum_count']) . "</span></span>
-									</a>
-								</li>
-								<li>
-									<a href='newspaper.php' class='updateHoverBtn {$extras['news_class']}'>
-										<span class='menu-text'>📰 Newspaper <span class='badge badge-pill badge-primary'>" . number_format($extras['newspaper_count']) . "</span></span>
-									</a>
-								</li>
-								<li>
-									<a href='profile.php?user={$userid}' class='updateHoverBtn'>
-										<span class='menu-text'>{$urPic} Your Profile</span>
-									</a>
-								</li>
-								<li>
-									<a href='announcements.php' class='updateHoverBtn {$extras['announce_class']}'>
-										<span class='menu-text'>📣 Announcements <span class='badge badge-pill badge-primary' id='ui_announce'>" . number_format($ir['announcements']) . "</span></span>
-									</a>
-								</li>";
-			if ($ir['guild'] > 0) {
-				echo "
-									<li>
-										<a href='viewguild.php' class='updateHoverBtn'>
-											<span class='menu-text'>🔍 Your Guild</span></span>
-										</a>
-									</li>";
-			}
-			if ($api->UserMemberLevelGet($userid, 'forum moderator')) {
-				echo "
-                                    <li class='header-menu'>
-									   <span>Staff</span>
-								    </li>
-    								<li>
-    									<a href='staff/index.php' class='updateHoverBtn'>
-    										<span class='menu-text'><i class='fas fa-users-cog'></i> Staff Panel</span>
-    									</a>
-    								</li>
-                                    <li class='header-menu'>
-									   <span>Staff Online</span>
-								    </li>";
-				$online_cutoff = time() - 900;
-				$q =
-					$db->query(
-						"SELECT `userid`, `username`, `laston`
-                                         FROM `users`
-                                         WHERE `laston` > ({$online_cutoff})
-                                         AND `user_level` != 'NPC'
-                                         AND `user_level` != 'Member'
-                                         ORDER BY `userid` ASC"
-					);
-				while ($r = $db->fetch_row($q)) {
-					echo "<li>
-    									<a href='profile.php?user={$r['userid']}' class='updateHoverBtn'>
-    										  <span class='menu-text'>
-                                                    " . parseUsername($r['userid'])  . " " . parseUserID($r['userid']) . "
-                                                </span>
-        									</a>
-        								</li>";
-				}
-			}
-		?>
-			<li class="header-menu">
-				<span id='ui_time'><?php echo date('F j, Y') . " " . date('g:i:s a'); ?></span>
-			</li>
-			</ul>
-			</div>
-			<!-- sidebar-menu  -->
-			</div>
-			<!-- sidebar-footer  -->
-			<div class="sidebar-footer">
-				<div class="dropdown">
-					<a href="notifications.php" class="updateHoverBtn">
-						<i class="fa fa-bell"></i>
-						<span class="badge badge-pill badge-success notification" id="ui_notif"><?php echo shortNumberParse($ir['notifications']); ?></span>
-					</a>
-				</div>
-				<div class="dropdown">
-					<a href="inbox.php" class="updateHoverBtn">
-						<i class="fa fa-envelope"></i>
-						<span class="badge badge-pill badge-success notification" id="ui_mail"><?php echo shortNumberParse($ir['mail']); ?></span>
-					</a>
-				</div>
-				<div class="dropdown">
-					<a href="preferences.php" class="updateHoverBtn">
-						<i class="fa fa-cog"></i>
-					</a>
-				</div>
-				<div>
-					<a href="logout.php" class="updateHoverBtn">
-						<i class="fa fa-power-off"></i>
-					</a>
-				</div>
-				<div class="pinned-footer">
-					<a href="#">
-						<i class="fas fa-ellipsis-h"></i>
-					</a>
-				</div>
-			</div>
-			</nav>
-
-			<!-- Page Content -->
-			<main class="page-content pt-2">
-				<div id="overlay" class="overlay"></div>
-				<div class="container-fluid p-5">
-					<noscript>
-						<?php
-						//User doesn't have javascript turned on, so lets tell them.
-						alert('warning', "", "We highly recommend you enable Javascript! Many of the game's functions will not work without it.", false);
-						?>
-					</noscript>
-					<?php
-					date_default_timezone_set($set['game_time']);
-					$IP = $db->escape($_SERVER['REMOTE_ADDR']);
-					$ipq = $db->query("/*qc=on*/SELECT `ip_id` FROM `ipban` WHERE `ip_ip` = '{$IP}'");
-					//User's IP is banned, so lets stop access.
-					if ($db->num_rows($ipq) > 0) {
-						alert('danger', "Uh Oh!", "You have been IP banned. There is no way around this.", false);
-						die($h->endpage());
-					}
-					$fed = $db->fetch_row($db->query("/*qc=on*/SELECT * FROM `fedjail` WHERE `fed_userid` = {$userid}"));
-					$votecount = $db->fetch_single($db->query("SELECT COUNT(`voted`) FROM `votes` WHERE `userid` = {$userid}"));
-					//$votecount = 0;
-					echo "<div class='row'>";
-					if ($votecount < 5) {
-						echo "
-            <div class='col-12 col-sm col-lg-12 col-xxl'>
-                <b><a href='vote.php' class='text-success updateHoverBtn'>[Vote for {$set['WebsiteName']}<span class='hidden-md-down'> at various Voting Websites and be rewarded</span>.]</a></b>
-            </div>";
-					}
-					echo "
-        <div class='col-12 col-sm col-lg-12 col-xxl'>
-            <b><a href='donator.php' class='text-danger updateHoverBtn'>[Donate to {$set['WebsiteName']}.<span class='hidden-md-down'> Packs start at $1 and you receive tons of benefits.</span>]</a></b>
-        </div>
-    </div>";
-					$this->loadNewsScroller();
-					if (userHasEffect($userid, constant("sleep"))) {
-						$protDone = returnEffectDone($userid, constant("sleep"));
-						if (isset($_GET['wakeup'])) {
-							userRemoveEffect($userid, constant("sleep"));
-							alert("success", "Rise and Shine!", "You've successfully woken up. Nothing like the smell of the blood of your fallen prey in the morning.", true, 'index.php');
-						} else {
-							alert("info", "Nighty night!", "You're currently sleeping and will wake up in " . TimeUntil_Parse($protDone) . ". Your stats will replenish each minute you sleep.", true, '?wakeup', "Wake Up");
-							die($h->endpage());
-						}
-					}
-					if (userHasEffect($userid, constant("basic_protection"))) {
-						$protDone = returnEffectDone($userid, constant("basic_protection"));
-						echo "<b><span class='text-info'>You have protection active for the next " . TimeUntil_Parse($protDone) . ".</span></b><br />";
-					}
-					if (userHasEffect($userid, constant("invisibility"))) {
-						$effctDone = returnEffectDone($userid, constant("invisibility"));
-						echo "<b><span class='text-info'>You have invisibility active for the next " . TimeUntil_Parse($effctDone) . ".</span></b><br />";
-					}
-					if ($ir['will_overcharge'] > time()) {
-						echo "<b><span class='text-info'>You have Will Overcharge active for the next " . TimeUntil_Parse($ir['will_overcharge']) . ".</span></b><br />";
-					}
-					if (getCurrentUserPref('tutorialToggle', 'true') == 'true') {
-						$page = $db->escape(strip_tags(stripslashes(basename($_SERVER['PHP_SELF']))));
-						$tq = $db->query("/*qc=on*/SELECT * FROM `tutorial` WHERE `page` = '{$page}'");
-						if ($db->num_rows($tq) > 0) {
-							$tr = $db->fetch_row($tq);
-							alert('info', "", $tr['tutorial'], true, 'preferences.php?action=tuttoggle', "Disable Tutorial");
-						}
-					}
-
-
-					//User's federal jail sentence is completed. Let them play again.
-					if (isset($fed['fed_out'])) {
-						if ($fed['fed_out'] < $time) {
-							$db->query("UPDATE `users` SET `fedjail` = 0 WHERE `userid` = {$userid}");
-							$db->query("DELETE FROM `fedjail` WHERE `fed_userid` = {$userid}");
-						}
-					}
-					//User is in federal jail. Stop their access.
-					if ($ir['fedjail'] > 0) {
-						$lasthour = time() - 3600;
-						$fq2 = $db->query("/*qc=on*/SELECT * FROM `fedjail_appeals` WHERE `fja_user` = {$userid} AND `fja_time` >= {$lasthour} LIMIT 1");
-						if (isset($_POST['fedappeal'])) {
-							$msg = $db->escape(stripslashes($_POST['fedappeal']));
-							$time = time();
-							if ($db->num_rows($fq2) != 0) {
-								echo "<b>You can only submit an appeal once per hour...</b>";
-							} else {
-								echo "<b>Response posted. Come back later for a response.</b>";
-								$db->query("INSERT INTO `fedjail_appeals` (`fja_user`, `fja_responder`, `fja_text`, `fja_time`) VALUES ('{$userid}', '{$userid}', '{$msg}', '{$time}')");
-							}
-						}
-						alert('info', "Federal Dungeon!", "You are locked away in Federal Dungeon for the next
-					    " . TimeUntil_Parse($fed['fed_out']) . ". You were placed in here for <b>{$fed['fed_reason']}</b>.", false);
-						$fq = $db->query("/*qc=on*/SELECT * FROM `fedjail_appeals` WHERE `fja_user` = {$userid} ORDER BY `fja_time` ASC");
-						echo "<table class='table table-bordered'>";
-						while ($fr = $db->fetch_row($fq)) {
-							echo "<tr>
-			<th width='33%'>
-				{$api->SystemUserIDtoName($fr['fja_responder'])} [{$fr['fja_responder']}]<br />
-				" . DateTime_Parse($fr['fja_time']) . "
-			</th>
-			<td>
-				{$fr['fja_text']}
-			</td>
-			</tr>";
-						}
-						echo "
-		<tr>
-			<td colspan='2'>
-				<form method='post'>
-					Submitting your appeal. You can only respond once an hour, so give as much information as you can. Honesty may be rewarded with a lesser sentence.
-					<textarea name='fedappeal' class='form-control'></textarea>
-					<input type='submit' value='Submit Appeal' class='btn btn-primary'>
-				</form>
-			</td>
-		</tr>
-		</table>";
-						die($h->endpage());
-					}
-					$this->showSocialAlerts();
-					$this->showStatusAlerts();
-					$this->doArtifactRNG();
-					$this->doLuckRNG();
-					//User needs to reverify with reCaptcha
-					$noCaptcha = PHP_INT_MAX;  //bypass for local dev
-					if ($set['Revalidate_Time'] != $noCaptcha) {
-						if (($ir['last_verified'] < ($time - $set['Revalidate_Time'])) || ($ir['need_verify'] == 1)) {
-							//Script calls for reCaptcha to be loaded.
-							if (isset($macropage)) {
-								//Set User to need verified.
-								$db->query("UPDATE `users` SET `need_verify` = 1 WHERE `userid` = {$userid}"); ?>
-								<script src='https://www.hCaptcha.com/1/api.js' async defer></script>
-								<noscript>
-									<?php
-									//User doesn't have javascript turned on, so lets tell them.
-									alert('warning', "", "{$set['WebsiteName']}'s captcha system needs you to enable Javascript to continue.", false);
-									?>
-								</noscript>
-								<div class='col-12 col-sm-10 col-md-7 col-xl-6 col-xxl-5 col-xxxl-3'>
-									<div class='card'>
-										<div class='card-header'>
-											Necessary Evil. Please confirm check.
-										</div>
-										<div class='card-body'>
-											<form action='macro.php' method='post' id='recaptchaForm'>
-												<div class="h-captcha" data-callback='enableRecaptchaBtn' data-sitekey='<?php echo $set['reCaptcha_public']; ?>'></div>
-												<input type='hidden' value='<?php echo $macropage; ?>' name='page'>
-												<input type='submit' value="<?php echo "Confirm"; ?>" class="btn btn-primary btn-block" id="recaptchabtn" disabled="disabled">
-											</form>
-											<i><small>If you cannot see the captcha, please enable Javascript</small></i>
-										</div>
-									</div>
-								</div>
-				<?php
-								die($h->endpage());
-							}
-						}
-					}
-					include('rickroll.php');
-				}
-			}
-
-			function doLuckRNG()
-			{
-				global $db, $ir, $api, $userid, $set;
-				$luckrng = Random(1, 200);
-				//$luckrng=69;
-				if (!isset($_SESSION['lucked_out']))
-					$_SESSION['lucked_out'] = 0;
-				//if (isset($_SESSION['lucked_out']))
-				if ($_SESSION['lucked_out'] < time()) {
-					if ($luckrng == 160) {
-						$thisrng = 0;
-						if (($ir['luck'] > 50) && ($ir['luck'] < 150)) {
-							$minimumluck = 1;
-							//Lucky Day
-							if (getUserSkill($userid, 24) > 0)
-								$minimumluck += getUserSkill($userid, 24) * getSkillBonus(24);
-							while ($thisrng == 0)
-								$thisrng = Random($minimumluck, 7 + $minimumluck);
-							$_SESSION['lucked_out'] = time() + 300;
-							//alert('info','Lucked Out!',"While walking around the kingdom, your luck has changed by {$thisrng}%.",false);
-							toast("Lucky Day!", "While walking around {$set['WebsiteName']}, your luck has increased by {$thisrng}%.");
-							$db->query("UPDATE `userstats` SET `luck` = `luck` + ({$thisrng}) WHERE `userid` = {$userid}");
-						}
-					}
-				}
-			}
-
-			function doArtifactRNG()
-			{
-				global $db, $ir, $api, $userid;
-				//RNG for experience token? O.o
-				$xprng = Random(1, 100);
-				if ($xprng == 56 && $ir['artifacts'] != 4) {
-					if (($ir['artifact_time']) < time() - Random(270, 360)) {
-						alert("info", "", "While wondering around, you find a small artifact laying on the ground. Maybe you should take it to the Blacksmith Smeltery to find out what you can do with it?", false);
-						$api->UserGiveItem($userid, 94, 1);
-						$db->query("UPDATE `user_settings` SET `artifacts` = `artifacts` + 1, `artifact_time` = " . time() . " WHERE `userid` = {$userid}");
-					}
-				}
-			}
-
-			function showSocialAlerts()
-			{
-				global $ir;
-				echo "<div class='row' id='socialRow'>";
-				if ($ir['mail'] > 0) {
-					echo "<div class='col-auto'>";
-					alert('info', "", "You have " . shortNumberParse($ir['mail']) . " unread messages.", true, 'inbox.php', "View");
-					echo "</div>";
-				}
-				//Tell user they have unread notifcations when they do.
-				if ($ir['notifications'] > 0) {
-					echo "<div class='col-auto'>";
-					alert('info', "", "You have " . shortNumberParse($ir['notifications']) . " unread notifications.", true, 'notifications.php', "View");
-					echo "</div>";
-				}
-				//Tell user they have unread game announcements when they do.
-				if ($ir['announcements'] > 0) {
-					echo "<div class='col-auto'>";
-					alert('info', "", "You have " . shortNumberParse($ir['announcements']) . " unread announcements.", true, 'announcements.php', "View");
-					echo "</div>";
-				}
-				echo "</div>";
-				echo "
-		<div class='row' id='socialRow2'>
-		</div>";
-			}
-			function showStatusAlerts()
-			{
-				global $ir, $api, $db;
-				echo "<div class='row'>";
-				if ($api->UserStatus($ir['userid'], 'infirmary')) {
-					$InfirmaryOut = $db->fetch_single($db->query("/*qc=on*/SELECT `infirmary_out` FROM `infirmary` WHERE `infirmary_user` = {$ir['userid']}"));
-					$InfirmaryRemain = TimeUntil_Parse($InfirmaryOut);
-					echo "<div class='col-md'>";
-					alert('info', "", "You are in the Infirmary for {$InfirmaryRemain}.", true, "quickuse.php?infirmary", "Use " . parseInfirmaryItemName($ir['iitem']));
-					echo "</div>";
-				}
-				//User is in the dungeon, tell them how long.
-				if ($api->UserStatus($ir['userid'], 'dungeon')) {
-					$DungeonOut = $db->fetch_single($db->query("/*qc=on*/SELECT `dungeon_out` FROM `dungeon` WHERE `dungeon_user` = {$ir['userid']}"));
-					$DungeonRemain = TimeUntil_Parse($DungeonOut);
-					echo "<div class='col-md'>";
-					alert('info', "", "You are in the dungeon for {$DungeonRemain}.", true, "quickuse.php?dungeon", "Use " . parseDungeonItemName($ir['ditem']));
-					echo "</div>";
-				}
-				echo "</div>";
-			}
-
-			function loadUserTheme($themeID)
-			{
-				global $set;
-				$maxThemes = 8;
-				cslog('log', "User Theme ID: {$themeID}.");
-				echo "<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/sidebar-themes.css'>";
-				if ($themeID == 1) {
-					echo "
-			<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/themes/default-21.2.2.css'>
-			<meta name='theme-color' content='#333'>
-			<style>
-			.default-theme .sidebar-wrapper {
-				background-color: #333; 
-			}
-			</style>";
-				}
-				if ($themeID == 2) {
-					echo "
-			<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/themes/darkly-21.2.2.css'>
-			<meta name='theme-color' content='#303030'>";
-				}
-				if ($themeID == 3) {
-					echo "
-			<link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootswatch/{$set['bootstrap_version']}/slate/bootstrap.min.css'>
-			<meta name='theme-color' content='#272B30'>
-			<style>
-			.default-theme .sidebar-wrapper {
-				background-color: #272B30; 
-			}
-			</style>";
-				}
-				if ($themeID == 4) {
-					echo "
-			<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/themes/cyborg-21.2.2.css'>
-			<meta name='theme-color' content='#060606'>";
-				}
-				if ($themeID == 5) {
-					echo "
-			<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/themes/united-21.2.2.css'>
-			<meta name='theme-color' content='#772953'>";
-				}
-				if ($themeID == 6) {
-					echo "
-			<link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootswatch/{$set['bootstrap_version']}/cerulean/bootstrap.min.css'>
-			<meta name='theme-color' content='#04519b'>
-			<style>
-			.default-theme .sidebar-wrapper {
-				background-color: #04519b; 
-			}
-			</style>";
-				}
-				if ($themeID == 7) {
-					echo "
-			<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/themes/castle-21.2.1.css'>
-			<meta name='theme-color' content='rgba(0, 0, 0, 0.8)'>";
-				}
-				if ($themeID == 8) {
-					echo "
-			<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/themes/sunset-21.2.1.css'>
-			<meta name='theme-color' content='rgba(64, 0, 0, 0.8)'>";
-				}
-				if (($themeID > 100) && ($themeID <= $maxThemes + 100)) {
-					echo "
-			<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/themes/default-21.2.2.css'>
-            <link rel='stylesheet' href='./assets/css/themes/halloween.css'>";
-				}
-			}
-
-			function getThemeNavbarColor($themeID)
-			{
-				if ($themeID == 2)
-					return 'navbar-light bg-light';
-				else
-					return 'navbar-dark bg-dark';
-			}
-
-			function loadEssentialAssets()
-			{
-				cslog('log', "Essential assets loading now.");
-				$this->loadCSS();
-				$this->loadEarlyJS();
-				cslog('log', "Essential assets loaded successfully.");
-			}
-
-			function loadCSS()
-			{
-				global $set;
-				cslog('log', "CSS is loading.");
-				echo "<link rel='stylesheet' href='https://cdn.chivalryisdeadgame.com/assets/css/game-{$set['game_css_version']}.css' async>
-				<link rel='stylesheet' href='https://seiyria.com/gameicons-font/css/game-icons.css' async>
-				<link rel='stylesheet' href='//malihu.github.io/custom-scrollbar/jquery.mCustomScrollbar.min.css' defer>";
-			}
-
-			function loadEarlyJS()
-			{
-				global $set;
-				cslog('log', "Essential JS scripts are loading.");
-				echo "<script src='https://ajax.googleapis.com/ajax/libs/jquery/{$set['jquery_version']}/jquery.min.js'></script>
-		<script src='https://cdn.chivalryisdeadgame.com/assets/js/game-v{$set['game_js_version']}.js' async></script>";
-			}
-
-			function loadJS()
-			{
-				global $ir, $set;
-				cslog('log', "JS is loading.");
-				echo "<script src='https://cdn.jsdelivr.net/npm/popper.js@{$set['popper_version']}/dist/umd/popper.min.js'></script>
-        <script src='https://stackpath.bootstrapcdn.com/bootstrap/{$set['bootstrap_version']}/js/bootstrap.min.js'></script>
-		<script src='https://cdn.jsdelivr.net/gh/MasterGeneral156/chivalry-is-dead-game-cdn@1/js/register.min.js' defer></script>
-		<script src='https://use.fontawesome.com/releases/v{$set['fontawesome_version']}/js/all.js'></script>
-		<script src='https://cdn.chivalryisdeadgame.com/assets/js/underscore-min.js' defer></script>
-        <script src='https://cdn.rawgit.com/tonystar/bootstrap-hover-tabs/v{$set['bshover_tabs_version']}/bootstrap-hover-tabs.js' defer></script>
-		<script async src='https://www.googletagmanager.com/gtag/js?id=UA-69718211-1' defer></script>
-		<script>
-		  window.dataLayer = window.dataLayer || [];
-		  function gtag(){dataLayer.push(arguments);}
-		  gtag('js', new Date());
-		  
-		  gtag('config', 'UA-69718211-1');
-		</script>";
-				?>
-				<script src="https://cdn.chivalryisdeadgame.com/assets/js/sidemenu.js" async></script>
-				<script src="https://malihu.github.io/custom-scrollbar/jquery.mCustomScrollbar.concat.min.js" defer></script>
-				<script type="text/javascript">
-					jQuery(function($) {
-						$("#close-sidebar").click(function() {
-							$(".page-wrapper").removeClass("toggled");
-							$.post('js/script/menu.php', {
-									value: 1
-								},
-								function(returnedData) {
-									console.log("Disabled sidebar.");
-								});
-						});
-						$("#overlay").click(function() {
-							$(".page-wrapper").removeClass("toggled");
-							$.post('js/script/menu.php', {
-									value: 1
-								},
-								function(returnedData) {
-									console.log("Disabled sidebar via overlay.");
-								});
-						});
-						$("#show-sidebar").click(function() {
-							$(".page-wrapper").addClass("toggled");
-							$.post('js/script/menu.php', {
-									value: 0
-								},
-								function(returnedData) {
-									console.log("Enabled sidebar.");
-								});
-						});
-					});
-				</script>
-				<script src='https://cdn.chivalryisdeadgame.com/assets/js/jquery.canvasjs.min.js' defer></script>
-				<?php
-			}
-
-			function returnMetadata()
-			{
-				global $set;
-				cslog('log', "Setting website metadata.");
-				echo "<meta charset='utf-8'>
-                <meta http-equiv='X-UA-Compatible' content='IE=edge'>
-                <meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'>
-				<meta name='author' content='{$set['WebsiteOwner']}'>
-                <meta name='description' content='{$set['Website_Description']}'>
-                <meta name='keywords' content='medieval europe, mmorpg, text rpg, rpg, multiplayer, game, video game, no download, mobile, free, chivalry is dead, cid'>
-                <meta property='og:title' content='" . returnGameTitle() . "'/>
-                <meta property='og:description' content='{$set['Website_Description']}'/>
-                <meta property='og:image' content='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo512.png'/>
-                <meta http-equiv='x-dns-prefetch-control' content='off'>
-                <link rel='shortcut icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo192.png' type='image/x-icon'/>
-				<!-- generics -->
-				<link rel='icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo32.png' sizes='32x32'>
-				<link rel='icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo57.png' sizes='57x57'>
-				<link rel='icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo76.png' sizes='76x76'>
-				<link rel='icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo96.png' sizes='96x96'>
-				<link rel='icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo128.png' sizes='128x128'>
-				<link rel='icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo192.png' sizes='192x192'>
-				<link rel='icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo228.png' sizes='228x228'>
-				
-				<!-- Android -->
-				<link rel='shortcut icon' sizes='196x196' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo196.png'>
-
-				<!-- iOS -->
-				<link rel='apple-touch-icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo120.png' sizes='120x120'>
-				<link rel='apple-touch-icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo152.png' sizes='152x152'>
-				<link rel='apple-touch-icon' href='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo180.png' sizes='180x180'>
-
-				<!-- Windows 8 IE 10-->
-				<meta name='msapplication-TileColor' content='#FFFFFF'>
-				<meta name='msapplication-TileImage' content='https://cdn.chivalryisdeadgame.com/assets/img/logo/logo144.png'>
-
-				<!— Windows 8.1 + IE11 and above —>
-				<meta name='msapplication-config' content='https://cdn.chivalryisdeadgame.com/assets/browserconfig.xml' />";
-			}
-
-			function loadNewsScroller()
-			{
-				global $db;
-				$time = time();
-				$paperads = $db->fetch_single($db->query("/*qc=on*/SELECT * FROM `newspaper_ads` WHERE `news_end` > {$time} ORDER BY `news_cost` DESC"));
-				if ($paperads == 0) {
-					$news = "Welcome to Chivalry is Dead. <b>//</b> You may purchase an ad by clicking <a href='newspaper.php?action=buyad'>here</a>.";
-				} else {
-					$news = '';
-					$npq = $db->query("/*qc=on*/SELECT * FROM `newspaper_ads` WHERE `news_end` > {$time} ORDER BY `news_cost` ASC");
-					while ($par = $db->fetch_row($npq)) {
-						$par['news_text'] = str_replace("<br />", " ", $par['news_text']);
-						$phrase = " " . parseUsername($par['news_owner']) . " " . parseUserID($par['news_owner']) . " {$par['news_text']} <b>//</b>";
-						$news .= "{$phrase}";
-					}
-					$news .= " You may purchase an ad by clicking <a href='newspaper.php?action=buyad'>here</a>. <b>//END</b>";
-				}
-				echo "
-		<div class='marquee'>
-			<div class='text'>{$news}</div>
-		</div><br />";
-			}
-
-			function userdata($ir, $dosessh = 1)
-			{
-				global $db, $userid, $api, $ir;
-				$IP = $db->escape($_SERVER['REMOTE_ADDR']);
-				$time = time();
-				if (!userHasEffect($userid, constant("invisibility"))) {
-					//Update the user as they browse the game.
-					$db->query("UPDATE `users`
-                    SET `laston` = {$_SERVER['REQUEST_TIME']}, 
-                    `lastip` = '{$IP}' 
-                    WHERE `userid` = {$userid}");
-				} else {
-					//Update the user as they browse the game.
-					$db->query("UPDATE `users`
-                    SET `lastip` = '{$IP}' 
-                    WHERE `userid` = {$userid}");
-				}
-
-				//User's account does not have an email address.
-				if (!$ir['email']) {
-					global $domain;
-					alert('info', "Incomplete Setup", "Please be sure to add an email address to your account by clicking <a href='preferences.php?action=changeemail'>here</a>.", false);
-				}
-				//If the user's attacking is not stored in session.
-				if (!isset($_SESSION['attacking'])) {
-					$_SESSION['attacking'] = 0;
-				}
-				//If user does not end a fight correctly, take their XP and warn them.
-				if ($dosessh && ($_SESSION['attacking'] || $ir['attacking'])) {
-					$hosptime = Random(10, 20) + floor($ir['level'] / 2);
-					$api->UserStatusSet($userid, 'infirmary', $hosptime, "Ran from a fight");
-					alert("warning", "Uh Oh!", "For leaving your previous fight, you were placed in the Infirmary for {$hosptime}
-            minutes, and lost all your experience.", false);
-					$db->query("UPDATE `users` SET `xp` = 0, `attacking` = 0 WHERE `userid` = $userid");
-					$_SESSION['attacking'] = 0;
-					$_SESSION['attack_scroll'] = 0;
-				}
-			}
-
-			function endpage()
-			{
-				global $db, $ir, $set, $userid, $api, $start;
-				$query_extra = '';
-				include('userinfo.php');
-				if (isset($_GET['benchmark']))
-					include('forms/include_end.php');   //benchmark data
-				$this->loadJS();
-				cslog('warn', "Main script has finished executing. Wrapping up now.");
-				//Set mysqldebug in the URL to get query debugging as an admin.
-				if (isset($_GET['mysqldebug']) && $ir['user_level'] == 'Admin') {
-				?>
-					<pre class='pre-scrollable'>
-                  <?php
-					var_dump($db->queries)
-					?>
-              </pre>
-				<?php
-				}
-				?>
-				</div>
-				</div>
-				</div>
-				<!-- /.container -->
-				<br />
-				</body>
-
-		</html>
-<?php
-			}
-		}

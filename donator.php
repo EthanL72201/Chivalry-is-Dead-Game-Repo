@@ -1,217 +1,151 @@
 <?php
 /*
 	File:		donator.php
-	Created: 	4/4/2016 at 11:57PM Eastern Time
-	Info: 		Lists the currently setup donator packages for players to
-				purchase using Paypal.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows a player to view the currently listed VIP Packs, 
+				and purchase one using Paypal.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require_once('globals.php');
-$percentoff=$set['viprate'] / 100;
-if (isset($_GET['user']))
-{
-	$_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs($_GET['user']) : $userid;
-	if (!$api->SystemUserIDtoName($_GET['user']))
-	{
-		alert('danger',"Uh Oh!","The user you're trying to donate for does not exist.");
-		die($h->endpage());
-	}
-	$goal=$_CONFIG['donationGoal'];
-	$progress=round(($set['MonthlyDonationGoal']/$goal)*100);
-	$bg = ($set['MonthlyDonationGoal'] >= $goal) ? "bg-success" : "" ;
-	$set['MonthlyDonationGoal']=round($set['MonthlyDonationGoal'],2);
-	echo "
-    <div class='row'>
-        <div class='col-12'>
-            <div class='card'>
-                <div class='card-body'>
-                    <div class='row'>
-                        This is the monthly donation goal. If we meet/exceed this value, numerous benefits will be unlocked for all players for the remainder of the month!
-                    </div>
-                    <div class='progress' style='height: 1rem;'>
-                		<div class='progress-bar {$bg}' role='progressbar' aria-valuenow='{$set['MonthlyDonationGoal']}' aria-valuemin='0' aria-valuemax='{$goal}' style='width: {$progress}%'>
-                			<span>
-                				Monthly Donation Goal - \${$set['MonthlyDonationGoal']} / \${$goal}
-                			</span>
-                		</div>
-                	</div>
-                </div>
-            </div>
-            <br />
-        </div>
-    </div>
-    <div class='row'>
-        <div class='col-12'>
-            <div class='card'>
-                <div class='card-header'>
-                    {$set['WebsiteName']} VIP Packs
-                </div>
-                <div class='card-body'>
-                    <div class='row'>";
-	if (!isset($count))
-		$count=0;
-	$q = $db->query("/*qc=on*/SELECT `v`.*, `i`.*
-					FROM `vip_listing` `v`
-					INNER JOIN `items` AS `i` 
-					ON `itmid` = `vip_item`
-					ORDER BY `vip_cost` ASC");
-	while ($r = $db->fetch_row($q)) 
-	{
-		//Put the VIP Cost in a currency number. (Ex. $1.54)
-		$r['vip_cost'] = sprintf("%0.2f", $r['vip_cost']*$percentoff);
-		$amount = ($r['vip_qty'] > 1) ? "{$r['vip_qty']} x " : '';
-		echo "
-        <div class='col-12'>
-            <div class='row'>
-                <div class='col-12 col-sm-6 col-md-2 col-xxxl-1'>
-                    <b>\${$r['vip_cost']} USD</b>
-                </div>
-                <div class='col-12 col-sm-6 col-md-4 col-xxl-2'>
-                    {$amount} <a href='iteminfo.php?ID={$r['vip_item']}'>{$r['itmname']}</a>
-                </div>";
-		$uhoh = 0;
-		$itemInfo = "";
-		//List the item's effects.
-		for ($enum = 1; $enum <= 3; $enum++) 
-		{
-			if ($r["effect{$enum}_on"] == 'true') 
-			{
-				//Lets make the item's effects more user friendly to read, eh.
-				$einfo = unserialize($r["effect{$enum}"]);
-				$einfo['inc_type'] = ($einfo['inc_type'] == 'percent') ? '%' : '';
-				$einfo['dir'] = ($einfo['dir'] == 'pos') ? "+" : "-";
-				$stats =
-					array("energy" => "Energy", "will" => "Will",
-						"brave" => "Bravery", "level" => "Level",
-						"hp" => "Health", "strength" => "Strength",
-						"agility" => "Agility", "guard" => "Guard",
-						"labor" => "Labor", "iq" => "IQ",
-						"infirmary" => "Infirmary Time", "dungeon" => "Dungeon Time",
-						"primary_currency" => "Copper Coins", "secondary_currency"
-					=> "Chivalry Tokens", "crimexp" => "Experience", "vip_days" =>
-						"VIP Days*" , "premium_currency" => "Mutton");
-				$statformatted = $stats["{$einfo['stat']}"];
-				$itemInfo .= "{$einfo['dir']}" . shortNumberParse($einfo['inc_amount']) . "{$einfo['inc_type']} {$statformatted} ";
-			} //If item has no effects, lets list the description instead.
-			else 
-			{
-				$uhoh++;
-			}
-			if ($uhoh == 3) 
-			{
-				$itemInfo .= $r['itmdesc'];
-			}
-		}
-		echo "
-            <div class='col-12 col-xxl-7 col-xxxl-5'>
-                {$itemInfo}
-            </div>
-	        <div class='col-12 col-xxxl-4'>
-                <div class='row'>
-                    <div class='col-12'>
-                        <small><b>Enter Quantity</b></small>
-                    </div>
-                    <div class='col-12'>
-                        <div class='row'>
-                            <div class='col-12 col-sm-6'>
-                                <form action='https://www.paypal.com/cgi-bin/webscr' method='post'>
-                    			<input type='hidden' name='cmd' value='_xclick' />
-                    			<input type='hidden' name='business' value='{$set['PaypalEmail']}' />
-                    			<input type='hidden' name='item_name' value='{$domain}|VIP|{$r['vip_id']}|{$_GET['user']}|{$userid}' />
-                    			<input type='hidden' name='amount' value='{$r['vip_cost']}' />
-                    			<input type='hidden' name='no_shipping' value='1' />
-                    			<input type='hidden' name='return' value='https://{$domain}/donatordone.php?action=done' />
-                    			<input type='hidden' name='cancel_return' value='http://{$domain}/donatordone.php?action=cancel' />
-                    			<input type='hidden' name='notify_url' value='https://{$domain}/donator_ipn.php' />
-                    			<input type='hidden' name='cn' value='Your Player ID' />
-                    			<input type='hidden' name='currency_code' value='USD' />
-                    			<input type='hidden' name='tax' value='0' />
-                    			<input type='hidden' name='rm' value='2'>
-                    			<input type='number' min='1' max='100' value='1' name='quantity' class='form-control' required='1' placeholder='Quantity'>
-                            </div>
-                            <div class='col-12 col-sm-6'>
-                                <button class='btn btn-primary btn-block' type='submit'><i class='fab fa-paypal'></i> PayPal</button></form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-		    </div>
-        </div>
-        <hr />
-        </div>
-        ";
-	}
-	echo "</div>
-    </div>
-    </div>
-    <div class='row'>
-        <div class='col-12 col-xl-6'><br />
-            <div class='card'>
-                <div class='card-header'>
-                    VIP Day Benefits
-                </div>
-                <div class='card-body'>
-                    <div class='row'>
-                        <div class='col-12 col-sm-7 col-md-5 col-xl-8 col-xxl-6 col-xxxl-4'>
-                            *<b>33%</b> Energy Every 5 Minutes
-                        </div>
-                        <div class='col-12 col-sm-6 col-md-4 col-xl-7 col-xxl-6 col-xxxl-4'>
-                            *<b>5%</b> Daily Bank Interest
-                        </div>
-                        <div class='col-12 col-sm-4 col-md-3 col-xl-5 col-xxl-3 col-xxxl-2'>
-                            *Friends List
-                        </div>
-                        <div class='col-12 col-sm-4 col-md-3 col-xl-4 col-xxl-3 col-xxxl-3'>
-                            *Enemies List
-                        </div>
-                        <div class='col-12 col-sm-3 col-md-2 col-xl-4 col-xxl-3 col-xxxl-2'>
-                            *VIP Logs
-                        </div>
-                        <div class='col-12 col-sm-7 col-md-5 col-xl-8 col-xxl-6 col-xxxl-4'>
-                           *Better Bank Investment Rates
-                        </div>
-                        <div class='col-12 col-sm-8 col-md-6 col-xl-9 col-xxl-7 col-xxxl-5'>
-                           *Customizable VIP color and badge
-                        </div>
-                        <div class='col-12 col-sm-6 col-md-5 col-xl-7 col-xxl-6 col-xxxl-4'>
-                           *750 Chivalry Tokens Daily
-                        </div>
-                        <div class='col-12 col-sm-6 col-md-4 col-xl-5 col-xxl-4 col-xxxl-3'>
-                           *More Shortcuts
-                        </div>
-                        <div class='col-12 col-sm-6 col-md-4 col-xl-5 col-xxl-4 col-xxxl-3'>
-                           *More Notepads
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class='col-12 col-xl-6'><br />
-            <div class='card'>
-                <div class='card-header'>
-                    Notes
-                </div>
-                <div class='card-body'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            All purchases are final. Donation fraud is not tolerated and will be dealt with severely.
-                            each donation will give a <a href='iteminfo.php?ID=128'>VIP Color Changer</a>.
-                            Each day you log in with a VIP Day, you will receive 750 Chivalry Tokens automatically to 
-                            your Token Bank account. Will fallback onto your person if you do not have an account.
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>";
+require_once('includes/vip-benefits.php');
+echo "<h3>VIP Packs</h3><hr />If you purchase a VIP Package from below, you will be gifted the following depending on
+    the package your purchase. All purchases are final. If you commit fraud, you will be removed from the game permanently.";
+
+// Initialize VIP benefits for current user and display if function exists
+if (function_exists('getVIPBenefits') && function_exists('displayVIPBenefits')) {
+    $vipBenefits = getVIPBenefits($db, $userid);
+    displayVIPBenefits($vipBenefits);
 }
-else
-{
-	echo "Please select the user you wish to donate for.<br />
-		<form>
-		" . user_dropdown('user',$userid) . "
-		<input type='submit' value='Continue' class='btn btn-primary'>
-		</form>";
+echo "<div class='cotainer'>
+<div class='row'>
+		<div class='col-sm'>
+		    <h4>Offer</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Contents</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>PayPal</h4>
+		</div>
+</div><hr />";
+$q = $db->query("SELECT `v`.*, `i`.*
+				FROM `vip_listing` `v`
+				INNER JOIN `items` AS `i` 
+				ON `itmid` = `vip_item`
+				ORDER BY `vip_cost` ASC");
+//List the donator packages.
+while ($r = $db->fetch_row($q)) {
+    //Put the VIP Cost in a currency number. (Ex. $1.54)
+    $r['vip_cost'] = sprintf("%0.2f", $r['vip_cost']);
+    $amount = ($r['vip_qty'] > 1) ? "{$r['vip_qty']} x " : '';
+    echo "
+	<div class='row'>
+		<div class='col-sm'>
+		{$amount} {$r['itmname']}<br />
+			Cost: \${$r['vip_cost']} USD
+		</div>
+		<div class='col-sm'>
+		";
+    //List the item's effects if they exist
+    if (isset($r['itmeffects_toggle'])) {
+        $iterations=count(json_decode($r['itmeffects_toggle']));
+        $toggle=json_decode($r['itmeffects_toggle']);
+        $stat=json_decode($r['itmeffects_stat']);
+        $dir=json_decode($r['itmeffects_dir']);
+        $type=json_decode($r['itmeffects_type']);
+        $amount=json_decode($r['itmeffects_amount']);
+        $usecount=0;
+        $uhoh=0;
+        while ($usecount != $iterations)
+    {
+        if ($toggle[$usecount] == 1)
+        {
+            $uhoh+=1;
+            $type[$usecount] = ($type[$usecount] == 'percent') ? '%' : '';
+            $dir[$usecount] = ($dir[$usecount] == 'pos') ? 'Increases' : 'Decreases';
+            $stats =
+                array("energy" => "Energy", "will" => "Will",
+                    "brave" => "Bravery", "level" => "Level",
+                    "hp" => "Health", "strength" => constant("stat_strength"),
+                    "agility" => constant("stat_agility"), "guard" => constant("stat_guard"),
+                    "labor" => constant("stat_labor"), "iq" => constant("stat_iq"),
+                    "infirmary" => "Infirmary Time", "dungeon" => "Dungeon Time",
+                    "primary_currency" => constant("primary_currency"),
+                    "secondary_currency" => constant("secondary_currency"),
+                    "xp" => "Experience", "vip_days" =>
+                    "VIP Days");
+            $statformatted = $stats["{$stat[$usecount]}"];
+            echo "{$dir[$usecount]} {$statformatted} by " . number_format($amount[$usecount]) . "{$type[$usecount]}.<br />";
+        }
+        $usecount=$usecount+1;
+    }
+    if ($uhoh == 0) {
+        echo $r['itmdesc'];
+    }
+    } else {
+        // No effects data, just show description
+        echo $r['itmdesc'];
+    }
+    //The form handles a lot of the internals for the pack info.
+    //You should only need to change the currency_code.
+    //Proceed at your own caution.
+    echo "
+		</div>
+		<div class='col-sm'>
+			<form action='https://www.paypal.com/cgi-bin/webscr' method='post'>
+			<input type='hidden' name='cmd' value='_xclick' />
+			<input type='hidden' name='business' value='{$set['PaypalEmail']}' />
+			<input type='hidden' name='item_name' value='{$domain}|VIP|{$r['vip_id']}|{$userid}' />
+			<input type='hidden' name='amount' value='{$r['vip_cost']}' />
+			<input type='hidden' name='no_shipping' value='1' />
+			<input type='hidden' name='return' value='http://{$domain}/donatordone.php?action=done' />
+			<input type='hidden' name='cancel_return' value='http://{$domain}/donatordone.php?action=cancel' />
+			<input type='hidden' name='notify_url' value='http://{$domain}/donator_ipn.php' />
+			<input type='hidden' name='cn' value='Your Player ID' />
+			<input type='hidden' name='currency_code' value='USD' />
+			<input type='hidden' name='tax' value='0' />
+			<input type='hidden' name='rm' value='2'>
+			<input type='image' src='https://www.paypal.com/en_US/i/btn/x-click-but21.gif' border='0' name='submit' alt='Make payments with PayPal - it's fast, free and secure!' />
+			</form>
+		</div>
+	</div>
+	<hr />";
 }
+echo "</div><br />";
+echo "<div class='alert alert-info mt-4'>";
+echo "<h5><i class='fas fa-info-circle'></i> VIP Benefits Summary</h5>";
+echo "<p>VIP membership provides numerous benefits throughout the game:</p>";
+echo "<ul class='mb-0'>";
+echo "<li><strong>Energy:</strong> 2x faster regeneration rate</li>";
+echo "<li><strong>Training:</strong> 25% bonus to all stat gains</li>";
+echo "<li><strong>Shopping:</strong> 10% discount on all purchases</li>";
+echo "<li><strong>Jobs & Crimes:</strong> 50% bonus to income</li>";
+echo "<li><strong>Experience:</strong> 25% bonus to XP gains</li>";
+echo "<li><strong>Banking:</strong> 3% daily interest vs 2% regular</li>";
+echo "<li><strong>Time Reductions:</strong> 25% less jail/hospital time</li>";
+echo "<li><strong>Visual Status:</strong> Crown icon and special name colors</li>";
+echo "</ul>";
+echo "</div>";
 $h->endpage();

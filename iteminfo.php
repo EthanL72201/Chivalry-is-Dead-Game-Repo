@@ -1,293 +1,159 @@
 <?php
 /*
 	File:		iteminfo.php
-	Created: 	4/5/2016 at 12:14AM Eastern Time
-	Info: 		Displays detailed information about the item inputted.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Displays detailed information about an item.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('globals.php');
-$_GET['ID'] = (isset($_GET['ID']) && is_numeric($_GET['ID'])) ? abs($_GET['ID']) : '';
-$itmid = $_GET['ID'];
+$ID = filter_input(INPUT_GET, 'ID', FILTER_SANITIZE_NUMBER_INT) ?: 0;
+$itmid = $ID;
 if (!$itmid) {
     alert('danger', 'Uh Oh!', 'Invalid or non-existent Item ID.', true, 'inventory.php');
 } else {
     $q =
         $db->query(
-            "/*qc=on*/SELECT `i`.*, `itmtypename`
+            "SELECT `i`.*, `itmtypename`
                      FROM `items` AS `i`
                      INNER JOIN `itemtypes` AS `it`
                      ON `i`.`itmtype` = `it`.`itmtypeid`
                      WHERE `i`.`itmid` = {$itmid}
                      LIMIT 1");
-	$total=returnTotalItemCount($itmid);
-    if ($db->num_rows($q) == 0) 
-    {
+    if ($db->num_rows($q) == 0) {
         alert('danger', 'Uh Oh!', 'Invalid or non-existent Item ID.', true, 'inventory.php');
-    } 
-    else 
-    {
+    } else {
         $id = $db->fetch_row($q);
-        $txt = "";
-        for ($enum = 1; $enum <= 3; $enum++)
-        {
-            if ($id["effect{$enum}_on"] == 'true')
-            {
-                $start = $start + 1;
-                $einfo = unserialize($id["effect{$enum}"]);
-                $einfo['inc_type'] = ($einfo['inc_type'] == 'percent') ? '%' : '';
-                $einfo['dir'] = ($einfo['dir'] == 'pos') ? '+' : '-';
-                $class = ($einfo['dir'] == '+') ? 'text-success' : 'text-danger';
-                $statformatted = statParser($einfo['stat']);
-                $txt .= "<span class='{$class}'>{$einfo['dir']}" . shortNumberParse($einfo['inc_amount']) . "{$einfo['inc_type']} {$statformatted}
-									</span>";
-            }
-        }
-            
         echo "
-        <div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-body'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                " . returnIcon($itmid, 8) . "
-                            </div>
-                            <div class='col-12'>
-                                {$id['itmname']} " . parseUserID($itmid) . "
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-body'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                {$id['itmdesc']}
-                            </div>";
-                            if (!empty($txt))
-                                    {
-                                        echo"
-                                        <div class='col-12'>
-                                            ({$txt} when used/equipped)
-                                        </div>";
-                                    }
-                                    echo"
-                            <div class='col-12'>
-                                <i>{$id['itmname']} is a/an {$id['itmtypename']} item.</i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-body'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small><b>Buy Price</b></small>
-                                    </div>
-                                    <div class='col-12'>
-                                        " . shortNumberParse($id['itmbuyprice']) . " Copper Coins
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small><b>Sell Price</b></small>
-                                    </div>
-                                    <div class='col-12'>
-                                        " . shortNumberParse($id['itmsellprice']) . " Copper Coins
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>";
-            if (($id['weapon'] > 0) || ($id['armor'] > 0))
+		<table class='table table-bordered'>
+			<tr>
+				<th colspan='2'>
+					Looking up the item information for {$id['itmname']}.
+				</th>
+			</tr>
+			<tr>
+				<th width='33%'>
+					Item Type
+				</th>
+				<td>
+					{$id['itmtypename']}
+				</td>
+			</tr>
+			<tr>
+				<th width='33%'>
+					Item Information
+				</th>
+				<td>
+					{$id['itmdesc']}
+				</td>
+			</tr>
+			<tr>
+				<th width='33%'>
+					Item Buying Price
+				</th>
+				<td>";
+        if ($id['itmbuyprice'] > 0) {
+            echo number_format($id['itmbuyprice']);
+        } else {
+            echo "Unpurchaseable";
+        }
+        echo "
+				</td>
+			</tr>
+			<tr>
+				<th width='33%'>
+					Item Selling Price
+				</th>
+				<td>";
+        if ($id['itmsellprice']) {
+            echo number_format($id['itmsellprice']);
+        } else {
+            echo "Unsellable.";
+        }
+        echo "
+				</td>
+			</tr>";
+        $iterations=count(json_decode($id['itmeffects_toggle']));
+        $toggle=json_decode($id['itmeffects_toggle']);
+        $stat=json_decode($id['itmeffects_stat']);
+        $dir=json_decode($id['itmeffects_dir']);
+        $type=json_decode($id['itmeffects_type']);
+        $amount=json_decode($id['itmeffects_amount']);
+        $usecount=0;
+        echo "
+				<tr>
+					<th>
+						Item Effect
+					</th>
+					<td>";
+        while ($usecount != $iterations)
+        {
+            if ($toggle[$usecount] == 1)
             {
-                echo "<div class='col-12'>
-                <div class='card'>
-                    <div class='card-body'>
-                        <div class='row'>";
-                            if ($id['weapon'] > 0)
-                            {
-                                echo"
-                                <div class='col-12'>
-                                    <div class='row'>
-                                        <div class='col-12'>
-                                            <small><b>Weapon Value</b></small>
-                                        </div>
-                                        <div class='col-12'>
-                                            " . shortNumberParse($id['weapon']) . "
-                                        </div>
-                                    </div>
-                                </div>";
-                            }
-                            if ($id['ammo'] > 0)
-                            {
-                                echo"
-                                <div class='col-12'>
-                                    <div class='row'>
-                                        <div class='col-12'>
-                                            <small><b>Weapon Ammo</b></small>
-                                        </div>
-                                        <div class='col-12'>
-                                            <a href='?ID={$id['ammo']}'>{$api->SystemItemIDtoName($id['ammo'])}</a>
-                                        </div>
-                                    </div>
-                                </div>";
-                            }
-                            if ($id['armor'] > 0)
-                            {
-                                echo"
-                                <div class='col-12'>
-                                    <div class='row'>
-                                        <div class='col-12'>
-                                            <small><b>Armor Value</b></small>
-                                        </div>
-                                        <div class='col-12'>
-                                            " . shortNumberParse($id['armor']) . "
-                                        </div>
-                                    </div>
-                                </div>";
-                            }
-                                echo"
-                        </div>
-                    </div>
-                </div>
-            </div>";
+                $type[$usecount] = ($type[$usecount] == 'percent') ? '%' : '';
+                $dir[$usecount] = ($dir[$usecount] == 'pos') ? 'Increases' : 'Decreases';
+                $stats =
+                    array("energy" => "Energy", "will" => "Will",
+                        "brave" => "Bravery", "level" => "Level",
+                        "hp" => "Health", "strength" => constant("stat_strength"),
+                        "agility" => constant("stat_agility"), "guard" => constant("stat_guard"),
+                        "labor" => constant("stat_labor"), "iq" => constant("stat_iq"),
+                        "infirmary" => "Infirmary Time", "dungeon" => "Dungeon Time",
+                        "primary_currency" => constant("primary_currency"), 
+                        "secondary_currency" => constant("secondary_currency"), 
+                        "xp" => "Experience", "vip_days" =>
+                        "VIP Days");
+                $statformatted = $stats["{$stat[$usecount]}"];
+				echo "	{$dir[$usecount]} {$statformatted} by " . number_format($amount[$usecount]) . "{$type[$usecount]};";
             }
-                
-                
-                echo "
-        </div>
-
-        <div class='row'>
-            <div class='col-12'>
-                <div class='card'>
-                    <div class='card-header'>
-                        {$id['itmname']} " . parseUserID($itmid) . "
-                    </div>
-                    <div class='card-body'>
-                        <div class='row'>";
-                                echo "<div class='col-12 col-sm-6 col-xl-4 col-xxl-3 col-xxxl-auto'>
-                                            <div class='row'>
-                                                <div class='col-12'>
-                                                    <small><b>Circulating</b></small>
-                                                </div>
-                                                <div class='col-12'>
-                                                    " . shortNumberParse($total) . "
-                                                </div>
-                                            </div>
-                                        </div>";
-                                $towns='';
-                                $sq=$db->query("/*qc=on*/SELECT `sitemSHOP` FROM `shopitems` WHERE `sitemITEMID` = {$_GET['ID']}");
-                                if ($db->num_rows($sq) > 0)
-                                {
-                                    while ($sr=$db->fetch_row($sq))
-                                    {
-                                        $shop=$db->fetch_single($db->query("/*qc=on*/SELECT `shopLOCATION` FROM `shops` WHERE `shopID` = {$sr['sitemSHOP']}"));
-                                        $towns.= createRandomBadge("<a href='travel.php?to={$shop}'>{$api->SystemTownIDtoName($shop)}</a>") . " ";
-                                    }
-                                    echo"
-                                    <div class='col-auto'>
-                                        <div class='row'>
-                                            <div class='col-12'>
-                                                <small><b>Town Shops</b></small>
-                                            </div>
-                                            <div class='col-12'>
-                                                {$towns}
-                                            </div>
-                                        </div>
-                                    </div>";
-                                }
-                                $towns='';
-                                $sq=$db->query("/*qc=on*/SELECT `mine_location` FROM `mining_data` WHERE `mine_copper_item` = {$_GET['ID']} OR `mine_silver_item` = {$_GET['ID']} OR `mine_gold_item` = {$_GET['ID']} OR `mine_gem_item` = {$_GET['ID']}");
-                                if ($db->num_rows($sq) > 0)
-                                {
-                                    while ($sr=$db->fetch_row($sq))
-                                    {
-                                        $shop2=$sr['mine_location'];
-                                        $towns.= createRandomBadge("<a href='travel.php?to={$shop2}'>{$api->SystemTownIDtoName($shop2)}</a>") . " ";
-                                    }
-                                    echo"
-                                    <div class='col-auto'>
-                                        <div class='row'>
-                                            <div class='col-12'>
-                                                <small><b>Town Mines</b></small>
-                                            </div>
-                                            <div class='col-12'>
-                                                {$towns}
-                                            </div>
-                                        </div>
-                                    </div>";
-                                }
-                            echo "</div>";
-                            
-                            echo"
-                        </div>
-                    </div>
-                </div>
-            </div>";
-        echo "</div>";
-        $chanceDropItems = array(210,89,63,69,203,189,195,137);
-        if (in_array($itmid, $chanceDropItems))
-        {
-            
-            echo "<div class='col-12'>
-                        <div class='card'>
-                            <div class='card-header'>
-                                Chance Drops
-                            </div>
-                            <div class='card-body'>
-                                <div class='row'>
-                                    " . parseLootTableOdds(getLootByID($itmid)) . "
-                                </div>
-                            </div>
-                        </div>
-                    </div>";
+            $usecount=$usecount+1;
         }
-        $artItems = array(521,522,523,524,525,526,527,528,529,530,531,532,533,
-                            534,535,536,537,538,539,540,541,542,543,544,545,546,547);
-        if (in_array($itmid, $artItems))
-        {
-            
-            echo "<div class='col-auto'>
-                        <div class='card'>
-                            <div class='card-header'>
-                                Art
-                            </div>
-                            <div class='card-body'>
-                                <div class='row'>
-                                    " . returnIcon($itmid, 24) . "
-                                </div>
-                            </div>
-                        </div>
-                    </div>";
+        echo "</td>
+				</tr>";
+        if ($id['weapon']) {
+            echo "<tr>
+				<th width='33%'>
+					Item Weapon Rating
+				</th>
+				<td>
+					" . number_format($id['weapon']) . "
+				</td>
+			</tr>";
         }
-        echo "</div>";
+        if ($id['armor']) {
+            echo "<tr>
+				<th width='33%'>
+					Item Armor Rating
+				</th>
+				<td>
+					" . number_format($id['armor']) . "
+				</td>
+			</tr>";
+        }
+        echo "
+		</table>";
         $db->free_result($q);
-    }
-}
-
-function getLootByID($itemId): string {    
-    switch ($itemId) {
-        case 210: return "items/scratch/cid_ticket";
-        case 89: return "items/scratch/vip_ticket";
-        case 63: return "items/scratch/17_halloween_scratch";
-        case 69: return "items/scratch/17_thanksgiving_scratch";
-        case 137: return "items/scratch/18_stpatties_scratch";
-        case 189: return "items/scratch/18_halloween_scratch";
-        case 195: return "items/scratch/18_thanksgiving_scratch";
-        case 203: return "items/scratch/18_christmas_scratch";
-        default: return "items/scratch/cid_ticket";
     }
 }
 $h->endpage();

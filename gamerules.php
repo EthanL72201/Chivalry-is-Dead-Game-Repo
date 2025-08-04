@@ -1,38 +1,43 @@
 <?php
 /*
 	File:		gamerules.php
-	Created: 	4/5/2016 at 12:03AM Eastern Time
-	Info: 		Lists the game rules to the player in-game.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Lists the in-game rules for players while they are logged 
+				into the game.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('globals.php');
-alert('info', "", "You are expected to follow this rules. You are also expected to check back on these fairly frequently as these rules
-may change without notice. Staff will not accept ignorance as an excuse if you break one of these rules.",  false);
-echo "<div class='card'>
-        <div class='card-header'>
-            {$set['WebsiteName']} Game Rules
-        </div>
-        <div class='card-body'>";
-$q = $db->query("/*qc=on*/SELECT * FROM `gamerules` ORDER BY `rule_id` ASC");
-$rulenumber = 1;
+echo "<h3>{$set['WebsiteName']} Game Rules</h3>
+<hr />
+You are expected to follow this rules. You are also expected to check back on these fairly frequently as these rules
+may change without notice. Staff will not accept ignorance as an excuse if you break one of these rules.<hr />";
+$q = $db->query("SELECT * FROM `gamerules` ORDER BY `rule_id` ASC");
+echo "<ol>";
 //List game rules.
-while ($r = $db->fetch_row($q)) 
-{
-    echo "  <div class='row'>
-                <div class='col-auto'>
-                    <div class='row'>
-                        <div class='col-12'>
-                            <small><b>Rule #{$rulenumber}</b></small>
-                        </div>
-                        <div class='col-12'>
-                            {$r['rule_text']}
-                        </div>
-                    </div>
-                    <br />
-                </div>
-            </div>";
-	$rulenumber = $rulenumber + 1;
+while ($r = $db->fetch_row($q)) {
+    echo "<li>{$r['rule_text']}</li><hr />";
 }
-echo "</div></div>";
+echo "</ol>";
 $h->endpage();

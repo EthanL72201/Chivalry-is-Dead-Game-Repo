@@ -1,5 +1,33 @@
 <?php
+/*
+	File: 		class/class_evalmath.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		A class for handling math based functions.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	
+	MIT License
 
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
 /*
 ================================================================================
 
@@ -96,6 +124,30 @@ class EvalMath {
 
     /** @var string Pattern used for a valid function or variable name. Note, var and func names are case insensitive.*/
     private static $namepat = '[a-z][a-z0-9_]*';
+    
+    // Helper function to replace Moodle's get_string function
+    private function get_string($key, $component = '', $a = null) {
+        $messages = [
+            'cannotassigntoconstant' => "Cannot assign to constant '{$a}'",
+            'cannotredefinebuiltinfunction' => "Cannot redefine built-in function '{$a}'",
+            'undefinedvariableinfunctiondefinition' => "Undefined variable '{$a}' in function definition",
+            'illegalcharactergeneral' => "Illegal character '{$a}'",
+            'illegalcharacterunderscore' => "Illegal character '_'",
+            'implicitmultiplicationnotallowed' => "Implicit multiplication not allowed",
+            'unexpectedclosingbracket' => "Unexpected closing bracket",
+            'wrongnumberofarguments' => "Wrong number of arguments. Expected: {$a->expected}, Given: {$a->given}",
+            'internalerror' => "Internal error",
+            'unexpectedcomma' => "Unexpected comma",
+            'unexpectedoperator' => "Unexpected operator '{$a}'",
+            'anunexpectederroroccured' => "An unexpected error occurred",
+            'operatorlacksoperand' => "Operator '{$a}' lacks operand",
+            'expectingaclosingbracket' => "Expecting a closing bracket",
+            'undefinedvariable' => "Undefined variable '{$a}'",
+            'divisionbyzero' => "Division by zero"
+        ];
+        
+        return isset($messages[$key]) ? $messages[$key] : "Unknown error: {$key}";
+    }
 
     var $suppress_errors = false;
     var $last_error = null;
@@ -131,7 +183,7 @@ class EvalMath {
      * @deprecated since Moodle 3.1
      */
     public function EvalMath($allowconstants = false, $allowimplicitmultiplication = false) {
-        debugging('Use of class name as constructor is deprecated', DEBUG_DEVELOPER);
+        // debugging('Use of class name as constructor is deprecated', DEBUG_DEVELOPER);
         self::__construct($allowconstants, $allowimplicitmultiplication);
     }
 
@@ -147,7 +199,7 @@ class EvalMath {
         // is it a variable assignment?
         if (preg_match('/^\s*('.self::$namepat.')\s*=\s*(.+)$/', $expr, $matches)) {
             if (in_array($matches[1], $this->vb)) { // make sure we're not assigning to a constant
-                return $this->trigger(get_string('cannotassigntoconstant', 'mathslib', $matches[1]));
+                return $this->trigger($this->get_string('cannotassigntoconstant', 'mathslib', $matches[1]));
             }
             if (($tmp = $this->pfx($this->nfx($matches[2]))) === false) return false; // get the result and make sure it's good
             $this->v[$matches[1]] = $tmp; // if so, stick it in the variable array
@@ -157,7 +209,7 @@ class EvalMath {
         } elseif (preg_match('/^\s*('.self::$namepat.')\s*\(\s*('.self::$namepat.'(?:\s*,\s*'.self::$namepat.')*)\s*\)\s*=\s*(.+)$/', $expr, $matches)) {
             $fnn = $matches[1]; // get the function name
             if (in_array($matches[1], $this->fb)) { // make sure it isn't built in
-                return $this->trigger(get_string('cannotredefinebuiltinfunction', 'mathslib', $matches[1]));
+                return $this->trigger($this->get_string('cannotredefinebuiltinfunction', 'mathslib', $matches[1]));
             }
             $args = explode(",", preg_replace("/\s+/", "", $matches[2])); // get the arguments
             if (($stack = $this->nfx($matches[3])) === false) return false; // see if it can be converted to postfix
@@ -536,17 +588,17 @@ class EvalMathFuncs {
         return $res;
     }
 
-    protected static $randomseed = null;
+    protected static $randomNumberseed = null;
 
-    static function set_random_seed($randomseed) {
-        self::$randomseed = $randomseed;
+    static function set_randomNumber_seed($randomNumberseed) {
+        self::$randomNumberseed = $randomNumberseed;
     }
 
-    static function get_random_seed() {
-        if (is_null(self::$randomseed)){
+    static function get_randomNumber_seed() {
+        if (is_null(self::$randomNumberseed)){
             return microtime();
         } else {
-            return self::$randomseed;
+            return self::$randomNumberseed;
         }
     }
 
@@ -555,20 +607,20 @@ class EvalMathFuncs {
             return false; //error
         }
         $noofchars = ceil(log($max + 1 - $min, '16'));
-        $md5string = md5(self::get_random_seed());
+        $md5string = md5(self::get_randomNumber_seed());
         $stringoffset = 0;
         do {
             while (($stringoffset + $noofchars) > strlen($md5string)){
                 $md5string .= md5($md5string);
             }
-            $randomno = hexdec(substr($md5string, $stringoffset, $noofchars));
+            $randomNumberno = hexdec(substr($md5string, $stringoffset, $noofchars));
             $stringoffset += $noofchars;
-        } while (($min + $randomno) > $max);
-        return $min + $randomno;
+        } while (($min + $randomNumberno) > $max);
+        return $min + $randomNumberno;
     }
 
     static function rand_float() {
-        $randomvalues = unpack('v', md5(self::get_random_seed(), true));
-        return array_shift($randomvalues) / 65536;
+        $randomNumbervalues = unpack('v', md5(self::get_randomNumber_seed(), true));
+        return array_shift($randomNumbervalues) / 65536;
     }
 }

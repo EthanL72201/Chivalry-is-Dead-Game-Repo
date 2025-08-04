@@ -1,13 +1,35 @@
 <?php
 /*
-	File: staff/staff_criminal.php
-	Created: 4/4/2017 at 7:01PM Eastern Time
-	Info: Staff panel for handling the criminal actions in-game.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine/
+	File: 		staff/staff_criminal.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to do actions relating to in-game crimes.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require_once('sglobals.php');
-echo "<h3>Staff Criminal Center</h3><hr />";
+echo "<h3>Crimes Staff Menu</h3><hr />";
 if ($ir['user_level'] != "Admin") {
     alert('danger', "Uh Oh!", "You do not have permission to be here.", true, 'index.php');
     die($h->endpage());
@@ -44,12 +66,12 @@ switch ($_GET['action']) {
 function home()
 {
     echo "
-	<a href='?action=newcrimegroup'>Create Crime Group</a><br />
-	<a href='?action=newcrime'>Create Crime</a><br />
-	<a href='?action=editcrime'>Edit Crime</a><br />
-	<a href='?action=delcrime'>Delete Crime</a><br />
-	<a href='?action=editcrimegroup'>Edit Crime Group</a><br />
-	<a href='?action=delcrimegroup'>Delete Crime Group</a><br />
+	<a href='?action=newcrimegroup' class='btn btn-primary'>Create Crime Group</a><br /><br />
+	<a href='?action=newcrime' class='btn btn-primary'>Create Crime</a><br /><br />
+	<a href='?action=editcrime' class='btn btn-primary'>Edit Crime</a><br /><br />
+	<a href='?action=delcrime' class='btn btn-primary'>Delete Crime</a><br /><br />
+	<a href='?action=editcrimegroup' class='btn btn-primary'>Edit Crime Group</a><br /><br />
+	<a href='?action=delcrimegroup' class='btn btn-primary'>Delete Crime Group</a><br />
 	";
 }
 
@@ -57,10 +79,10 @@ function new_crime()
 {
     global $db, $userid, $api, $h;
     if (!isset($_POST['name'])) {
-        $csrf = request_csrf_html('staff_newcrime');
+        $csrf = getHtmlCSRF('staff_newcrime');
         echo "Adding a new Crime<br />
 		<form method='post'>
-			<table class='table table-bordered'>
+			<table class='table table-bordered table-responsive'>
 				<tr>
 					<th width='33%'>
 						Crime Name
@@ -87,7 +109,7 @@ function new_crime()
 				</tr>
 				<tr>
 					<th>
-						Success Minimum Copper Coins
+						Success Minimum " . constant("primary_currency") . "
 					</th>
 					<td>
 						<input type='number' min='0' class='form-control' required='1' name='PRICURMIN' />
@@ -95,7 +117,7 @@ function new_crime()
 				</tr>
 				<tr>
 					<th>
-						Success Maximum Copper Coins
+						Success Maximum " . constant("primary_currency") . "
 					</th>
 					<td>
 						<input type='number' min='0' class='form-control' required='1' name='PRICURMAX' />
@@ -103,7 +125,7 @@ function new_crime()
 				</tr>
 				<tr>
 					<th>
-						Success Minimum Chivalry Tokens
+						Success Minimum " . constant("secondary_currency") . "
 					</th>
 					<td>
 						<input type='number' min='0' class='form-control' required='1' name='SECURMIN' />
@@ -111,7 +133,7 @@ function new_crime()
 				</tr>
 				<tr>
 					<th>
-						Success Maximum Seconary Currency
+						Success Maximum " . constant("secondary_currency") . "
 					</th>
 					<td>
 						<input type='number' min='0' class='form-control' required='1' name='SECURMAX' />
@@ -122,7 +144,7 @@ function new_crime()
 						Success Item
 					</th>
 					<td>
-						" . item_dropdown('item') . "
+						" . dropdownItem('item') . "
 					</td>
 				</tr>
 				<tr>
@@ -130,7 +152,7 @@ function new_crime()
 						Crime Group
 					</th>
 					<td>
-						" . crimegroup_dropdown('group') . "
+						" . dropdownCrimeGroup('group') . "
 					</td>
 				</tr>
 				<tr>
@@ -220,12 +242,12 @@ function new_crime()
             alert('danger', "Uh Oh!", "You are missing one or more required inputs on the previous form.");
             die($h->endpage());
         }
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_newcrime', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_newcrime', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Forms expire quickly. Go back and try again!");
             die($h->endpage());
         }
         if (!empty($_POST['item'])) {
-            $qi = $db->query("/*qc=on*/SELECT COUNT(`itmid`) FROM `items` WHERE `itmid` = {$_POST['item']}");
+            $qi = $db->query("SELECT COUNT(`itmid`) FROM `items` WHERE `itmid` = {$_POST['item']}");
             $exist_check = $db->fetch_single($qi);
             $db->free_result($qi);
             if ($exist_check == 0) {
@@ -243,7 +265,7 @@ function new_crime()
 		'{$_POST['stext']}', '{$_POST['jtext']}', '{$_POST['jtimemin']}', 
 		'{$_POST['jtimemax']}', '{$_POST['jreason']}', '{$_POST['xp']}');");
         alert('success', "Success!", "You have successfully created the {$_POST['name']} crime.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Created crime {$_POST['name']}");
+        $api->game->addLog($userid, 'staff', "Created crime {$_POST['name']}");
     }
 }
 
@@ -254,7 +276,7 @@ function edit_crime()
         $_POST['step'] = 0;
     }
     if ($_POST['step'] == 0) {
-        $csrf = request_csrf_html('staff_editcrime1');
+        $csrf = getHtmlCSRF('staff_editcrime1');
         echo "<form action='?action=editcrime' method='post'>";
         echo "
 		<table class='table table-bordered'>
@@ -268,7 +290,7 @@ function edit_crime()
 					Crime
 				</th>
 				<td>
-					" . crime_dropdown('crime') . "
+					" . dropdownCrime('crime') . "
 				</td>
 			</tr>
 			<tr>
@@ -282,7 +304,7 @@ function edit_crime()
     }
     if ($_POST['step'] == 1) {
         $_POST['crime'] = (isset($_POST['crime']) && is_numeric($_POST['crime'])) ? abs(intval($_POST['crime'])) : '';
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editcrime1', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_editcrime1', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Forms expire quickly. Go back and try again!");
             die($h->endpage());
         }
@@ -290,7 +312,7 @@ function edit_crime()
             alert('danger', "Uh Oh!", "Please specify a crime you wish to edit.");
             die($h->endpage());
         }
-        $d = $db->query("/*qc=on*/SELECT * FROM `crimes` WHERE `crimeID` = {$_POST['crime']}");
+        $d = $db->query("SELECT * FROM `crimes` WHERE `crimeID` = {$_POST['crime']}");
         if ($db->num_rows($d) == 0) {
             $db->free_result($d);
             alert('danger', "Uh Oh!", "The crime you're trying to edit does not exist.");
@@ -298,7 +320,7 @@ function edit_crime()
         }
         $itemi = $db->fetch_row($d);
         $db->free_result($d);
-        $csrf = request_csrf_html('staff_editcrime2');
+        $csrf = getHtmlCSRF('staff_editcrime2');
         echo "Edit Crime Form<br />
 		<form method='post'>
 			<table class='table table-bordered'>
@@ -328,7 +350,7 @@ function edit_crime()
 				</tr>
 				<tr>
 					<th>
-						Success Minimum Copper Coins
+						Success Minimum " . constant("primary_currency") . "
 					</th>
 					<td>
 						<input type='number' min='0' class='form-control' required='1' name='PRICURMIN' value='{$itemi['crimePRICURMIN']}' />
@@ -336,7 +358,7 @@ function edit_crime()
 				</tr>
 				<tr>
 					<th>
-						Success Maximum Copper Coins
+						Success Maximum " . constant("primary_currency") . "
 					</th>
 					<td>
 						<input type='number' min='0' class='form-control' required='1' name='PRICURMAX' value='{$itemi['crimePRICURMAX']}' />
@@ -344,7 +366,7 @@ function edit_crime()
 				</tr>
 				<tr>
 					<th>
-						Sucess Minimum Chivalry Tokens
+						Sucess Minimum " . constant("secondary_currency") . "
 					</th>
 					<td>
 						<input type='number' min='0' class='form-control' required='1' name='SECURMIN' value='{$itemi['crimeSECCURMIN']}' />
@@ -352,7 +374,7 @@ function edit_crime()
 				</tr>
 				<tr>
 					<th>
-						Success Maximum Chivalry Tokens
+						Success Maximum " . constant("secondary_currency") . "
 					</th>
 					<td>
 						<input type='number' min='0' class='form-control' required='1' name='SECURMAX' value='{$itemi['crimeSECURMAX']}' />
@@ -363,7 +385,7 @@ function edit_crime()
 						Success Item
 					</th>
 					<td>
-						" . item_dropdown('item', $itemi['crimeITEMSUC']) . "
+						" . dropdownItem('item', $itemi['crimeITEMSUC']) . "
 					</td>
 				</tr>
 				<tr>
@@ -371,7 +393,7 @@ function edit_crime()
 						Crime Group
 					</th>
 					<td>
-						" . crimegroup_dropdown('group', $itemi['crimeGROUP']) . "
+						" . dropdownCrimeGroup('group', $itemi['crimeGROUP']) . "
 					</td>
 				</tr>
 				<tr>
@@ -467,16 +489,16 @@ function edit_crime()
             alert('danger', "Uh Oh!", "Please specify the crime you wish to edit.");
             die($h->endpage());
         }
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editcrime2', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_editcrime2', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Forms expire quickly. Go back and try again!");
             die($h->endpage());
         }
         if (!empty($_POST['item'])) {
-            $qi = $db->query("/*qc=on*/SELECT COUNT(`itmid`) FROM `items` WHERE `itmid` = {$_POST['item']}");
+            $qi = $db->query("SELECT COUNT(`itmid`) FROM `items` WHERE `itmid` = {$_POST['item']}");
             $exist_check = $db->fetch_single($qi);
             $db->free_result($qi);
             if ($exist_check == 0) {
-                alert('danger', "Uh Oh!", "The crime you are trying to edit does not exist.");
+                alert('danger', "Uh Oh!", "The item you wish for this crime to drop does not exist.");
                 die($h->endpage());
             }
         }
@@ -492,7 +514,7 @@ function edit_crime()
 			 `crimeDUNGMAX` = {$_POST['jtimemax']}, `crimeXP` = {$_POST['xp']}
              WHERE `crimeID` = {$_POST['crimeID']}");
         alert('success', "Success!", "You have successfully edited the {$_POST['name']} crime.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Edited crime {$_POST['name']}");
+        $api->game->addLog($userid, 'staff', "Edited crime {$_POST['name']}");
     }
 }
 
@@ -501,7 +523,7 @@ function delcrime()
     global $db, $userid, $api, $h;
     if (isset($_POST['crime'])) {
         $_POST['crime'] = (isset($_POST['crime']) && is_numeric($_POST['crime'])) ? abs(intval($_POST['crime'])) : '';
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_delcrime', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_delcrime', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Forms expire quickly. Go back and try again!");
             die($h->endpage());
         }
@@ -509,7 +531,7 @@ function delcrime()
             alert('danger', "Uh Oh!", "Please specify a crime you wish to delete.");
             die($h->endpage());
         }
-        $d = $db->query("/*qc=on*/SELECT * FROM `crimes` WHERE `crimeID` = {$_POST['crime']}");
+        $d = $db->query("SELECT * FROM `crimes` WHERE `crimeID` = {$_POST['crime']}");
         if ($db->num_rows($d) == 0) {
             $db->free_result($d);
             alert('danger', "Uh Oh!", "You are trying to delete a non-existent crime.");
@@ -517,10 +539,10 @@ function delcrime()
         }
         $db->query("DELETE FROM `crimes` WHERE `crimeID` = {$_POST['crime']}");
         alert('success', "Success!", "You have successfully deleted Crime ID #{$_POST['crime']}.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Deleted Crime ID {$_POST['crime']}.");
+        $api->game->addLog($userid, 'staff', "Deleted Crime ID {$_POST['crime']}.");
 
     } else {
-        $csrf = request_csrf_html('staff_delcrime');
+        $csrf = getHtmlCSRF('staff_delcrime');
         echo "<form method='post'>
 		<table class='table table-bordered'>
 			<tr>
@@ -533,7 +555,7 @@ function delcrime()
 					Crime
 				</th>
 				<td>
-					" . crime_dropdown('crime') . "
+					" . dropdownCrime('crime') . "
 				</td>
 			</tr>
 			<tr>
@@ -557,11 +579,11 @@ function new_crimegroup()
             alert('danger', "Uh Oh!", "Please fill out the form before submitting it.");
             die($h->endpage());
         }
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_newcrimegroup', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_newcrimegroup', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Forms expire quickly. Go back and try again!");
             die($h->endpage());
         }
-        $d = $db->query("/*qc=on*/SELECT COUNT(`cgID`) FROM `crimegroups` WHERE `cgORDER` = {$_POST['cgORDER']}");
+        $d = $db->query("SELECT COUNT(`cgID`) FROM `crimegroups` WHERE `cgORDER` = {$_POST['cgORDER']}");
         if ($db->fetch_single($d) > 0) {
             $db->free_result($d);
             alert('danger', "Uh Oh!", "You cannot have more than one crime group with the same order number.");
@@ -570,10 +592,10 @@ function new_crimegroup()
         $db->free_result($d);
         $db->query("INSERT INTO `crimegroups` (`cgNAME`, `cgORDER`) VALUES('{$_POST['cgNAME']}', '{$_POST['cgORDER']}')");
         alert('success', "Success!", "You have successfully created the {$_POST['cgNAME']} Crime Group.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Created Crime Group {$_POST['cgNAME']}");
+        $api->game->addLog($userid, 'staff', "Created Crime Group {$_POST['cgNAME']}");
 
     } else {
-        $csrf = request_csrf_html('staff_newcrimegroup');
+        $csrf = getHtmlCSRF('staff_newcrimegroup');
         echo "Adding a new crime group<br />
 		<form method='post'>
 			<table class='table table-bordered'>
@@ -612,7 +634,7 @@ function edit_crimegroup()
         $_POST['step'] = 0;
     }
     if ($_POST['step'] == 0) {
-        $csrf = request_csrf_html('staff_editcrimegroup1');
+        $csrf = getHtmlCSRF('staff_editcrimegroup1');
         echo "<form method='post'>
 		<table class='table table-bordered'>
 			<tr>
@@ -625,7 +647,7 @@ function edit_crimegroup()
 					Crime Group
 				</th>
 				<td>
-					" . crimegroup_dropdown('crimegroup') . "
+					" . dropdownCrimeGroup('crimegroup') . "
 				</td>
 			</tr>
 			<tr>
@@ -640,7 +662,7 @@ function edit_crimegroup()
     }
     if ($_POST['step'] == 1) {
         $_POST['crimegroup'] = (isset($_POST['crimegroup']) && is_numeric($_POST['crimegroup'])) ? abs(intval($_POST['crimegroup'])) : '';
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editcrimegroup1', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_editcrimegroup1', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Forms expire quickly. Go back and try again!");
             die($h->endpage());
         }
@@ -648,7 +670,7 @@ function edit_crimegroup()
             alert('danger', "Uh Oh!", "Please specify the crime group you wish to edit.");
             die($h->endpage());
         }
-        $d = $db->query("/*qc=on*/SELECT `cgORDER`, `cgNAME` FROM `crimegroups` WHERE `cgID` = {$_POST['crimegroup']}");
+        $d = $db->query("SELECT `cgORDER`, `cgNAME` FROM `crimegroups` WHERE `cgID` = {$_POST['crimegroup']}");
         if ($db->num_rows($d) == 0) {
             $db->free_result($d);
             alert('danger', "Uh Oh!", "The Crime Group you've selected does not exist.");
@@ -656,7 +678,7 @@ function edit_crimegroup()
         }
         $itemi = $db->fetch_row($d);
         $db->free_result($d);
-        $csrf = request_csrf_html('staff_editcrimegroup2');
+        $csrf = getHtmlCSRF('staff_editcrimegroup2');
         echo "<form method='post'>
 			<table class='table table-bordered'>
 				<tr>
@@ -691,7 +713,7 @@ function edit_crimegroup()
         $_POST['cgNAME'] = (isset($_POST['cgNAME']) && preg_match("/^[a-z0-9_]+([\\s]{1}[a-z0-9_]|[a-z0-9_])+$/i", $_POST['cgNAME'])) ? $db->escape(strip_tags(stripslashes($_POST['cgNAME']))) : '';
         $_POST['cgORDER'] = (isset($_POST['cgORDER']) && is_numeric($_POST['cgORDER'])) ? abs(intval($_POST['cgORDER'])) : '';
         $_POST['cgID'] = (isset($_POST['cgID']) && is_numeric($_POST['cgID'])) ? abs(intval($_POST['cgID'])) : '';
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editcrimegroup2', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_editcrimegroup2', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Forms expire quickly. Go back and try again!");
             die($h->endpage());
         }
@@ -699,7 +721,7 @@ function edit_crimegroup()
             alert('danger', "Uh Oh!", "Please fill out the form entirely before submitting.");
             die($h->endpage());
         } else {
-            $d = $db->query("/*qc=on*/SELECT COUNT(`cgID`) FROM `crimegroups` WHERE `cgORDER` = {$_POST['cgORDER']} AND `cgID` != {$_POST['cgID']}");
+            $d = $db->query("SELECT COUNT(`cgID`) FROM `crimegroups` WHERE `cgORDER` = {$_POST['cgORDER']} AND `cgID` != {$_POST['cgID']}");
             if ($db->fetch_single($d) > 0) {
                 $db->free_result($d);
                 alert('danger', "Uh Oh!", "You cannot have more than one crime group with the same order number.");
@@ -708,7 +730,7 @@ function edit_crimegroup()
             $db->free_result($d);
             $db->query("UPDATE `crimegroups` SET `cgNAME` = '{$_POST['cgNAME']}', `cgORDER` = '{$_POST['cgORDER']}' WHERE `cgID` = '{$_POST['cgID']}'");
             alert('success', "Success!", "You have successfully edited the {$_POST['cgNAME']} Crime Group.", true, 'index.php');
-            $api->SystemLogsAdd($userid, 'staff', "Edited Crime Group {$_POST['cgNAME']}");
+            $api->game->addLog($userid, 'staff', "Edited Crime Group {$_POST['cgNAME']}");
         }
     }
 }
@@ -718,7 +740,7 @@ function delcrimegroup()
     global $db, $userid, $api, $h;
     if (isset($_POST['crimeGROUP'])) {
         $_POST['crimeGROUP'] = (isset($_POST['crimeGROUP']) && is_numeric($_POST['crimeGROUP'])) ? abs(intval($_POST['crimeGROUP'])) : '';
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_delcrimegroup', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_delcrimegroup', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Forms expire quickly. Go back and try again!");
             die($h->endpage());
         }
@@ -726,7 +748,7 @@ function delcrimegroup()
             alert('danger', "Uh Oh!", "Please specify the crime group you wish to delete.");
             die($h->endpage());
         }
-        $d = $db->query("/*qc=on*/SELECT * FROM `crimegroups` WHERE `cgID` = {$_POST['crimeGROUP']}");
+        $d = $db->query("SELECT * FROM `crimegroups` WHERE `cgID` = {$_POST['crimeGROUP']}");
         if ($db->num_rows($d) == 0) {
             $db->free_result($d);
             alert('danger', "Uh Oh!", "The Crime Group you wish to delete does not exist.");
@@ -734,9 +756,9 @@ function delcrimegroup()
         }
         $db->query("DELETE FROM `crimegroups` WHERE `cgID` = {$_POST['crimeGROUP']}");
         alert('success', "Success!", "You have successfully deleted Crime Group ID #{$_POST['crimeGROUP']}.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Deleted Crime Group ID {$_POST['crimeGROUP']}.");
+        $api->game->addLog($userid, 'staff', "Deleted Crime Group ID {$_POST['crimeGROUP']}.");
     } else {
-        $csrf = request_csrf_html('staff_delcrimegroup');
+        $csrf = getHtmlCSRF('staff_delcrimegroup');
         echo "<form method='post'>
 		<table class='table table-bordered'>
 			<tr>
@@ -749,7 +771,7 @@ function delcrimegroup()
 					Crime Group
 				</th>
 				<td>
-					" . crimegroup_dropdown('crimeGROUP') . "
+					" . dropdownCrimeGroup('crimeGROUP') . "
 				</td>
 			</tr>
 			<tr>

@@ -1,10 +1,32 @@
 <?php
 /*
-	File: staff/staff_punish.php
-	Created: 4/4/2017 at 7:03PM Eastern Time
-	Info: Staff panel for punishments on users.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine/
+	File: 		staff/staff_punish.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Staff menu for punishing a player in-game.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require_once('sglobals.php');
 if (!isset($_GET['action'])) {
@@ -41,14 +63,8 @@ switch ($_GET['action']) {
     case 'massmail':
         massmail();
         break;
-	case 'massnotif':
-        massnotif();
-        break;
     case 'massemail':
         massemail();
-        break;
-    case 'directemail':
-        directemail();
         break;
     case 'banip':
         banip();
@@ -62,13 +78,31 @@ switch ($_GET['action']) {
     case 'unmailban':
         unmailban();
         break;
-	case 'spamhammer':
-        spamhammer();
-        break;
     default:
-        alert('danger', "Uh Oh!", "Please select a valid action to perform.", true, 'index.php');
-        die($h->endpage());
+        menu();
         break;
+}
+function menu()
+{
+	global $api, $userid;
+	echo "<h3>Punishment Staff Menu</h3><hr />
+	<a href='?action=forumwarn' class='btn btn-primary'>Give Forum Warn</a><br /><br />
+	<a href='?action=forumban' class='btn btn-primary'>Give Forum Ban</a><br /><br />
+	<a href='?action=unforumban' class='btn btn-primary'>Remove Forum Ban</a><br /><br />
+	<a href='?action=mailban' class='btn btn-primary'>Give Mail Warn</a><br /><br />
+	<a href='?action=unmailban' class='btn btn-primary'>Remove Mail Ban</a><br /><br />
+	<a href='?action=fedjail' class='btn btn-primary'>Give Federal Dungeon</a><br /><br />";
+	if ($api->user->getStaffLevel($userid, 'assistant')) 
+	{
+		echo "<a href='?action=editfedjail' class='btn btn-primary'>Federal Dungeon Edit</a><br /><br />
+		<a href='?action=unfedjail' class='btn btn-primary'>Federal Dungeon Pardon</a><br /><br />
+		<a href='?action=ipsearch' class='btn btn-primary'>IP Search</a><br /><br />";
+	}
+	if ($api->user->getStaffLevel($userid, 'admin')) 
+	{
+		echo "<a href='?action=banip' class='btn btn-primary'>Ban IP Address</a><br /><br />
+		<a href='?action=unbanip' class='btn btn-primary'>Pardon IP Address</a><br /><br />";
+	}
 }
 function fedjail()
 {
@@ -77,7 +111,7 @@ function fedjail()
         $_POST['user'] = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs($_POST['user']) : 0;
         $_POST['reason'] = (isset($_POST['reason'])) ? $db->escape(strip_tags(stripslashes($_POST['reason']))) : 0;
         $_POST['days'] = (isset($_POST['days']) && is_numeric($_POST['days'])) ? abs($_POST['days']) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_feduser', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_feduser', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -85,7 +119,7 @@ function fedjail()
             alert('danger', "Uh Oh!", "Please fill out the form completely before submitting it.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT `user_level` FROM `users` WHERE `userid` = {$_POST['user']}");
+        $q = $db->query("SELECT `user_level` FROM `users` WHERE `userid` = {$_POST['user']}");
         if ($db->num_rows($q) == 0) {
             $db->free_result($q);
             alert('danger', "Uh Oh!", "This user does not exist.");
@@ -97,7 +131,7 @@ function fedjail()
             alert('danger', "Uh Oh!", "You cannot place administrators into the federal dungeon. Please remove their privilege and try again.");
             die($h->endpage());
         }
-        $already_fed = $db->query("/*qc=on*/SELECT `fed_id` FROM `fedjail` WHERE `fed_userid` = {$_POST['user']}");
+        $already_fed = $db->query("SELECT `fed_id` FROM `fedjail` WHERE `fed_userid` = {$_POST['user']}");
         if ($db->num_rows($already_fed) > 0) {
             alert('danger', "Uh Oh!", "This user is already in the federal dungeon. Please edit their sentence.");
             die($h->endpage());
@@ -106,14 +140,13 @@ function fedjail()
         $days = $_POST['days'];
         $_POST['days'] = time() + ($_POST['days'] * 86400);
         $db->query("INSERT INTO `fedjail` VALUES(NULL, {$_POST['user']}, {$_POST['days']}, {$userid}, '{$_POST['reason']}')");
-        $api->SystemLogsAdd($userid, 'staff', "Placed <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] into the federal dungeon for {$days} days for {$_POST['reason']}.");
-        $api->SystemLogsAdd($userid, 'fedjail', "Placed <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] into the federal dungeon for {$days} days for {$_POST['reason']}.");
-        alert('success', "Success!", "You have placed {$api->SystemUserIDtoName($_POST['user'])} in the federal dungeon for {$days} days for {$_POST['reason']}. ", true, 'index.php');
-        staffnotes_entry($_POST['user'],"Placed in the federal dungeon for {$days} days for '{$_POST['reason']}'.");
-		die($h->endpage());
+        $api->game->addLog($userid, 'staff', "Placed <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}] into the federal dungeon for {$days} days for {$_POST['reason']}.");
+        $api->game->addLog($userid, 'fedjail', "Placed <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}] into the federal dungeon for {$days} days for {$_POST['reason']}.");
+        alert('success', "Success!", "You have placed {$api->user->getNamefromID($_POST['user'])} in the federal dungeon for {$days} days for {$_POST['reason']}. ", true, 'index.php');
+        die($h->endpage());
     } else {
         $_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs(intval($_GET['user'])) : 0;
-        $csrf = request_csrf_html('staff_feduser');
+        $csrf = getHtmlCSRF('staff_feduser');
         echo "
 		<h3>
 			Jailing User
@@ -130,7 +163,7 @@ function fedjail()
 					User
 				</th>
 				<td>
-					" . user_dropdown('user', $_GET['user']) . "
+					" . dropdownUser('user', $_GET['user']) . "
 				</td>
 			</tr>
 			<tr>
@@ -170,7 +203,7 @@ function editfedjail()
         $_POST['days'] = (isset($_POST['days']) && is_numeric($_POST['days'])) ? abs(intval($_POST['days'])) : 0;
 
         //Verify CSRF Check has passed
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_editfedjail', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_editfedjail', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -181,13 +214,13 @@ function editfedjail()
             die($h->endpage());
         }
         //Check that the user exists and is in federal dungeon.
-        $q = $db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$_POST['user']} AND `fedjail` > 0");
+        $q = $db->query("SELECT `username` FROM `users` WHERE `userid` = {$_POST['user']} AND `fedjail` > 0");
         if ($db->num_rows($q) == 0) {
             alert('danger', "Uh Oh!", "User does not exist, or is currently not in the federal dungeon.");
             die($h->endpage());
         }
         //Check if user is an admin... you can't fed admins!
-        if ($api->UserMemberLevelGet($_POST['user'], 'admin')) {
+        if ($api->user->getStaffLevel($_POST['user'], 'admin')) {
             alert('danger', "Uh Oh!", "You cannot place admins in the federal dungeon.");
             die($h->endpage());
         }
@@ -197,19 +230,18 @@ function editfedjail()
                     SET `fed_out` = {$jailout},
                     `fed_reason` = '{$_POST['reason']}'
                     WHERE `fed_userid` = {$_POST['user']}");
-        $log = "Edited <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a>
+        $log = "Edited <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a>
                 [{$_POST['user']}]'s federal dungeon sentence.";
 
         //Log the action
-        $api->SystemLogsAdd($userid, 'staff', $log);
-        $api->SystemLogsAdd($userid, 'fedjail', $log);
+        $api->game->addLog($userid, 'staff', $log);
+        $api->game->addLog($userid, 'fedjail', $log);
 
         //Send the alert!
-        alert('success', "Success!", "You have successfully edited {$api->SystemUserIDtoName($_POST['user'])}
+        alert('success', "Success!", "You have successfully edited {$api->user->getNamefromID($_POST['user'])}
             [{$_POST['user']}]'s federal dungeon sentence.", true, 'index.php');
-		staffnotes_entry($_POST['user'],"Edited federal dungeon sentence to {$_POST['days']} days for '{$_POST['reason']}'.");
     } else {
-        $csrf = request_csrf_html('staff_editfedjail');
+        $csrf = getHtmlCSRF('staff_editfedjail');
         echo "Fill out this form to edit a user's federal dungeon sentence. If the dropdown is empty, that means there is no users
         in the federal dungeon.<br />
         <form method='post'>
@@ -219,7 +251,7 @@ function editfedjail()
                     User
                 </th>
                 <td>
-                    " . fed_user_dropdown() . "
+                    " . dropdownFedJailUser() . "
                 </td>
             </tr>
             <tr>
@@ -257,23 +289,22 @@ function unfedjail()
     $_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs($_GET['user']) : 0;
     if (isset($_POST['user'])) {
         $_POST['user'] = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs($_POST['user']) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_unfeduser', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_unfeduser', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
-        $check = $db->query("/*qc=on*/SELECT `fed_id` FROM `fedjail` WHERE `fed_userid` = {$_POST['user']} LIMIT 1");
+        $check = $db->query("SELECT `fed_id` FROM `fedjail` WHERE `fed_userid` = {$_POST['user']} LIMIT 1");
         if ($db->num_rows($check) == 0) {
             alert('danger', "Uh Oh!", "This user is not in the federal dungeon.");
             die($h->endpage());
         }
         $db->query("DELETE FROM `fedjail` WHERE `fed_userid` = {$_POST['user']}");
         $db->query("UPDATE `users` SET `fedjail` = 0 WHERE `userid` = {$_POST['user']}");
-        $api->SystemLogsAdd($userid, 'staff', "Removed <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] from the federal dungeon.");
-        $api->SystemLogsAdd($userid, 'fedjail', "Removed <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] from the federal dungeon.");
-        alert('success', "Success!", "You have successfully removed {$api->SystemUserIDtoName($_POST['user'])} from the federal dungeon.", true, 'index.php');
-		staffnotes_entry($_POST['user'],"Removed federal dungeon sentence.");
-	} else {
-        $csrf = request_csrf_html('staff_unfeduser');
+        $api->game->addLog($userid, 'staff', "Removed <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}] from the federal dungeon.");
+        $api->game->addLog($userid, 'fedjail', "Removed <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}] from the federal dungeon.");
+        alert('success', "Success!", "You have successfully removed {$api->user->getNamefromID($_POST['user'])} from the federal dungeon.", true, 'index.php');
+    } else {
+        $csrf = getHtmlCSRF('staff_unfeduser');
         echo "<form method='post'>
 			<table class='table table-bordered'>
 				<tr>
@@ -286,7 +317,7 @@ function unfedjail()
 						User
 					</th>
 					<td>
-						" . fed_user_dropdown('user', $_GET['user']) . "
+						" . dropdownFedJailUser('user', $_GET['user']) . "
 					</td>
 				</tr>
 				<tr>
@@ -312,7 +343,7 @@ function mailban()
         $_POST['days'] = (isset($_POST['days']) && is_numeric($_POST['days'])) ? abs($_POST['days']) : 0;
 
         //Verify the CSRF check has passed.
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_mailban', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_mailban', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -324,7 +355,7 @@ function mailban()
         }
 
         //Check that the user exists
-        $q = $db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$_POST['user']}");
+        $q = $db->query("SELECT `username` FROM `users` WHERE `userid` = {$_POST['user']}");
         if ($db->num_rows($q) == 0) {
             $db->free_result($q);
             alert('danger', "Uh Oh!", "You cannot mail ban users that do not exist.");
@@ -332,13 +363,13 @@ function mailban()
         }
 
         //Check that the user is not an admin.
-        if ($api->UserMemberLevelGet($_POST['user'], 'admin')) {
+        if ($api->user->getStaffLevel($_POST['user'], 'admin')) {
             alert('danger', "Uh Oh!", "You cannot mail ban game admins.");
             die($h->endpage());
         }
 
         //See if user is already mail-banned
-        $q2 = $db->query("/*qc=on*/SELECT * FROM `mail_bans` WHERE `mbUSER` = {$_POST['user']}");
+        $q2 = $db->query("SELECT * FROM `mail_bans` WHERE `mbUSER` = {$_POST['user']}");
         if ($db->num_rows($q2) != 0) {
             alert('danger', "Uh Oh!", "This user is already mail-banned.");
             die($h->endpage());
@@ -350,13 +381,12 @@ function mailban()
         $db->query("INSERT INTO `mail_bans`
                     (`mbUSER`, `mbREASON`, `mbBANNER`, `mbTIME`) VALUES
                     ('{$_POST['user']}', '{$_POST['reason']}', '{$userid}', '{$time}')");
-        $user = $api->SystemUserIDtoName($_POST['user']);
-        $api->SystemLogsAdd($userid, 'staff', "Mail banned {$user} [{$_POST['user']}] for {$_POST['days']} days for {$_POST['reason']}.");
-        $api->GameAddNotification($_POST['user'], "You have been mail-banned for {$_POST['days']} days for the reason: '{$_POST['reason']}'.");
+        $user = $api->user->getNamefromID($_POST['user']);
+        $api->game->addLog($userid, 'staff', "Mail banned {$user} [{$_POST['user']}] for {$_POST['days']} days for {$_POST['reason']}.");
+        $api->user->addNotification($_POST['user'], "You have been mail-banned for {$_POST['days']} days for the reason: '{$_POST['reason']}'.");
         alert('success', "Success!", "You have successfully mailed banned {$user} for {$_POST['days']} days for {$_POST['reason']}.");
-		staffnotes_entry($_POST['user'],"Mail banned for {$_POST['days']} for '{$_POST['reason']}'.");
     } else {
-        $csrf = request_csrf_html('staff_mailban');
+        $csrf = getHtmlCSRF('staff_mailban');
         echo "
 		<table class='table table-bordered'>
 			<tr>
@@ -370,7 +400,7 @@ function mailban()
 					User
 				</th>
 				<td>
-					" . user_dropdown('user', $_GET['user']) . "
+					" . dropdownUser('user', $_GET['user']) . "
 				</td>
 			</tr>
 			<tr>
@@ -410,13 +440,13 @@ function unmailban()
         $_POST['user'] = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs($_POST['user']) : 0;
 
         //Verify that the CSRF check has passed.
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_unmailban', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_unmailban', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
 
         //Check that the user is mail banned or not.
-        $check = $db->query("/*qc=on*/SELECT `mbID` FROM `mail_bans` WHERE `mbUSER` = {$_POST['user']} LIMIT 1");
+        $check = $db->query("SELECT `mbID` FROM `mail_bans` WHERE `mbUSER` = {$_POST['user']} LIMIT 1");
         if ($db->num_rows($check) == 0) {
             alert('danger', "Uh Oh!", "This user is not currently mail banned.");
             die($h->endpage());
@@ -426,14 +456,13 @@ function unmailban()
         $db->query("DELETE FROM `mail_bans` WHERE `mbUSER` = {$_POST['user']}");
 
         //Notify user they're unbanned
-        $api->GameAddNotification($_POST['user'], "The game administration has removed your mail ban. You can use the mailing system again.");
-        $un = $api->SystemUserIDtoName($_POST['user']);
+        $api->user->addNotification($_POST['user'], "The game administration has removed your mail ban. You can use the mailing system again.");
+        $un = $api->user->getNamefromID($_POST['user']);
         //Log the unban.
-        $api->SystemLogsAdd($userid, 'staff', "Removed {$un} [{$_POST['user']}]'s mail ban.");
+        $api->game->addLog($userid, 'staff', "Removed {$un} [{$_POST['user']}]'s mail ban.");
         alert('success', "Success!", "You have successfully removed {$un} [{$_POST['user']}]'s mail ban.", true, 'index.php');
-		staffnotes_entry($_POST['user'],"Removed mailban.");
     } else {
-        $csrf = request_csrf_html('staff_unmailban');
+        $csrf = getHtmlCSRF('staff_unmailban');
         echo "<form method='post'>
 			<table class='table table-bordered'>
 				<tr>
@@ -446,7 +475,7 @@ function unmailban()
 						User
 					</th>
 					<td>
-						" . mailb_user_dropdown('user', $_GET['user']) . "
+						" . dropdownMailbanUser('user', $_GET['user']) . "
 					</td>
 				</tr>
 				<tr>
@@ -468,8 +497,7 @@ function forumwarn()
     if (isset($_POST['user'])) {
         $_POST['user'] = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs($_POST['user']) : 0;
         $_POST['reason'] = $db->escape(strip_tags(stripslashes($_POST['reason'])));
-		$reason=$_POST['reason'];
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_forumwarn', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_forumwarn', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -477,18 +505,17 @@ function forumwarn()
             alert('danger', "Uh Oh!", "Please fill out the form completely before submitting it.");
             die($h->endpage());
         }
-        $check = $db->query("/*qc=on*/SELECT `userid` FROM `users` WHERE `userid` = {$_POST['user']} LIMIT 1");
+        $check = $db->query("SELECT `userid` FROM `users` WHERE `userid` = {$_POST['user']} LIMIT 1");
         if ($db->num_rows($check) == 0) {
             alert('danger', "Uh Oh!", "The user you are attempting to warn does not exist.");
             die($h->endpage());
         }
-        $api->SystemLogsAdd($userid, 'staff', "Forum Warned <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] for '{$_POST['reason']}'.");
-        $api->SystemLogsAdd($userid, 'forumwarn', "Forum Warned <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] for '{$_POST['reason']}'.");
-        $api->GameAddNotification($_POST['user'], "You have been received a forum warning for the following reason: {$reason}.");
-        alert('success', "Success!", "You have forum warned {$api->SystemUserIDtoName($_POST['user'])}.");
-		staffnotes_entry($_POST['user'],"Forum warned for '{$reason}'.");
+        $api->game->addLog($userid, 'staff', "Forum Warned <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}] for '{$_POST['reason']}'.");
+        $api->game->addLog($userid, 'forumwarn', "Forum Warned <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}] for '{$_POST['reason']}'.");
+        $api->user->addNotification($_POST['user'], "You have been received a forum warning for the following reason: {$_POST['reason']}.");
+        alert('success', "Success!", "You have forum warned {$api->user->getNamefromID($_POST['user'])}.");
     } else {
-        $csrf = request_csrf_html('staff_forumwarn');
+        $csrf = getHtmlCSRF('staff_forumwarn');
         echo "<form method='post'>
 			<table class='table table-bordered'>
 				<tr>
@@ -501,7 +528,7 @@ function forumwarn()
 						User
 					</th>
 					<td>
-						" . user_dropdown('user', $_GET['user']) . "
+						" . dropdownUser('user', $_GET['user']) . "
 					</td>
 				</tr>
 				<tr>
@@ -529,7 +556,7 @@ function ipsearch()
     echo "<h3>IP Lookup</h3><hr />";
     if (isset($_POST['ip'])) {
         $_POST['ip'] = (filter_input(INPUT_POST, 'ip', FILTER_VALIDATE_IP)) ? $_POST['ip'] : '';
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_ipsearch', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_ipsearch', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -552,7 +579,7 @@ function ipsearch()
 				Registration
 			</th>
 		</tr>";
-        $q = $db->query("/*qc=on*/SELECT `username`,`userid`,`registertime`,`level`
+        $q = $db->query("SELECT `username`,`userid`,`registertime`,`level`
 						FROM `users` WHERE `lastip` = '{$queryip}' 
 						OR `registerip` = '{$queryip}' 
 						OR `loginip` = '{$queryip}'
@@ -572,7 +599,7 @@ function ipsearch()
 				</td>
 			</tr>";
         }
-        $csrf = request_csrf_html('staff_massjail');
+        $csrf = getHtmlCSRF('staff_massjail');
         echo "</table>
 		<form action='?action=massjail' method='post'>
 		<input type='hidden' name='ids' value='" . implode(",", $ids) . "' />
@@ -607,8 +634,7 @@ function ipsearch()
 		{$csrf}
 		</form>";
     } else {
-        $csrf = request_csrf_html('staff_ipsearch');
-        $formValue = (isset($_GET['ip'])) ? addslashes($_GET['ip']) : "...";
+        $csrf = getHtmlCSRF('staff_ipsearch');
         echo "
 		<form method='post'>
 			<table class='table table-bordered'>
@@ -622,7 +648,7 @@ function ipsearch()
 						IP Address
 					</th>
 					<td>
-						<input type='text' class='form-control' required='1' name='ip' value='{$formValue}'>
+						<input type='text' class='form-control' required='1' name='ip' value='...'>
 					</td>
 				</tr>
 				<tr>
@@ -639,7 +665,7 @@ function ipsearch()
 function massjail()
 {
     global $db, $userid, $api, $h;
-    if (!isset($_POST['verf']) || !verify_csrf_code('staff_massjail', stripslashes($_POST['verf']))) {
+    if (!isset($_POST['verf']) || !checkCSRF('staff_massjail', stripslashes($_POST['verf']))) {
         alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
         die($h->endpage());
     }
@@ -659,16 +685,15 @@ function massjail()
             $safe_id = abs($id);
             $days = ($_POST['days'] * 86400) + time();
             $db->query("INSERT INTO `fedjail` VALUES(NULL, {$safe_id}, {$days}, {$userid}, '{$_POST['reason']}')");
-            $api->SystemLogsAdd($userid, 'fedjail', "Placed <a href='../profile.php?user={$safe_id}'>{$api->SystemUserIDtoName($safe_id)}</a> [{$safe_id}] into the federal dungeon for {$days} days for {$_POST['reason']}.");
+            $api->game->addLog($userid, 'fedjail', "Placed <a href='../profile.php?user={$safe_id}'>{$api->user->getNamefromID($safe_id)}</a> [{$safe_id}] into the federal dungeon for {$days} days for {$_POST['reason']}.");
             echo "Placing User ID {$safe_id} into the federal dungeon.<br />";
-			staffnotes_entry($safe_id,"Placed into federal dungeon for {$days} with reason '{$_POST['reason']}.");
             $ju[] = $id;
         }
     }
     if (count($ju) > 0) {
         $juv = implode(',', $ju);
         $re = $db->query("UPDATE `users` SET `fedjail` = 1 WHERE `userid` IN({$juv})");
-        $api->SystemLogsAdd($userid, 'staff', "Mass jailed User IDs {$juv} for {$_POST['days']} days for {$_POST['reason']}.");
+        $api->game->addLog($userid, 'staff', "Mass jailed User IDs {$juv} for {$_POST['days']} days for {$_POST['reason']}.");
         alert('success', "Success!", "You have placed User IDs {$juv} into the federal dungeon.", true, 'index.php');
         die($h->endpage());
     } else {
@@ -684,7 +709,7 @@ function forumban()
         $_POST['user'] = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs($_POST['user']) : 0;
         $_POST['reason'] = (isset($_POST['reason'])) ? $db->escape(strip_tags(stripslashes($_POST['reason']))) : 0;
         $_POST['days'] = (isset($_POST['days']) && is_numeric($_POST['days'])) ? abs($_POST['days']) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_forumban', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_forumban', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -692,7 +717,7 @@ function forumban()
             alert('danger', "Uh Oh!", "Please fill out the previous form completely before submitting again.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT `user_level` FROM `users` WHERE `userid` = {$_POST['user']}");
+        $q = $db->query("SELECT `user_level` FROM `users` WHERE `userid` = {$_POST['user']}");
         if ($db->num_rows($q) == 0) {
             $db->free_result($q);
             alert('danger', "Uh Oh!", "This user does not exist.");
@@ -704,7 +729,7 @@ function forumban()
             alert('danger', "Uh Oh!", "You cannot forum ban an administrator.");
             die($h->endpage());
         }
-        $already_fed = $db->query("/*qc=on*/SELECT `fb_id` FROM `forum_bans` WHERE `fb_user` = {$_POST['user']}");
+        $already_fed = $db->query("SELECT `fb_id` FROM `forum_bans` WHERE `fb_user` = {$_POST['user']}");
         if ($db->num_rows($already_fed) > 0) {
             alert('danger', "Uh Oh!", "This user is already forum banned. Please edit their ban.");
             die($h->endpage());
@@ -712,15 +737,14 @@ function forumban()
         $days = $_POST['days'];
         $_POST['days'] = time() + ($_POST['days'] * 86400);
         $db->query("INSERT INTO `forum_bans` VALUES(NULL, {$_POST['user']}, {$userid}, {$_POST['days']}, '{$_POST['reason']}')");
-        $api->SystemLogsAdd($userid, 'staff', "Forum banned <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] for {$days} days for {$_POST['reason']}.");
-        $api->SystemLogsAdd($userid, 'forumban', "Forum banned <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] for {$days} days for {$_POST['reason']}.");
-        $api->GameAddNotification($_POST['user'], "The game administration has forum banned you for {$days} days for the following reason: '{$_POST['reason']}'.");
-        alert('success', "Success!", "You have successfully forum banned {$api->SystemUserIDtoName($_POST['user'])} for {$days} days for {$_POST['reason']}.", true, 'index.php');
-        staffnotes_entry($_POST['user'],"Forum banned for {$days} days, with reason '{$_POST['reason']}'.");
-		die($h->endpage());
+        $api->game->addLog($userid, 'staff', "Forum banned <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}] for {$days} days for {$_POST['reason']}.");
+        $api->game->addLog($userid, 'forumban', "Forum banned <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}] for {$days} days for {$_POST['reason']}.");
+        $api->user->addNotification($_POST['user'], "The game administration has forum banned you for {$days} days for the following reason: '{$_POST['reason']}'.");
+        alert('success', "Success!", "You have successfully forum banned {$api->user->getNamefromID($_POST['user'])} for {$days} days for {$_POST['reason']}.", true, 'index.php');
+        die($h->endpage());
     } else {
         $_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs(intval($_GET['user'])) : 0;
-        $csrf = request_csrf_html('staff_forumban');
+        $csrf = getHtmlCSRF('staff_forumban');
         echo "
 		<h3>
 			Forum Ban
@@ -737,7 +761,7 @@ function forumban()
 					User
 				</th>
 				<td>
-					" . user_dropdown('user', $_GET['user']) . "
+					" . dropdownUser('user', $_GET['user']) . "
 				</td>
 			</tr>
 			<tr>
@@ -774,23 +798,22 @@ function unforumban()
     $_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs($_GET['user']) : 0;
     if (isset($_POST['user'])) {
         $_POST['user'] = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs($_POST['user']) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_unforumban', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_unforumban', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
-        $check = $db->query("/*qc=on*/SELECT `fb_id` FROM `forum_bans` WHERE `fb_user` = {$_POST['user']} LIMIT 1");
+        $check = $db->query("SELECT `fb_id` FROM `forum_bans` WHERE `fb_user` = {$_POST['user']} LIMIT 1");
         if ($db->num_rows($check) == 0) {
             alert('danger', "Uh Oh!", "This user is not forum banned.");
             die($h->endpage());
         }
         $db->query("DELETE FROM `forum_bans` WHERE `fb_user` = {$_POST['user']}");
-        $api->SystemLogsAdd($userid, 'staff', "Removed <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}]'s forum ban");
-        $api->SystemLogsAdd($userid, 'forumban', "Removed <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}]'s forum ban.");
-        $api->GameAddNotification($_POST['user'], "The game administration has removed your forum ban. You may use the forum once again.");
-        staffnotes_entry($_POST['user'],"Removed their forum ban.");
-		alert('success', "Success!", "You have successfully removed {$api->SystemUserIDtoName($_POST['user'])}'s forum ban.", true, 'index.php');
+        $api->game->addLog($userid, 'staff', "Removed <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}]'s forum ban");
+        $api->game->addLog($userid, 'forumban', "Removed <a href='../profile.php?user={$_POST['user']}'>{$api->user->getNamefromID($_POST['user'])}</a> [{$_POST['user']}]'s forum ban.");
+        $api->user->addNotification($_POST['user'], "The game administration has removed your forum ban. You may use the forum once again.");
+        alert('success', "Success!", "You have successfully removed {$api->user->getNamefromID($_POST['user'])}'s forum ban.", true, 'index.php');
     } else {
-        $csrf = request_csrf_html('staff_unforumban');
+        $csrf = getHtmlCSRF('staff_unforumban');
         echo "<form method='post'>
 			<table class='table table-bordered'>
 				<tr>
@@ -803,7 +826,7 @@ function unforumban()
 						User
 					</th>
 					<td>
-						" . forumb_user_dropdown('user', $_GET['user']) . "
+						" . dropdownForumBanUser('user', $_GET['user']) . "
 					</td>
 				</tr>
 				<tr>
@@ -822,19 +845,19 @@ function staffnotes()
     global $db, $userid, $h, $api;
     $_POST['ID'] = (isset($_POST['ID']) && is_numeric($_POST['ID'])) ? abs(intval($_POST['ID'])) : '';
     $_POST['staffnotes'] = (isset($_POST['staffnotes']) && !is_array($_POST['staffnotes'])) ? $db->escape(strip_tags(stripslashes($_POST['staffnotes']))) : '';
-    if (empty($_POST['ID']) || !isset($_POST['staffnotes'])) {
+    if (empty($_POST['ID']) || empty($_POST['staffnotes'])) {
         alert('danger', "Uh Oh!", "Please specify a user's notes you wish to update.", true, 'index.php');
         die($h->endpage());
     }
-    $q = $db->query("/*qc=on*/SELECT `staff_notes` FROM `users` WHERE `userid` = {$_POST['ID']}");
+    $q = $db->query("SELECT `staff_notes` FROM `users` WHERE `userid` = {$_POST['ID']}");
     if ($db->num_rows($q) == 0) {
         $db->free_result($q);
         alert('danger', "Uh Oh!", "The user's notes you're trying to update does not exist.", true, 'index.php');
         die($h->endpage());
     }
     $db->query("UPDATE `users` SET `staff_notes` = '{$_POST['staffnotes']}' WHERE `userid` = '{$_POST['ID']}'");
-    $api->SystemLogsAdd($userid, 'staff', "Updated <a href='../profile.php?user={$_POST['ID']}'>{$api->SystemUserIDtoName($_POST['ID'])}</a> [{$_POST['ID']}]'s staff notes.");
-    alert('success', "Success!", "You have successfully updated {$api->SystemUserIDtoName($_POST['ID'])}'s staff notes.", true, "../profile.php?user={$_POST['ID']}");
+    $api->game->addLog($userid, 'staff', "Updated <a href='../profile.php?user={$_POST['ID']}'>{$api->user->getNamefromID($_POST['ID'])}</a> [{$_POST['ID']}]'s staff notes.");
+    alert('success', "Success!", "You have successfully updated {$api->user->getNamefromID($_POST['ID'])}'s staff notes.", true, "../profile.php?user={$_POST['ID']}");
 }
 
 function massmail()
@@ -843,7 +866,7 @@ function massmail()
     echo "<h3>Mass Mailer</h3><hr>";
     if (isset($_POST['msg'])) {
         $msg = $_POST['msg'];
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_massmail', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_massmail', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -855,14 +878,14 @@ function massmail()
             alert('danger', "Uh Oh!", "Sent messages can only be, at maximum, 65,655 characters in length.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT `userid`,`user_level` FROM `users`");
+        $q = $db->query("SELECT `userid`,`user_level` FROM `users`");
         $sent = 0;
         while ($r = $db->fetch_row($q)) {
-            echo "Sending Mail to {$api->SystemUserIDtoName($r['userid'])} ...";
+            echo "Sending Mail to {$api->user->getNamefromID($r['userid'])} ...";
             if ($r['user_level'] == 'NPC') {
                 echo "... Failed.";
             } else {
-                if ($api->GameAddMail($r['userid'], "{$set['WebsiteName']} Mass Mail", $msg, $userid) == true) {
+                if ($api->user->addMail($r['userid'], "{$set['WebsiteName']} Mass Mail", $msg, $userid) == true) {
                     echo "... Success.";
                     $sent = $sent + 1;
                 } else {
@@ -872,9 +895,9 @@ function massmail()
             echo "<br />";
         }
         alert('success', "Success!", "You successfully sent a mass mail to {$sent} players", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Sent a mass mail.");
+        $api->game->addLog($userid, 'staff', "Sent a mass mail.");
     } else {
-        $csrf = request_csrf_html('staff_massmail');
+        $csrf = getHtmlCSRF('staff_massmail');
         echo "<table class='table table-bordered'>
 		<form method='post'>
 		<tr>
@@ -902,220 +925,74 @@ function massmail()
     }
 }
 
-function massnotif()
+function massemail()
 {
-    global $db, $userid, $h, $api, $set, $ir;
-    echo "<h3>Mass Mailer</h3><hr>";
+    global $db, $userid, $h, $api, $set;
+    $from = $set['sending_email'];
+    echo "<h3>Mass Emailer</h3><hr>";
     if (isset($_POST['msg'])) {
         $msg = $_POST['msg'];
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_massmail', stripslashes($_POST['verf']))) {
+        $subject = $_POST['subject'];
+        if (!isset($_POST['verf']) || !checkCSRF('staff_massemail', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
         if (empty($msg)) {
-            alert('danger', "Uh Oh!", "Please fill in the previous form completely before submitting again.");
+            alert('danger', "Uh Oh!", "Please specify a message to send.");
             die($h->endpage());
         }
         if (strlen($msg) > 65655) {
-            alert('danger', "Uh Oh!", "Sent messages can only be, at maximum, 65,655 characters in length.");
+            alert('danger', "Uh Oh!", "At maximum, messages can only be 65,655 characters in length.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT `userid`,`user_level` FROM `users`");
+        $q = $db->query("SELECT `userid`,`user_level`,`email` FROM `users` WHERE `email_optin` = 1 AND `user_level` != 'NPC'");
         $sent = 0;
         while ($r = $db->fetch_row($q)) {
-            echo "Sending Mail to {$api->SystemUserIDtoName($r['userid'])} ...";
-            if ($r['user_level'] == 'NPC') {
-                echo "... Failed.";
+            echo "Sending Email to {$api->user->getNamefromID($r['userid'])} ...";
+            if ($api->game->sendEmail($r['email'], $msg, $subject, $from)) {
+                echo "... Success.";
+                $sent = $sent + 1;
             } else {
-                if ($api->GameAddNotification($r['userid'], "<b>Important game notification:</b> " .$msg . " --{$ir['username']} [{$userid}]") == true) {
-                    echo "... Success.";
-                    $sent = $sent + 1;
-                } else {
-                    echo "... Failed.";
-                }
+                echo "... Failed.";
             }
             echo "<br />";
         }
-        alert('success', "Success!", "You successfully sent a mass notification to {$sent} players", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Sent a mass notification.");
+        alert('success', "Success!", "You successfully sent a mass email to {$sent} players", true, 'index.php');
+        $api->game->addLog($userid, 'staff', "Sent a mass email.");
     } else {
-        $csrf = request_csrf_html('staff_massmail');
+        $csrf = getHtmlCSRF('staff_massemail');
         echo "<table class='table table-bordered'>
 		<form method='post'>
 		<tr>
 			<th colspan='2'>
-				Mass notification, for reasons.
+				Send an email to the players who are have chosen to opt-in. Do not spam, or you may find your domain
+				blocked on email providers. You can use HTML.
 			</th>
+		</tr>
+		<tr>
+			<th>
+				Subject
+			</th>
+			<td>
+				<input type='text' name='subject' class='form-control' placeholder='Can be blank'>
+			</td>
 		</tr>
 		<tr>
 			<th>
 				Message
 			</th>
 			<td>
-				<input type='text' class='form-control' name='msg' required='1'>
+				<textarea class='form-control' name='msg' required='1'></textarea>
 			</td>
 		</tr>
 		<tr>
 			<td colspan='2'>
-				<input type='submit' class='btn btn-primary' value='Send Mass Mail'>
+				<input type='submit' class='btn btn-primary' value='Send Mass Email'>
 			</td>
 		</tr>
 		{$csrf}
 		</form>
 		</table>";
-    }
-}
-
-function massemail()
-{
-    global $db, $userid, $h, $api, $set;
-    echo "<h3>Mass Emailer</h3><hr>";
-    
-    if (isset($_POST['msg'])) {
-        $msg = $_POST['msg'];
-        $subject = $_POST['subject'];
-        
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_massemail', stripslashes($_POST['verf']))) {
-            alert('danger', "Action Blocked!", "Security check failed. Try again quicker.");
-            die($h->endpage());
-        }
-        
-        if (empty($msg)) {
-            alert('danger', "Uh Oh!", "Please enter a message.");
-            die($h->endpage());
-        }
-        
-        if (strlen($msg) > 65655) {
-            alert('danger', "Too Long", "Message exceeds 65,655 characters.");
-            die($h->endpage());
-        }
-        
-        $q = $db->query("SELECT u.userid, u.username, u.level, u.email
-                         FROM users u
-                         INNER JOIN user_settings uas ON u.userid = uas.userid
-                         WHERE uas.email_optin = 1 AND u.user_level != 'NPC'");
-        
-        $queued = 0;
-        $time = time();
-        while ($r = $db->fetch_row($q)) {
-            $nmsg = str_ireplace(
-                ["{USERNAME}", "{LEVEL}", "{USERID}"],
-                [$r['username'], $r['level'], $r['userid']],
-                $msg
-                );
-            
-            $db->query("INSERT INTO `mass_email_queue`
-                        (`userid`, `subject`, `message`, `queued_at`)
-                        VALUES ({$r['userid']}, '{$db->escape($subject)}', '{$db->escape($nmsg)}', '{$time}')");
-            $queued++;
-        }
-        
-        alert('success', "Queued", "Queued {$queued} emails for sending.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "Queued {$queued} mass emails.");
-    } else {
-        $csrf = request_csrf_html('staff_massemail');
-        echo "
-        <form method='post'>
-        <table class='table table-bordered'>
-            <tr>
-                <th colspan='2'>Send a mass email to opted-in users. HTML is allowed. Avoid spamming.</th>
-            </tr>
-            <tr>
-                <th>Subject</th>
-                <td><input type='text' name='subject' class='form-control' placeholder='Can be blank'></td>
-            </tr>
-            <tr>
-                <th>Message</th>
-                <td><textarea class='form-control' name='msg' required></textarea></td>
-            </tr>
-            <tr>
-                <td colspan='2'>
-                    <input type='submit' class='btn btn-primary' value='Queue Mass Email'>
-                </td>
-            </tr>
-            {$csrf}
-        </table>
-        </form>";
-    }
-}
-
-function directemail()
-{
-    global $db, $userid, $api, $h, $set;
-    $_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs(intval($_GET['user'])) : 0;
-    if (isset($_POST['user'])) 
-    {
-        $_POST['user'] = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs($_POST['user']) : 0;
-        $msg = $_POST['msg'];
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_direct_email', stripslashes($_POST['verf']))) 
-        {
-            alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
-            die($h->endpage());
-        }
-        if (empty($msg) || empty($_POST['user'])) 
-        {
-            alert('danger', "Uh Oh!", "Please fill out the form completely before submitting it.");
-            die($h->endpage());
-        }
-        $check = $db->query("/*qc=on*/SELECT `email` FROM `users` WHERE `userid` = {$_POST['user']} LIMIT 1");
-        if ($db->num_rows($check) == 0) 
-        {
-            alert('danger', "Uh Oh!", "The user you are attempting to email does not exist.");
-            die($h->endpage());
-        }
-        $r=$db->fetch_row($check);
-        $api->SystemSendEmail($r['email'], $msg, "{$set['WebsiteName']} Email", $set['sending_email']);
-        $api->GameAddNotification($_POST['user'], "The game adminsistration has externally emailed you. Please check your email address.");
-        alert('success', "Success!", "You have emailed {$api->SystemUserIDtoName($_POST['user'])}.");
-    } 
-    else 
-    {
-        $csrf = request_csrf_html('staff_direct_email');
-        echo "  <div class='card'>
-                    <div class='card-header'>
-                        Direct Email
-                    </div>
-                    <div class='card-body'>";
-                    alert('info',"","Use this form to directly email a player.",false);
-                    
-                    echo"
-                        <form method='post'>
-                        <div class='row'>
-                            <div class='col-12'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small><b>User</b></small>
-                                    </div>
-                                    <div class='col-12'>
-                                        " . user_dropdown('user', $_GET['user']) . "
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small><b>Email (HTML)</b></small>
-                                    </div>
-                                    <div class='col-12'>
-                                        <textarea class='form-control' name='msg' required='1'></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class='col-12'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        <small><b>&nbsp;</b></small>
-                                    </div>
-                                    <div class='col-12'>
-                                        <input type='submit' class='btn btn-primary btn-block' value='Forum Warn'>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {$csrf}
-                </form>";
     }
 }
 
@@ -1125,7 +1002,7 @@ function banip()
     echo "<h3>Ban IP</h3><hr />";
     if (isset($_POST['ip'])) {
         $IP = $db->escape($_POST['ip']);
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_banip', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_banip', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -1133,16 +1010,16 @@ function banip()
             alert('danger', "Uh Oh!", "You did not input a valid IP Address.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT `ip_id` FROM `ipban` WHERE `ip_ip` = '{$IP}'");
+        $q = $db->query("SELECT `ip_id` FROM `ipban` WHERE `ip_ip` = '{$IP}'");
         if ($db->num_rows($q) > 0) {
             alert('danger', "Uh Oh!", "The IP Address you input is already banned.");
             die($h->endpage());
         }
         $db->query("INSERT INTO `ipban` VALUES (NULL, '{$IP}');");
         alert('success', "Success!", "You have successfully banned the {$IP} IP Address.", true, 'index.php');
-        $api->SystemLogsAdd($userid, 'staff', "IP Banned {$IP}.");
+        $api->game->addLog($userid, 'staff', "IP Banned {$IP}.");
     } else {
-        $csrf = request_csrf_html('staff_banip');
+        $csrf = getHtmlCSRF('staff_banip');
         echo "<form method='post'>
 		<table class='table table-bordered'>
 		<tr>
@@ -1175,7 +1052,7 @@ function unbanip()
     echo "<h3>Pardon IP Address</h3><hr />";
     if (isset($_GET['id'])) {
         $_GET['id'] = (isset($_GET['id']) && is_numeric($_GET['id'])) ? abs(intval($_GET['id'])) : '';
-        if (!isset($_GET['verf']) || !verify_csrf_code('staff_unbanip', stripslashes($_GET['verf']))) {
+        if (!isset($_GET['verf']) || !checkCSRF('staff_unbanip', stripslashes($_GET['verf']))) {
             alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
             die($h->endpage());
         }
@@ -1183,13 +1060,13 @@ function unbanip()
             alert('danger', "Uh Oh!", "Please specify the IP Address you wish to pardon.", true, '?action=unbanip');
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT * FROM `ipban` WHERE `ip_id` = {$_GET['id']}");
+        $q = $db->query("SELECT * FROM `ipban` WHERE `ip_id` = {$_GET['id']}");
         if ($db->num_rows($q) == 0) {
             alert('danger', "Uh Oh!", "The IP Address you wish to unban is not banned.", true, '?action=unbanip');
             die($h->endpage());
         }
         $IP = $db->fetch_row($q);
-        $api->SystemLogsAdd($userid, 'staff', "Unbanned IP {$IP['ip_id']}");
+        $api->game->addLog($userid, 'staff', "Unbanned IP {$IP['ip_id']}");
         $db->query("DELETE FROM `ipban` WHERE `ip_id` = {$_GET['id']}");
         alert('success', "Success!", "You have successfully unbanned the {$IP['ip_id']} IP Address.", true, 'index.php');
     } else {
@@ -1202,8 +1079,8 @@ function unbanip()
 				Link
 			</th>
 		</tr>";
-        $q = $db->query("/*qc=on*/SELECT * FROM `ipban`");
-        $csrf = request_csrf_html('staff_unbanip');
+        $q = $db->query("SELECT * FROM `ipban`");
+        $csrf = getHtmlCSRF('staff_unbanip');
         while ($r = $db->fetch_row($q)) {
             echo "<tr>
 				<td>
@@ -1220,84 +1097,6 @@ function unbanip()
 			</tr>";
         }
         echo "</table>";
-    }
-}
-function spamhammer()
-{
-	global $db, $userid, $api, $h;
-    if (isset($_POST['user'])) {
-        $_POST['user'] = (isset($_POST['user']) && is_numeric($_POST['user'])) ? abs($_POST['user']) : 0;
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_spamhammer', stripslashes($_POST['verf']))) {
-            alert('danger', "Action Blocked!", "We have blocked this action for your security. Please fill out the form quicker next time.");
-            die($h->endpage());
-        }
-        if (empty($_POST['user'])) {
-            alert('danger', "Uh Oh!", "Please fill out the form completely before submitting it.");
-            die($h->endpage());
-        }
-        $q = $db->query("/*qc=on*/SELECT `user_level` FROM `users` WHERE `userid` = {$_POST['user']}");
-        if ($db->num_rows($q) == 0) {
-            $db->free_result($q);
-            alert('danger', "Uh Oh!", "This user does not exist.");
-            die($h->endpage());
-        }
-        $f_userlevel = $db->fetch_single($q);
-        $db->free_result($q);
-        if ($f_userlevel == 'Admin') {
-            alert('danger', "Uh Oh!", "You cannot place administrators into the federal dungeon. Please remove their privilege and try again.");
-            die($h->endpage());
-        }
-        $already_fed = $db->query("/*qc=on*/SELECT `fed_id` FROM `fedjail` WHERE `fed_userid` = {$_POST['user']}");
-        if ($db->num_rows($already_fed) > 0) {
-            alert('danger', "Uh Oh!", "This user is already in the federal dungeon. Please edit their sentence.");
-            die($h->endpage());
-        }
-        $db->query("UPDATE `users` SET `fedjail` = 1  WHERE `userid` = {$_POST['user']}");
-        $days = 300;
-		$_POST['reason']="Spammer";
-        $_POST['days'] = time() + ($days * 86400);
-		$db->query("DELETE FROM `chat` WHERE `chat_user` = {$_POST['user']}");
-		$db->query("DELETE FROM `comments` WHERE `cSEND` = {$_POST['user']}");
-		$db->query("DELETE FROM `forum_posts` WHERE `fp_poster_id` = {$_POST['user']}");
-		$db->query("DELETE FROM `forum_topics` WHERE `ft_owner_id` = {$_POST['user']}");
-		$db->query("DELETE FROM `newspaper_ads` WHERE `news_owner` = {$_POST['user']}");
-		$db->query("DELETE FROM `mail` WHERE `mail_from` = {$_POST['user']}");
-		$db->query("UPDATE `users` SET `username` = 'Spammer' WHERE `userid` = {$_POST['user']}");
-        $db->query("INSERT INTO `fedjail` VALUES(NULL, {$_POST['user']}, {$_POST['days']}, {$userid}, '{$_POST['reason']}')");
-        $api->SystemLogsAdd($userid, 'staff', "Placed <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] into the federal dungeon for {$days} days for {$_POST['reason']}.");
-        $api->SystemLogsAdd($userid, 'fedjail', "Placed <a href='../profile.php?user={$_POST['user']}'>{$api->SystemUserIDtoName($_POST['user'])}</a> [{$_POST['user']}] into the federal dungeon for {$days} days for {$_POST['reason']}.");
-        staffnotes_entry($_POST['user'],"Got 'spam hammered'.");
-		alert('success', "Success!", "You have placed {$api->SystemUserIDtoName($_POST['user'])} in the federal dungeon for {$days} days for {$_POST['reason']}. All their messages, comments, etc have been deleted.", true, 'index.php');
-    } else {
-        $_GET['user'] = (isset($_GET['user']) && is_numeric($_GET['user'])) ? abs(intval($_GET['user'])) : 0;
-        $csrf = request_csrf_html('staff_spamhammer');
-        echo "
-		<h3>
-			Spam Hammer
-		</h3>
-		<table class='table table-bordered'>
-			<tr>
-				<th colspan='2'>
-					Select the spammer. All their posts, messages, comments, etc. will be removed, and they will be placed in federal dungeon.
-				</th>
-			</tr>
-			<tr>
-				<form method='post'>
-				<th>
-					User
-				</th>
-				<td>
-					" . user_dropdown('user', $_GET['user']) . "
-				</td>
-			</tr>
-			<tr>
-			{$csrf}
-				<td colspan='2'>
-					<input type='submit' class='btn btn-primary' value='Spam Hammer' />
-				</td>
-			</tr>
-			</form>
-		</table>";
     }
 }
 

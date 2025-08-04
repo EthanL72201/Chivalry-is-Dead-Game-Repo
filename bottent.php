@@ -1,99 +1,99 @@
 <?php
 /*
 	File:		bottent.php
-	Created: 	4/4/2016 at 11:54PM Eastern Time
-	Info: 		A list of the setup bots in game. Players can attack them
-				for an item drop once every pre-defined period.
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		A list of the in-game non-playable-characters, allowing the 
+				player to attack one every pre-defined period for an item drop.
 	Author:		TheMasterGeneral
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 $macropage = ('bottent.php');
 require('globals.php');
-if ($api->UserStatus($userid,'dungeon') || $api->UserStatus($userid,'infirmary'))
-{
-	alert('danger',"Uh Oh!","You cannot visit the NPC Battle List while in the infirmary or dungeon.",true,'explore.php');
-	die($h->endpage());
-}
-$query = $db->query("/*qc=on*/SELECT * FROM `botlist` ORDER BY `botuser` ASC");
-echo "<div class='card'>
-    <div class='card-header'>
-        <i class='game-icon game-icon-guards'></i> NPC Battle List
-    </div>
-    <div class='card-body'>
-        This is a list of all known {$set['WebsiteName']} Challenge NPCs. Each bot drops an item to help you travels. There is 
-        a cooldown for item drops, which is also displayed on this list. The item drop is only received when you mug the NPC.<hr />";
+echo "<h3>Bot Tent</h3><hr />Welcome to the Bot Tent. Here you may challenge NPCs to battle. If you win, you'll receive
+    an item. These items may or may not be useful in your adventures. To deter players getting massive amounts of items,
+    you can only attack these NPCs every so often. Their cooldown is listed here as well. To receive the item, you must
+    mug the bot.<hr />";
+$query = $db->query("SELECT * FROM `botlist`");
+echo "<div class='cotainer'>
+<div class='row'>
+		<div class='col-sm'>
+		    <h4>Bot</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Cooldown</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Drop Item</h4>
+		</div>
+		<div class='col-sm'>
+		    <h4>Attack</h4>
+		</div>
+</div><hr />";
 //List all the bots.
-$zindex = -10;
-while ($result = $db->fetch_row($query)) 
-{
-    $zindex--;
+while ($result = $db->fetch_row($query)) {
     //Grab the last time the user attacked this bot.
-    $timequery = $db->query("/*qc=on*/SELECT `lasthit` FROM `botlist_hits` WHERE `userid` = {$userid} && `botid` = {$result['botuser']}");
+    $timequery = $db->query("SELECT `lasthit` FROM `botlist_hits` WHERE `userid` = {$userid} && `botid` = {$result['botuser']}");
     $r2 = $db->fetch_single($timequery);
     //Grab bot's stats.
-    $r3 = $db->fetch_row($db->query("/*qc=on*/SELECT `strength`,`agility`,`guard` FROM `userstats` WHERE `userid` = {$result['botuser']}"));
+    $r3 = $db->fetch_row($db->query("SELECT `strength`,`agility`,`guard` FROM `userstats` WHERE `userid` = {$result['botuser']}"));
     $ustats = $ir['strength'] + $ir['agility'] + $ir['guard'];
     $themstats = $r3['strength'] + $r3['agility'] + $r3['guard'];
     //Chance the user can beat the bot.
     $chance = round((($ustats / $themstats) * 100) / 2, 1);
     $chance = ($chance < 100) ? $chance : 100;
     //Assign bot name to variable to cut down on queries.
-    $botname = $api->SystemUserIDtoName($result['botuser']);
+    $botname = $api->user->getNameFromID($result['botuser']);
     //Player cannot attack the bot.
     if ((time() <= ($r2 + $result['botcooldown'])) && ($r2 > 0)) {
         $cooldown = ($r2 + $result['botcooldown']) - time();
-        $attack = "Cooldown Remaining: " . ParseTimestamp($cooldown);
+        $attack = "Cooldown Remaining: " . timestampParse($cooldown);
     } //Player CAN attack the bot.
     else {
-		$attack = "<a href='attack.php?user={$result['botuser']}&ref=bottent' class='btn btn-danger btn-block' style='font-size: 1.75rem;'>
-						<i class='game-icon game-icon-swords-emblem'></i>
-					</a><small>Victory Odds: {$chance}%</small>";
+        $attack = "<form action='attack.php'>
+					<input type='hidden' name='user' value='{$result['botuser']}'>
+					<input type='submit' class='btn btn-danger' value='Attack {$botname}'>
+					</form>
+					(Odds of Victory {$chance}%)";
     }
-	echo "
+    //Table row formatting.
+    echo "
 	<div class='row'>
-		<div class='col-12 col-sm col-xl-3 col-xxl-2'>
-			<a href='profile.php?user={$result['botuser']}'>{$botname}</a> " . createPrimaryBadge($result['botuser']) . "<br />
-            <small>Level: " . shortNumberParse($api->UserInfoGet($result['botuser'], 'level')) . "</small>
-        </div>";
-	   if (empty($result['botloottable']))
-	   {
-	       echo "
-		<div class='col-12 col-sm'>
-            <div class='row'>
-                <div class='col-12 col-xxxl'>
-		             Cooldown: " . ParseTimestamp($result['botcooldown']) . "
-                </div>
-                <div class='col-12 col-xxxl'>
-	               Drop: " . $api->SystemItemIDtoName($result['botitem']) . "   
-                </div>
-            </div>
-		</div>";
-	   }
-		echo"
-		<div class='col-12 col-lg-4 col-xl-4'>
+		<div class='col-sm'>
+			{$botname} [{$result['botuser']}]<br />
+			Level " . $api->user->getInfo($result['botuser'], 'level') . "
+		</div>
+		<div class='col-sm'>
+			" . timestampParse($result['botcooldown']) . "
+		</div>
+		<div class='col-sm'>
+			" . $api->game->getItemNameFromID($result['botitem']) . "
+		</div>
+		<div class='col-sm'>
 			{$attack}
-            <button type='button' data-toggle='modal' class='btn btn-primary' data-target='#botModal{$result['botuser']}'>Possible Loot</button>
 		</div>
 	</div>
-	<hr />
-    <div class='modal fade' id='botModal{$result['botuser']}' tabindex='-{$result['botuser']}' role='dialog' aria-hidden='true'>
-          <div class='modal-dialog' role='document'>
-            <div class='modal-content'>
-              <div class='modal-header'>
-                <h5 class='modal-title' id='botModal{$result['botuser']}Label'>{$botname}'s Possible Loot</h5>
-                <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
-                  <span aria-hidden='true'>&times;</span>
-                </button>
-              </div>
-              <div class='modal-body'>
-                " . parseLootTableOdds("users/{$result['botuser']}") . "
-              </div>
-              <div class='modal-footer'>
-                <button type='button' class='btn btn-secondary' data-dismiss='modal'>Close</button>
-              </div>
-            </div>
-          </div>
-        </div>";
+	<hr />";
 }
-echo "</div></div>";
+echo "</div>";
 $h->endpage();

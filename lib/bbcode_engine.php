@@ -1,10 +1,32 @@
 <?php
 /*
-	File: lib/bbcode_engine.php
-	Created: 6/21/2016 at 4:54PM Eastern Time
-	Info: Allows developer to add bbcode functions, along with view what has been setup.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine
+	File: 		lib/bbcode_engine.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		The base BBCode Engine for Chivalry Engine.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('JBBCode/Parser.php');
 require_once("JBBCode/visitors/SmileyVisitor.php");
@@ -12,21 +34,24 @@ $parser = new JBBCode\Parser();
 $parser->addCodeDefinitionSet(new JBBCode\DefaultCodeDefinitionSet());
 
 //URL with option
-$builder = new JBBCode\CodeDefinitionBuilder('url', '<a href="{option}" class="updateHoverBtn">{param} <i class="fas fa-external-link-alt"></i></a>');
+$builder = new JBBCode\CodeDefinitionBuilder('url', '<a href="{option}">{param}</a>');
 $builder->setUseOption(true);
 $parser->addCodeDefinition($builder->build());
 
 //URL
-$builder = new JBBCode\CodeDefinitionBuilder('url', '<a href="{param}" class="updateHoverBtn">{param} <i class="fas fa-external-link-alt"></i></a>');
+$builder = new JBBCode\CodeDefinitionBuilder('url', '<a href="{param}">{param}</a>');
 $parser->addCodeDefinition($builder->build());
 
 //Quote with option 
-$builder = new JBBCode\CodeDefinitionBuilder('quote', '<table class="table table-bordered"><tr><th>{option} Wrote</th></tr><tr><td>{param}</tr></td></table>');
+$builder = new JBBCode\CodeDefinitionBuilder('quote', '<blockquote class="blockquote">
+                                                            <p class="mb-0">{param}</p>
+                                                            <footer class="blockquote-footer">
+                                                            <cite>{option}</cite></footer></blockquote>');
 $builder->setUseOption(true);
 $parser->addCodeDefinition($builder->build());
 
 //Quote w/o option
-$builder = new JBBCode\CodeDefinitionBuilder('quote', '<table class="table table-bordered"><tr><th>Somebody Wrote</th></tr><tr><td>{param}</tr></td></table>');
+$builder = new JBBCode\CodeDefinitionBuilder('quote', '<blockquote class="blockquote"><p class="mb-0">{param}</p></blockquote>');
 $parser->addCodeDefinition($builder->build());
 
 //Keyboard
@@ -75,85 +100,10 @@ $builder = new JBBCode\CodeDefinitionBuilder('youtube', '<div class="embed-respo
                                                             </iframe></div>');
 $parser->addCodeDefinition($builder->build());
 
-//Danger
-$builder = new JBBCode\CodeDefinitionBuilder('danger', '<span class="text-danger">{param}</span>');
+//Danger/Alert text
+$builder = new JBBCode\CodeDefinitionBuilder('danger', '<div class="alert alert-danger"><strong>{param}</strong></div>');
 $parser->addCodeDefinition($builder->build());
 
-//Info
-$builder = new JBBCode\CodeDefinitionBuilder('info', '<span class="text-info">{param}</span>');
-$parser->addCodeDefinition($builder->build());
-
-//Success
-$builder = new JBBCode\CodeDefinitionBuilder('success', '<span class="text-success">{param}</span>');
-$parser->addCodeDefinition($builder->build());
-
-//Muted
-$builder = new JBBCode\CodeDefinitionBuilder('mute', '<span class="text-muted">{param}</span>');
-$parser->addCodeDefinition($builder->build());
-
-//Primary
-$builder = new JBBCode\CodeDefinitionBuilder('primary', '<span class="text-primary">{param}</span>');
-$parser->addCodeDefinition($builder->build());
-
-//Warning
-$builder = new JBBCode\CodeDefinitionBuilder('warning', '<span class="text-warning">{param}</span>');
-$parser->addCodeDefinition($builder->build());
-
-//Mention
-$builder = new JBBCode\CodeDefinitionBuilder('mention', '<a href="profile.php?user={param}">@Username</a>');
-$parser->addCodeDefinition($builder->build());
-
-//Line
-$builder = new JBBCode\CodeDefinitionBuilder('hr', '<hr></hr>');
-$parser->addCodeDefinition($builder->build());
-
-//Mp3 Player
-$builder = new JBBCode\CodeDefinitionBuilder('mp3', '<audio controls>
-															  <source src="{param}" type="audio/mpeg">
-															Your browser does not support the audio element.
-															</audio>');
-$parser->addCodeDefinition($builder->build());
-//Ogg Player
-$builder = new JBBCode\CodeDefinitionBuilder('ogg', '<audio controls>
-															  <source src="{param}" type="audio/ogg">
-															Your browser does not support the audio element.
-															</audio>');
-$parser->addCodeDefinition($builder->build());
-//Wav Player
-$builder = new JBBCode\CodeDefinitionBuilder('wav', '<audio controls>
-															  <source src="{param}" type="audio/wav">
-															Your browser does not support the audio element.
-															</audio>');
-$parser->addCodeDefinition($builder->build());
-
-//Mp4 Player
-$builder = new JBBCode\CodeDefinitionBuilder('mp4', '<div class="embed-responsive embed-responsive-16by9">
-                                                            <video controls>
-															  <source src="{param}" type="video/mp4">
-															Your browser does not support the video tag.
-															</video></div>');
-$parser->addCodeDefinition($builder->build());
-
-//WebM Player
-$builder = new JBBCode\CodeDefinitionBuilder('webm', '<div class="embed-responsive embed-responsive-16by9">
-                                                            <video controls>
-															  <source src="{param}" type="video/webm">
-															Your browser does not support the video tag.
-															</video></div>');
-$parser->addCodeDefinition($builder->build());
-
-//Rainbow
-$builder = new JBBCode\CodeDefinitionBuilder('rainbow', '<span class="rainbow">{param}</span>');
-$parser->addCodeDefinition($builder->build());
-
-$builder = new JBBCode\CodeDefinitionBuilder('small', '<small>{param}</small>');
-$parser->addCodeDefinition($builder->build());
-
-$builder = new JBBCode\CodeDefinitionBuilder('sub', '<sub>{param}</sub>');
-$parser->addCodeDefinition($builder->build());
-
-$builder = new JBBCode\CodeDefinitionBuilder('sup', '<sup>{param}</sup>');
-$parser->addCodeDefinition($builder->build());
-
-$builder = new JBBCode\CodeDefinitionBuilder('rtl', '<bdo dir="rtl">{param}</bdo>');
+//Horizontal rule
+$builder = new JBBCode\CodeDefinitionBuilder('hr', '<hr />');
 $parser->addCodeDefinition($builder->build());

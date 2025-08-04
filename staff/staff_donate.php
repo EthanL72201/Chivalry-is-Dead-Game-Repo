@@ -1,10 +1,32 @@
 <?php
 /*
-	File: staff/staff_donates.php
-	Created: 5/9/2017 at 1:36PM Eastern Time
-	Info: Staff panel for adding/editing/removing donation items.
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine/
+	File: 		staff/staff_donate.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to do actions relating to the in-game VIP Packs.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('sglobals.php');
 echo "<h2>Staff VIP Pack</h2><hr />";
@@ -34,7 +56,7 @@ function addpack()
 {
     global $db, $userid, $api, $h;
     if (isset($_POST['pack'])) {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_vip_add', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_vip_add', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Your action has been blocked for your security. Please submit forms quickly!");
             die($h->endpage());
         }
@@ -59,21 +81,21 @@ function addpack()
             die($h->endpage());
         }
         $db_cost = $cost / 100;
-        $q = $db->query("/*qc=on*/SELECT `itmid` FROM `items` WHERE `itmid` = {$_POST['pack']}");
+        $q = $db->query("SELECT `itmid` FROM `items` WHERE `itmid` = {$_POST['pack']}");
         if ($db->num_rows($q) == 0) {
             alert('danger', "Uh Oh!", "The item you wish to list as a pack does not exist.");
             die($h->endpage());
         }
-        $q2 = $db->query("/*qc=on*/SELECT `vip_item` FROM `vip_listing` WHERE `vip_item` = {$_POST['pack']} AND `vip_qty` = {$_POST['qty']} AND `vip_cost` = '{$db_cost}'");
+        $q2 = $db->query("SELECT `vip_item` FROM `vip_listing` WHERE `vip_item` = {$_POST['pack']} AND `vip_qty` = {$_POST['qty']} AND `vip_cost` = '{$db_cost}'");
         if ($db->num_rows($q2) > 0) {
             alert('danger', "Uh Oh!", "You already have this item listed on the VIP Pack Listing.");
             die($h->endpage());
         }
         $db->query("INSERT INTO `vip_listing` (`vip_item`, `vip_cost`, `vip_qty`) VALUES ('{$_POST['pack']}', '{$db_cost}', '{$_POST['qty']}')");
-        $api->SystemLogsAdd($userid, 'staff', "Added {$api->SystemItemIDtoName($_POST['pack'])} to the VIP Store for \${$db_cost}.");
-        alert('success', "Success!", "You have successfully added the {$api->SystemItemIDtoName($_POST['pack'])} to the VIP Store for \${$db_cost}.", true, 'index.php');
+        $api->game->addLog($userid, 'staff', "Added {$api->game->getItemNameFromID($_POST['pack'])} to the VIP Store for \${$db_cost}.");
+        alert('success', "Success!", "You have successfully added the {$api->game->getItemNameFromID($_POST['pack'])} to the VIP Store for \${$db_cost}.", true, 'index.php');
     } else {
-        $csrf = request_csrf_html('staff_vip_add');
+        $csrf = getHtmlCSRF('staff_vip_add');
         echo "<form method='post'>
 				<table class='table table-bordered'>
 					<tr>
@@ -86,7 +108,7 @@ function addpack()
 							VIP Pack Item
 						</th>
 						<td>
-							" . item_dropdown('pack') . "
+							" . dropdownItem('pack') . "
 						</td>
 					</tr>
 					<tr>
@@ -121,7 +143,7 @@ function delpack()
 {
     global $db, $userid, $api, $h;
     if (isset($_POST['pack'])) {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_vip_del', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_vip_del', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Your action has been blocked for your security. Please submit forms quickly!");
             die($h->endpage());
         }
@@ -130,17 +152,17 @@ function delpack()
             alert('danger', "Uh Oh!", "Please select a VIP Pack you wish to remove.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT `vip_item` FROM `vip_listing` WHERE `vip_id` = {$_POST['pack']}");
+        $q = $db->query("SELECT `vip_item` FROM `vip_listing` WHERE `vip_id` = {$_POST['pack']}");
         if ($db->num_rows($q) == 0) {
             alert('danger', "Uh Oh!", "The VIP Pack you wish to remove has already been removed.");
             die($h->endpage());
         }
         $r = $db->fetch_single($q);
         $db->query("DELETE FROM `vip_listing` WHERE `vip_id` = {$_POST['pack']}");
-        $api->SystemLogsAdd($userid, 'staff', "Removed an item from the VIP Store.");
+        $api->game->addLog($userid, 'staff', "Removed an item from the VIP Store.");
         alert('success', "Success!", "You have successfully removed this pack from the VIP Store.", true, 'index.php');
     } else {
-        $csrf = request_csrf_html('staff_vip_del');
+        $csrf = getHtmlCSRF('staff_vip_del');
         echo "<form method='post'>
 				<table class='table table-bordered'>
 					<tr>
@@ -153,7 +175,7 @@ function delpack()
 							VIP Pack
 						</th>
 						<td>
-							" . vipitem_dropdown() . "
+							" . vipdropdownItem() . "
 						</td>
 					</tr>
 					<tr>
@@ -175,7 +197,7 @@ function editpack()
         $_POST['step'] = 0;
     }
     if ($_POST['step'] == 2) {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_vip_edit2', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_vip_edit2', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Your action has been blocked for your security. Please submit forms quickly!");
             die($h->endpage());
         }
@@ -205,16 +227,21 @@ function editpack()
             die($h->endpage());
         }
         $db_cost = $cost / 100;
-        $q = $db->query("/*qc=on*/SELECT `itmid` FROM `items` WHERE `itmid` = {$_POST['item']}");
+        $q = $db->query("SELECT `itmid` FROM `items` WHERE `itmid` = {$_POST['item']}");
         if ($db->num_rows($q) == 0) {
             alert('danger', "Uh Oh!", "The item you wish to list as a pack does not exist.");
             die($h->endpage());
         }
+        $q2 = $db->query("SELECT `vip_item` FROM `vip_listing` WHERE `vip_item` = {$_POST['item']} AND `vip_id` != {$_POST['pack']}");
+        if ($db->num_rows($q2) > 0) {
+            alert('danger', "Uh Oh!", "You already have this item listed on the VIP Pack Listing.");
+            die($h->endpage());
+        }
         $db->query("UPDATE `vip_listing` SET `vip_item` = {$_POST['item']}, `vip_cost` = '{$db_cost}', `vip_qty` = {$_POST['qty']} WHERE `vip_id` = {$_POST['pack']}");
-        $api->SystemLogsAdd($userid, 'staff', "Edited {$api->SystemItemIDtoName($_POST['item'])}'s VIP Pack.");
-        alert('success', "Success!", "You have successfully edited the {$api->SystemItemIDtoName($_POST['item'])} VIP Pack.", true, 'index.php');
+        $api->game->addLog($userid, 'staff', "Edited {$api->game->getItemNameFromID($_POST['item'])}'s VIP Pack.");
+        alert('success', "Success!", "You have successfully edited the {$api->game->getItemNameFromID($_POST['item'])} VIP Pack.", true, 'index.php');
     } elseif ($_POST['step'] == 1) {
-        if (!isset($_POST['verf']) || !verify_csrf_code('staff_vip_edit1', stripslashes($_POST['verf']))) {
+        if (!isset($_POST['verf']) || !checkCSRF('staff_vip_edit1', stripslashes($_POST['verf']))) {
             alert('danger', "Action Blocked!", "Your action has been blocked for your security. Please submit forms quickly!");
             die($h->endpage());
         }
@@ -223,13 +250,13 @@ function editpack()
             alert('danger', "Uh Oh!", "Please select a VIP Pack you wish to edit.");
             die($h->endpage());
         }
-        $q = $db->query("/*qc=on*/SELECT * FROM `vip_listing` WHERE `vip_id` = {$_POST['pack']}");
+        $q = $db->query("SELECT * FROM `vip_listing` WHERE `vip_id` = {$_POST['pack']}");
         if ($db->num_rows($q) == 0) {
             alert('danger', "Uh Oh!", "The VIP Pack you wish to edit does not exist or is invalid.");
             die($h->endpage());
         }
         $r = $db->fetch_row($q);
-        $csrf = request_csrf_html('staff_vip_edit2');
+        $csrf = getHtmlCSRF('staff_vip_edit2');
         echo "<form method='post'>
 				<table class='table table-bordered'>
 				<input type='hidden' value='2' name='step'>
@@ -244,7 +271,7 @@ function editpack()
 							VIP Pack Item
 						</th>
 						<td>
-							" . item_dropdown('item', $r['vip_item']) . "
+							" . dropdownItem('item', $r['vip_item']) . "
 						</td>
 					</tr>
 					<tr>
@@ -272,7 +299,7 @@ function editpack()
 				{$csrf}
 		</form>";
     } else {
-        $csrf = request_csrf_html('staff_vip_edit1');
+        $csrf = getHtmlCSRF('staff_vip_edit1');
         echo "<form method='post'>
 				<table class='table table-bordered'>
 					<tr>
@@ -285,7 +312,7 @@ function editpack()
 							VIP Pack
 						</th>
 						<td>
-							" . vipitem_dropdown() . "
+							" . vipdropdownItem() . "
 						</td>
 					</tr>
 					<tr>
@@ -301,12 +328,12 @@ function editpack()
     $h->endpage();
 }
 
-function vipitem_dropdown($ddname = "pack", $selected = -1)
+function vipdropdownItem($ddname = "pack", $selected = -1)
 {
     global $db, $api;
     $ret = "<select name='$ddname' class='form-control' type='dropdown'>";
     $q =
-        $db->query("/*qc=on*/SELECT *
+        $db->query("SELECT *
     				 FROM `vip_listing`
     				 ORDER BY `vip_cost` ASC");
     if ($selected < 1) {
@@ -320,7 +347,7 @@ function vipitem_dropdown($ddname = "pack", $selected = -1)
             $ret .= " selected='selected'";
             $first = 1;
         }
-        $ret .= ">{$api->SystemItemIDtoName($r['vip_item'])} (Cost: \${$r['vip_cost']})</option>";
+        $ret .= ">{$api->game->getItemNameFromID($r['vip_item'])} (Cost: \${$r['vip_cost']})</option>";
     }
     $db->free_result($q);
     $ret .= "\n</select>";

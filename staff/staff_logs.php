@@ -1,13 +1,35 @@
 <?php
 /*
-	File: staff/staff_logs.php
-	Created: 6/1/2016 at 6:06PM Eastern Time
-	Info: Allows staff to view the in-game logs
-	Author: TheMasterGeneral
-	Website: https://github.com/MasterGeneral156/chivalry-engine/
+	File: 		staff/staff_logs.php
+	Created: 	6/23/2019 at 6:11PM Eastern Time
+	Info: 		Allows staff to view the numerous in-game logs.
+	Author: 	TheMasterGeneral
+	Website: 	https://github.com/MasterGeneral156/chivalry-engine/
+	
+	MIT License
+
+	Copyright (c) 2019 TheMasterGeneral
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
 */
 require('sglobals.php');
-if ($api->UserMemberLevelGet($userid, 'Assistant') == false) {
+if (!$api->user->getStaffLevel($userid, 'Assistant')) {
     alert('danger', "Uh Oh!", "You do not have permission to be here.");
     die($h->endpage());
 }
@@ -108,58 +130,54 @@ switch ($_GET['action']) {
     case "primsend":
         logs('sendcash');
         break;
-    case "bomb":
-        logs('bomb');
-        break;
-    case "tokenbank":
-        logs('tokenbank');
-        break;
-    case "theft":
-        logs('theft');
-        break;
-	case "cronlogs":
-        logs('crons');
-        break;
-	case "pages":
-        logs('page');
-        break;
-	case "votedlogs":
-        logs('voted');
-        break;
-    case "loginrewardlogs":
-        logs('loginreward');
-        break;
-    case "achievementlogs":
-        logs('achievement');
-        break;
-    case "heallogs":
-        logs('heal');
-        break;
-    case "taxlogs":
-        logs('tax');
-        break;
-    case "itemrequestlogs":
-        logs('irequest');
-        break;
-    case "marriagelogs":
-        logs('marriage');
-        break;
-    case "preferenceslogs":
-        logs('preferences');
-        break;
-    case "hexbagslogs":
-        logs('hexbags');
-        break;
-    case "borlogs":
-        logs('bor');
-        break;
     case "mail":
         maillogs();
         break;
     default:
-        alert('danger', "Uh Oh!", "Please select a valid action to perform.", true, 'index.php');
-        die($h->endpage());
+        menu();
         break;
+}
+function menu()
+{
+	global $api, $userid;
+	echo "<h3>Logs Staff Menu</h3><hr />
+	<a href='?action=alllogs' class='btn btn-primary'>General Game Logs</a><br /><br />
+	<a href='?action=mail' class='btn btn-primary'>Mail Logs</a><br /><br />
+	<a href='?action=userlogs' class='btn btn-primary'>User Specific Logs</a><br /><br />
+	<a href='?action=traininglogs' class='btn btn-primary'>Training Logs</a><br /><br />
+	<a href='?action=attackinglogs' class='btn btn-primary'>Attack Logs</a><br /><br />
+	<a href='?action=loginlogs' class='btn btn-primary'>Login Logs</a><br /><br />
+	<a href='?action=equiplogs' class='btn btn-primary'>Equipping Logs</a><br /><br />
+	<a href='?action=banklogs' class='btn btn-primary'>Bank Logs</a><br /><br />
+	<a href='?action=crimelogs' class='btn btn-primary'>Crime Logs</a><br /><br />
+	<a href='?action=itemuselogs' class='btn btn-primary'>Item Usage Logs</a><br /><br />
+	<a href='?action=itembuylogs' class='btn btn-primary'>Item Buy Logs</a><br /><br />
+	<a href='?action=itemselllogs' class='btn btn-primary'>Item Sell Logs</a><br /><br />
+	<a href='?action=itemmarketlogs' class='btn btn-primary'>Item Market Logs</a><br /><br />
+	<a href='?action=itemsendlogs' class='btn btn-primary'>Item Send Logs</a><br /><br />
+	<a href='?action=verifylogs' class='btn btn-primary'>ReCaptcha Logs</a><br /><br />
+	<a href='?action=spylogs' class='btn btn-primary'>Spy Logs</a><br /><br />
+	<a href='?action=gamblinglogs' class='btn btn-primary'>Gambling Logs Logs</a><br /><br />
+	<a href='?action=pokes' class='btn btn-primary'>Poke Logs</a><br /><br />
+	<a href='?action=guilds' class='btn btn-primary'>Guild Logs</a><br /><br />
+	<a href='?action=guildvault' class='btn btn-primary'>Guild Vault Logs</a><br /><br />
+	<a href='?action=level' class='btn btn-primary'>Level Logs</a><br /><br />
+	<a href='?action=templelogs' class='btn btn-primary'>Temple Logs</a><br /><br />
+	<a href='?action=secmarket' class='btn btn-primary'>" . constant("secondary_currency") . " Market Logs</a><br /><br />
+	<a href='?action=mining' class='btn btn-primary'>Mining Logs</a><br /><br />
+	<a href='?action=rrlogs' class='btn btn-primary'>Russian Roulette Logs</a><br /><br />
+	<a href='?action=travellogs' class='btn btn-primary'>Travel Logs</a><br /><br />
+	<a href='?action=primsend' class='btn btn-primary'>" . constant("primary_currency") . "</a><br /><br />";
+	if ($api->user->getStaffLevel($userid, 'admin')) 
+	{
+		echo "<u><b>Admin Logs</u></b><hr />
+		<a href='?action=stafflogs' class='btn btn-primary'>Staff Logs</a><br /><br />
+		<a href='?action=fedjaillogs' class='btn btn-primary'>Federal Dungeon Logs</a><br /><br />
+		<a href='?action=forumwarn' class='btn btn-primary'>Forum Warn Logs</a><br /><br />
+		<a href='?action=forumban' class='btn btn-primary'>Forum Ban Logs</a><br /><br />
+		<a href='?action=donatelogs' class='btn btn-primary'>Donation Logs</a><br /><br />
+		<a href='staff_settings.php?action=errlog' class='btn btn-primary'>Game Error Log</a><br /><br />";
+	}
 }
 function logs($name)
 {
@@ -174,7 +192,7 @@ function logs($name)
         $_GET['st'] = 0;
     }
     $st = abs(intval($_GET['st']));
-    $q = $db->query("/*qc=on*/SELECT COUNT(`log_id`) FROM `logs` WHERE `log_type` = '{$logname}'");
+    $q = $db->query("SELECT COUNT(`log_id`) FROM `logs` WHERE `log_type` = '{$logname}'");
     $attacks = $db->fetch_single($q);
     $db->free_result($q);
     if ($attacks == 0) {
@@ -182,7 +200,7 @@ function logs($name)
         return;
     }
     $mypage = floor($_GET['st'] / 100) + 1;
-    echo pagination(100,$attacks,$_GET['st'],"?action={$_GET['action']}&st=");
+    echo pagination(100,$attacks,$_GET['st'],"?action={$logname}logs&st=");
     echo "<table class='table table-bordered table-hover table-striped'>
     		<tr>
     			<th>Log Time</th>
@@ -192,16 +210,16 @@ function logs($name)
        ";
     $q =
         $db->query(
-            "/*qc=on*/SELECT `log_user`, `log_time`, `log_text`, `log_ip`
+            "SELECT `log_user`, `log_time`, `log_text`, `log_ip`
                      FROM `logs`
 					 WHERE `log_type` = '{$logname}'
                      ORDER BY `log_time` DESC
                      LIMIT $st, 100");
     while ($r = $db->fetch_row($q)) {
-        $un = $db->fetch_single($db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$r['log_user']}"));
+        $un = $db->fetch_single($db->query("SELECT `username` FROM `users` WHERE `userid` = {$r['log_user']}"));
         echo "
 		<tr>
-        	<td>" . DateTime_Parse($r['log_time'])
+        	<td>" . dateTimeParse($r['log_time'])
             . "</td>
         	<td><a href='../profile.php?user={$r['log_user']}'>{$un}</a> [{$r['log_user']}]</td>
         	<td>{$r['log_text']}</td>
@@ -211,8 +229,8 @@ function logs($name)
     $db->free_result($q);
     echo "
     </table>";
-    echo pagination(100,$attacks,$_GET['st'],"?action={$_GET['action']}&st=");
-    $api->SystemLogsAdd($userid, 'staff', "Viewed Page #{$mypage} of the {$logname} logs.");
+    echo pagination(100,$attacks,$_GET['st'],"?action={$logname}logs&st=");
+    $api->game->addLog($userid, 'staff', "Viewed Page #{$mypage} of the {$logname} logs.");
 }
 
 function userlogs()
@@ -230,15 +248,15 @@ function userlogs()
         }
         $st = abs(intval($_GET['st']));
         $app = 100;
-        $q = $db->query("/*qc=on*/SELECT COUNT(`log_id`)
-						 FROM `logs` WHERE `log_type` != 'staff' AND `log_user` = {$_GET['user']}");
+        $q = $db->query("SELECT COUNT(`log_id`)
+						 FROM `logs` WHERE `log_user` = {$_GET['user']}");
         $logs = $db->fetch_single($q);
         $db->free_result($q);
         if ($logs == 0) {
             alert("danger", "Uh Oh!", "This user does not have anything logged.", true, 'index.php');
             return;
         }
-        echo pagination(100,$logs,$_GET['st'],"?action={$_GET['action']}&user={$user}&st=");
+        echo pagination(100,$logs,$_GET['st'],"?action=userlogs&user={$user}&st=");
 		echo "
 		<table class='table table-bordered table-hover'>
 				<thead>
@@ -250,11 +268,11 @@ function userlogs()
 				</thead>
 				<tbody>
 		   ";
-        $LogsQuery = $db->query("/*qc=on*/SELECT `log_type`,`log_text`,`log_time`,`username`,`userid`
+        $LogsQuery = $db->query("SELECT `log_type`,`log_text`,`log_time`,`username`,`userid`
 								FROM `logs` AS `lt`
 								INNER JOIN `users` AS `u`
 								ON `lt`.`log_user` = `u`.`userid`
-								WHERE `log_type` != 'staff' AND `log_user` = {$user}
+								WHERE `log_user` = {$user}
 								ORDER BY `log_time` DESC
 								LIMIT $st, $app");
         while ($r = $db->fetch_row($LogsQuery)) {
@@ -262,7 +280,7 @@ function userlogs()
             echo "
 				<tr>
 					<td>
-						" . DateTime_Parse($r['log_time']) . "
+						" . dateTimeParse($r['log_time']) . "
 					</td>
 					<td>
 						<a href='../profile.php?user={$user}'>{$r['username']}</a> [{$user}]
@@ -277,9 +295,9 @@ function userlogs()
 		</tbody>
 		</table>
 		<br />";
-		echo pagination(100,$logs,$_GET['st'],"?action={$_GET['action']}&user={$user}&st=");
+		echo pagination(100,$logs,$_GET['st'],"?action=userlogs&user={$user}&st=");
         $mypage = floor($_GET['st'] / 100) + 1;
-        $api->SystemLogsAdd($userid, 'staff', "Viewed Page #{$mypage} of User ID {$user}'s user logs.");
+        $api->game->addLog($userid, 'staff', "Viewed Page #{$mypage} of User ID {$user}'s user logs.");
         $h->endpage();
     } else {
         echo "<table class='table table-bordered'>
@@ -295,7 +313,7 @@ function userlogs()
 					User
 				</th>
 				<td>
-					" . user_dropdown('user') . "
+					" . dropdownUser('user') . "
 				</td>
 			</tr>
 			<tr>
@@ -342,14 +360,14 @@ function alllogs()
     }
     $st = abs(intval($_GET['st']));
     $app = 100;
-    $q = $db->query("/*qc=on*/SELECT COUNT(`log_id`) FROM `logs` WHERE `log_type` != 'staff'");
+    $q = $db->query("SELECT COUNT(`log_id`) FROM `logs`");
     $attacks = $db->fetch_single($q);
     $db->free_result($q);
     if ($attacks == 0) {
         alert('danger', "Uh Oh!", "There haven't been any game actions yet.", true, 'index.php');
         return;
     }
-    echo pagination(100,$attacks,$_GET['st'],"?action={$_GET['action']}logs&st=");
+    echo pagination(100,$attacks,$_GET['st'],"?action={$logname}logs&st=");
     echo "<table class='table table-bordered table-hover table-striped'>
     		<tr>
     			<th>Log Time</th>
@@ -359,16 +377,15 @@ function alllogs()
        ";
     $q =
         $db->query(
-            "/*qc=on*/SELECT `log_user`, `log_time`, `log_text`, `log_ip`
+            "SELECT `log_user`, `log_time`, `log_text`, `log_ip`
                      FROM `logs`
-					 WHERE `log_type` != 'staff'
                      ORDER BY `log_time` DESC
                      LIMIT $st, $app");
     while ($r = $db->fetch_row($q)) {
-        $un = $db->fetch_single($db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$r['log_user']}"));
+        $un = $db->fetch_single($db->query("SELECT `username` FROM `users` WHERE `userid` = {$r['log_user']}"));
         echo "
 		<tr>
-        	<td>" . DateTime_Parse($r['log_time'])
+        	<td>" . dateTimeParse($r['log_time'])
             . "</td>
         	<td><a href='../profile.php?user={$r['log_user']}'>{$un}</a> [{$r['log_user']}]</td>
         	<td>{$r['log_text']}</td>
@@ -377,9 +394,9 @@ function alllogs()
     }
     $db->free_result($q);
     echo "</table>";
-    echo pagination(100,$attacks,$_GET['st'],"?action={$_GET['action']}logs&st=");
+    echo pagination(100,$attacks,$_GET['st'],"?action={$logname}logs&st=");
     $mypage = floor($_GET['st'] / 100) + 1;
-    $api->SystemLogsAdd($userid, 'staff', "Viewed Page #{$mypage} of the game logs.");
+    $api->game->addLog($userid, 'staff', "Viewed Page #{$mypage} of the game logs.");
 }
 
 function maillogs()
@@ -396,14 +413,14 @@ function maillogs()
     }
     $st = abs(intval($_GET['st']));
     $app = 100;
-    $q = $db->query("/*qc=on*/SELECT COUNT(`mail_id`) FROM `mail`");
+    $q = $db->query("SELECT COUNT(`mail_id`) FROM `mail`");
     $attacks = $db->fetch_single($q);
     $db->free_result($q);
     if ($attacks == 0) {
         alert('danger', "Uh Oh!", "There doesn't appear to be any sent messages yet.", true, 'index.php');
         return;
     }
-    echo pagination(100, $attacks, $_GET['st'], "?action={$_GET['action']}&st=");
+    echo pagination(100, $attacks, $_GET['st'], "?action=mail&st=");
     echo "<table class='table table-bordered table-hover table-striped'>
     		<tr>
     			<th>Time</th>
@@ -413,17 +430,16 @@ function maillogs()
     			<th>Message</th>
     		</tr>
        ";
-    $q = $db->query("/*qc=on*/SELECT *
+    $q = $db->query("SELECT *
                      FROM `mail`
                      ORDER BY `mail_time` DESC
                      LIMIT $st, $app");
     while ($r = $db->fetch_row($q)) {
-        $un = $db->fetch_single($db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$r['mail_from']}"));
-        $un2 = $db->fetch_single($db->query("/*qc=on*/SELECT `username` FROM `users` WHERE `userid` = {$r['mail_to']}"));
-		$r['mail_text']=decrypt_message($r['mail_text'],$r['mail_from'],$r['mail_to']);
+        $un = $db->fetch_single($db->query("SELECT `username` FROM `users` WHERE `userid` = {$r['mail_from']}"));
+        $un2 = $db->fetch_single($db->query("SELECT `username` FROM `users` WHERE `userid` = {$r['mail_to']}"));
         echo "
 		<tr>
-        	<td>" . DateTime_Parse($r['mail_time']) . "</td>
+        	<td>" . dateTimeParse($r['mail_time']) . "</td>
         	<td>{$r['mail_subject']}</td>
         	<td><a href='../profile.php?user={$r['mail_from']}'>{$un}</a> [{$r['mail_from']}]</td>
         	<td><a href='../profile.php?user={$r['mail_to']}'>{$un2}</a> [{$r['mail_to']}]</td>
@@ -433,9 +449,9 @@ function maillogs()
     }
     $db->free_result($q);
     echo "</table>";
-    echo pagination(100,$attacks,$_GET['st'],"?action={$_GET['action']}&st=");
+    echo pagination(100,$attacks,$_GET['st'],"?action=mail&st=");
     $mypage = floor($_GET['st'] / 100) + 1;
-    $api->SystemLogsAdd($userid, 'staff', "Viewed Page #{$mypage} of the {$logname} logs.");
+    $api->game->addLog($userid, 'staff', "Viewed Page #{$mypage} of the {$logname} logs.");
 }
 
 $h->endpage();

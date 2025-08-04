@@ -1,2 +1,3 @@
 lib/steamauth/SteamConfig.php
 config.php
+/data/cache

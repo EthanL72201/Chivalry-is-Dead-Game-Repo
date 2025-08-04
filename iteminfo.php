@@ -44,102 +44,139 @@ if (!$itmid) {
             }
         }
             
-        echo "<div class='row'>
+        echo "
+        <div class='row'>
             <div class='col-12'>
                 <div class='card'>
-                    <div class='card-header'>
-                        {$id['itmname']} " . parseUserID($itmid) . "
-                    </div>
                     <div class='card-body'>
                         <div class='row'>
-                            <div class='col-12 col-sm-auto col-md-3 col-xl-2 col-xxxl-1'>
-                                " . returnIcon($itmid, 6) . "
+                            <div class='col-12'>
+                                " . returnIcon($itmid, 8) . "
                             </div>
-                            <div class='col-12 col-sm'>
-                                <div class='row'>
-                                    <div class='col-12'>
-                                        {$id['itmdesc']}
-                                    </div>";
-                                    if (!empty($txt))
+                            <div class='col-12'>
+                                {$id['itmname']} " . parseUserID($itmid) . "
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class='col-12'>
+                <div class='card'>
+                    <div class='card-body'>
+                        <div class='row'>
+                            <div class='col-12'>
+                                {$id['itmdesc']}
+                            </div>";
+                            if (!empty($txt))
                                     {
                                         echo"
                                         <div class='col-12'>
                                             ({$txt} when used/equipped)
                                         </div>";
                                     }
-                                        echo"
+                                    echo"
+                            <div class='col-12'>
+                                <i>{$id['itmname']} is a/an {$id['itmtypename']} item.</i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class='col-12'>
+                <div class='card'>
+                    <div class='card-body'>
+                        <div class='row'>
+                            <div class='col-12'>
+                                <div class='row'>
                                     <div class='col-12'>
-                                        <i><b>{$id['itmname']} is a/an {$id['itmtypename']} item.</b></i>
-                                    </div>";
-                                    if ($id['itmbuyprice'] > 0)
-                                    {
-                                        echo "<div class='col-12 col-sm-6 col-xl-4 col-xxl-3 col-xxxl-auto'>
-                                            <div class='row'>
-                                                <div class='col-12'>
-                                                    <small><b>Purchase Price</b></small>
-                                                </div>
-                                                <div class='col-12'>
-                                                " . shortNumberParse($id['itmbuyprice']) . " Copper Coins
-                                                </div>
-                                            </div>
-                                        </div>";
-                                    }
-                                    
-                                    if ($id['itmsellprice'] > 0)
-                                    {
-                                        echo "<div class='col-12 col-sm-6 col-xl-4 col-xxl-3 col-xxxl-auto'>
-                                            <div class='row'>
-                                                <div class='col-12'>
-                                                    <small><b>Sell Price</b></small>
-                                                </div>
-                                                <div class='col-12'>
-                                                " . shortNumberParse($id['itmsellprice']) . " Copper Coins
-                                                </div>
-                                            </div>
-                                        </div>";
-                                    }
-                                    
-                                    if ($id['weapon'] > 0)
-                                    {
-                                        echo "<div class='col-12 col-sm-6 col-xl-4 col-xxl-3 col-xxxl-auto'>
-                                            <div class='row'>
-                                                <div class='col-12'>
-                                                    <small><b>Weapon Rating</b></small>
-                                                </div>
-                                                <div class='col-12'>
-                                                " . shortNumberParse($id['weapon']) . "
-                                                </div>
-                                            </div>
-                                        </div>";
-                                    }
-                                    
-                                    if ($id['armor'] > 0)
-                                    {
-                                        echo "<div class='col-12 col-sm-6 col-xl-4 col-xxl-3 col-xxxl-auto'>
-                                            <div class='row'>
-                                                <div class='col-12'>
-                                                    <small><b>Armor Rating</b></small>
-                                                </div>
-                                                <div class='col-12'>
-                                                " . shortNumberParse($id['armor']) . "
-                                                </div>
-                                            </div>
-                                        </div>";
-                                    }
-                                    
-                                    if ($id['ammo'] > 0)
-                                    {
-                                        echo "<div class='col-12 col-sm-6 col-xl-4 col-xxl-3 col-xxxl-auto'>
-                                            <div class='row'>
-                                                <div class='col-12'>
-                                                    <small><b>Projectile Fired</b></small>
-                                                </div>
-                                                <div class='col-12'>
-                                                <a href='?ID={$id['ammo']}'>{$api->SystemItemIDtoName($id['ammo'])}</a>
-                                                </div>
-                                            </div>
-                                        </div>";
-                                    }  
+                                        <small><b>Buy Price</b></small>
+                                    </div>
+                                    <div class='col-12'>
+                                        " . shortNumberParse($id['itmbuyprice']) . " Copper Coins
+                                    </div>
+                                </div>
+                            </div>
+                            <div class='col-12'>
+                                <div class='row'>
+                                    <div class='col-12'>
+                                        <small><b>Sell Price</b></small>
+                                    </div>
+                                    <div class='col-12'>
+                                        " . shortNumberParse($id['itmsellprice']) . " Copper Coins
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>";
+            if (($id['weapon'] > 0) || ($id['armor'] > 0))
+            {
+                echo "<div class='col-12'>
+                <div class='card'>
+                    <div class='card-body'>
+                        <div class='row'>";
+                            if ($id['weapon'] > 0)
+                            {
+                                echo"
+                                <div class='col-12'>
+                                    <div class='row'>
+                                        <div class='col-12'>
+                                            <small><b>Weapon Value</b></small>
+                                        </div>
+                                        <div class='col-12'>
+                                            " . shortNumberParse($id['weapon']) . "
+                                        </div>
+                                    </div>
+                                </div>";
+                            }
+                            if ($id['ammo'] > 0)
+                            {
+                                echo"
+                                <div class='col-12'>
+                                    <div class='row'>
+                                        <div class='col-12'>
+                                            <small><b>Weapon Ammo</b></small>
+                                        </div>
+                                        <div class='col-12'>
+                                            <a href='?ID={$id['ammo']}'>{$api->SystemItemIDtoName($id['ammo'])}</a>
+                                        </div>
+                                    </div>
+                                </div>";
+                            }
+                            if ($id['armor'] > 0)
+                            {
+                                echo"
+                                <div class='col-12'>
+                                    <div class='row'>
+                                        <div class='col-12'>
+                                            <small><b>Armor Value</b></small>
+                                        </div>
+                                        <div class='col-12'>
+                                            " . shortNumberParse($id['armor']) . "
+                                        </div>
+                                    </div>
+                                </div>";
+                            }
+                                echo"
+                        </div>
+                    </div>
+                </div>
+            </div>";
+            }
+                
+                
+                echo "
+        </div>
+
+        <div class='row'>
+            <div class='col-12'>
+                <div class='card'>
+                    <div class='card-header'>
+                        {$id['itmname']} " . parseUserID($itmid) . "
+                    </div>
+                    <div class='card-body'>
+                        <div class='row'>";
                                 echo "<div class='col-12 col-sm-6 col-xl-4 col-xxl-3 col-xxxl-auto'>
                                             <div class='row'>
                                                 <div class='col-12'>

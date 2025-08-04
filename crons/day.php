@@ -9,11 +9,6 @@
 */
 $menuhide = 1;
 require_once(__DIR__ . '/../globals_nonauth.php');
-// Allow CLI-based code passing
-if (php_sapi_name() === 'cli') {
-    parse_str(implode('&', array_slice($argv, 1)), $_GET);
-}
-
 if (!isset($_GET['code']) || $_GET['code'] !== $_CONFIG['code']) {
     exit;
 }

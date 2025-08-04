@@ -7,63 +7,130 @@
 	Website: 	https://github.com/MasterGeneral156/chivalry-engine
 */
 require('globals.php');
-echo "Welcome to the {$set['WebsiteName']} Tutorial, {$ir['username']}! Our hopes are that this tutorial will help you
+alert('info',"","Welcome to the <i>{$set['WebsiteName']}</i> Tutorial, {$ir['username']}! Our hopes are that this tutorial will help you
 to better understand our wonderful game. If you are confused by any of the terminology here, please contact a staff
-member listed <a href='staff.php'>here</a>.";
-echo "<hr />
-In {$set['WebsiteName']} , you are entirely free to play as you see fit, so long as you don't break the game rules.
+member found on the Staff List.",true,'staff.php','View Staff List');
+alert('warning',"","In <i>{$set['WebsiteName']}</i> , you are entirely free to play as you see fit, so long as you don't break the game rules.
 You're free to protect the weak, or exploit their shortcomings. Be charitable with your cash, or keep it all to
-yourself. Declare war on a person, or a whole guild. The choice is yours.
-<hr />
-<h3>Glossary</h3>
-	<a href='#basics'>Game Basics</a><br />
-	<a href='#navigation'>Navigation</a><br />
-	<a href='#explore'>Exploring</a><br />
-	<a href='#training'>Training</a><br />
-	<a href='#combat'>Combat</a><br />
-	<a href='#guilds'>Guilds</a><br />
-	<a href='#settings'>Account Settings</a><br />
-<hr>
-<a name='basics'><h4>Game Basics</h4></a>
-	{$set['WebsiteName']} is a Text Themed RPG, meaning everything you do is by clicking on links, or by writing out
-	respones. For example, to view your inventory, you would click the Inventory link at the top of the page.
-	<br />
-	<br />
-	<u>Personal Information</u>
-	<br />
-	If you click the {$set['WebsiteName']} on the top left corner, it'll open a window where you can
-	view your personal information. This page shows your Stats, Level, Copper Coins, Chivalry Tokens, VIP Days,
-	Health, Experience, Will, Brave and Energy. You can also update your Personal Notepad here as well.
-	<br />Energy is used for training and attacking.
-	<br />Will effects how much you gain while training, so in turn, a low will level means low gains in the gym.
-	<br />Brave is used to commit crimes. The more difficult the crime is, the more brave it'll require. Do note that
-	committing crimes have other requirements to succeed.
-	<br />Experience is how close you are to leveling up.
-	<br />Health shows how healthy your character is. You lose Health when you receive a hit in combat.
-	<br />
-	<br />
-	<u>Personal Stats</u>
-	<br />
-	There are currently six stats in-game: Strength, Agility, Guard, IQ, Labor and Luck.
-	<br /><b>Strength</b> will increase how much damage you can dish out in combat.
-	<br /><b>Agility</b> will increase your chance of one of your strikes connecting with your opponent.
-	<br /><b>Guard</b> will decrease the damage your opponents do to you.
-	<br /><b>IQ</b> and <b>Labor</b> are miscellaneous stats used around the game. It's good to have these at a fairly decent level.
-	<br /><b>Luck</b> is a stat that changes randomly as you progress around the game. Occasionally, if luck is on your side, 
-	you will get free refills at the Chivalry Token temple, or extra items while you mine. However, once you luck out, 
-	your luck will drop. You can read more about Luck <a href='forums.php?viewtopic=121&lastpost=1'>here</a>.
-	<br />
-	<br />
-<hr />
+yourself. Declare war on a person, or a whole guild. The choice is yours.",false);
+echo "
+<div class='row'>
+    <div class='col-12'>
+        <div class='card'>
+            <div class='card-header'>
+                Glossary
+            </div>
+            <div class='card-body'>
+                <div class='row'>
+                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
+                        <a class='btn btn-primary btn-block' href='#basics'>Game Basics</a>
+                    </div>
+                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
+                        <a class='btn btn-primary btn-block' href='#navigation'>Navigation</a>
+                    </div>
+                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
+                        <a class='btn btn-primary btn-block' href='#explore'>Exploring</a>
+                    </div>
+                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
+                        <a class='btn btn-primary btn-block' href='#training'>Training</a>
+                    </div>
+                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
+                        <a class='btn btn-primary btn-block' href='#combat'>Combat</a>
+                    </div>
+                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
+                        <a class='btn btn-primary btn-block' href='#guilds'>Guilds</a>
+                    </div>
+                    <div class='col-12 col-md-6 col-lg-4 col-xl-3 col-xxxl'>
+                        <a class='btn btn-primary btn-block' href='#settings'>Account Settings</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class='col-12'>
+        <div class='card'>
+            <div class='card-header'>
+                <a name='basics'><b>Game Basics</b></a>
+            </div>
+            <div class='card-body'>
+                <div class='row'>
+                    <div class='col-12'>
+                        <i>{$set['WebsiteName']}</i> is a Text Themed RPG, meaning everything you do is by clicking on links, 
+                            or by writing out responses. For example, to view your inventory, you would click the Inventory link using the menu on the left.
+                    </div>
+                    <div class='col-12 col-xl-6'>
+                        <div class='row'>
+                            <div class='col-12'>
+                                <u><b>Personal Information</b></u>
+                            </div>
+                            <div class='col-12'>
+                                If you click the <i>{$set['WebsiteName']}</i> on the top left corner, it'll open a window where you can
+                            	view your personal information. This page shows your Stats, Level, Copper Coins, Chivalry Tokens, VIP Days,
+                            	Health, Experience, Will, Brave and Energy. You can also update your Personal Notepad here as well.
+                            </div>
+                            <div class='col-12'>
+                                <b>ENERGY</b> is used for training and attacking.
+                            </div>
+                            <div class='col-12'>
+                                <b>BRAVE</b> is used to commit crimes. The more difficult the crime is, the more brave it'll require. Do note that
+	                               committing crimes have other requirements to succeed.
+                            </div>
+                            <div class='col-12'>
+                                <b>WILL</b> effects how much you gain while training, so in turn, a low will level means low gains in the gym.
+                            </div>
+                            <div class='col-12'>
+                                <b>XP</b> is your experience towards the next level.
+                            </div>
+                            <div class='col-12'>
+                                <b>HP</b> is your health. You will lose this in combat. When zero, you are unconscious.
+                            </div>
+                            <div class='col-12'>
+                                <b>MINING ENERGY</b> is your mining energy. You should go mine.
+                            </div>
+                        </div>
+                    </div>
+                    <div class='col-12 col-xl-6'>
+                        <div class='row'>
+                            <div class='col-12'>
+                                <u><b>Personal Stats</b></u>
+                            </div>
+                            <div class='col-12'>
+                                There are currently six stats in <i>{$set['WebsiteName']}</i>: Strength, Agility, Guard, IQ, Labor and Luck.
+                            </div>
+                            <div class='col-12'>
+                                <b>STRENGTH</b> is how hard you can potentially hit.
+                            </div>
+                            <div class='col-12'>
+                                <b>AGILITY</b> increases your chances dodging attacks, while also increasing the chance your attacks connect.
+                            </div>
+                            <div class='col-12'>
+                                <b>GUARD</b> is how hard it hurts when you take damage.
+                            </div>
+                            <div class='col-12'>
+                                <b>IQ</b> Misc stat
+                            </div>
+                            <div class='col-12'>
+                                <b>LABOR</b> Used for numerous tasks, like mining or street begging.
+                            </div>
+                            <div class='col-12'>
+                                <b>LUCK</b> is how often something lucky may go your way.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <a name='navigation'><h4>Navigation</h4></a>
-	Being able to view and navigate through {$set['WebsiteName']} is important! The top navigation bar (or dropdown, if
+	Being able to view and navigate through <i>{$set['WebsiteName']}</i> is important! The top navigation bar (or dropdown, if
 	you're on mobile) is where you will find access to the rest of the game.
 	<br />
 	<br />
 	<u>Navigation Bar</u>
 	<br />
 	The navigation bar (or dropdown) is your gateway to the game.
-	<br />Clicking on {$set['WebsiteName']} in the top left corner will open a window to your Personal Info page.
+	<br />Clicking on <i>{$set['WebsiteName']}</i> in the top left corner will open a window to your Personal Info page.
 	<br />Clicking on Explore will allow you to explore many of the features of the game. (More information on this later!)
 	<br />Clicking Mail will take you to your personal mailbox where you can write and read letters to others.
 	<br />Notifications will take you to your notification box, where game events will be posted if they involve you.
@@ -80,7 +147,7 @@ yourself. Declare war on a person, or a whole guild. The choice is yours.
     password, username, and forum signature!
 	<br />Clicking Game Rules will show you the rules of the game. It's recommended that you read these over so you
      know what you can and cannot do.
-     <br />Clicking Privacy Policy will show you what {$set['WebsiteName']} does with your information.
+     <br />Clicking Privacy Policy will show you what <i>{$set['WebsiteName']}</i> does with your information.
      <br />Finally, clicking Logout will terminate your session.
     <br />
     <br />
@@ -104,7 +171,7 @@ yourself. Declare war on a person, or a whole guild. The choice is yours.
 	<br /><a href='work.php'>Work Center</a> is where you begin your long life of working for 'the man'. You need to have special requirements
 	to join some jobs, however.
 	<br />The <a href='bank.php'>City Bank</a> will allow you safely store your Copper Coins. Storing in the Bank will keep your money safe from
-	 being robbed from you, and even gain you interest at midnight each night. As you progress in {$set['WebsiteName']}, more banks may become available to you.
+	 being robbed from you, and even gain you interest at midnight each night. As you progress in <i>{$set['WebsiteName']}</i>, more banks may become available to you.
 	 <br />The <a href='tokenbank.php'>Chivalry Token Bank</a> will allow you store your Chivalry Tokens. You will not gain interest.
 	 <br />Clicking <a href='estates.php'>Estate Agent</a> will allow you to view the estates available to purchase. Buying an estate will increase
 	 your Maximum Will, thus improving your gains while training.

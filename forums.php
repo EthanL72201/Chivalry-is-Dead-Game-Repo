@@ -43,7 +43,7 @@ function csrf_error()
 
 echo "<h3>{$set['WebsiteName']} Forums</h3><hr />";
 $fb = $db->fetch_row($db->query("SELECT * FROM `forum_bans` WHERE `fb_user` = {$userid}"));
-if ($fb['fb_time'] > $time) {
+if ($fb && isset($fb['fb_time']) && $fb['fb_time'] > $time) {
     alert('danger', "Uh Oh!", "You are currently forum banned for the next " . timeUntilParse($fb['fb_time']) . ". You
 	    were banned for {$fb['fb_reason']}. If you feel the ban was unjustified, please contact an admin
 	    immediately.", true, 'index.php');
@@ -274,6 +274,10 @@ function viewforum()
     }
     $r = $db->fetch_row($q);
     $db->free_result($q);
+    if (!$r) {
+        alert('danger', "Forum Error", "Unable to load forum information.", true, "forums.php");
+        die($h->endpage());
+    }
     if ($r['ff_auth'] == 'staff') {
         if (!in_array($ir['user_level'], array('Admin', 'Forum Moderator', 'Web Developer'))) {
             alert('danger', "Security Issue!", "You do not have permission to view this forum category. If you feel this is incorrect, please contact an admin.", true, "forums.php");

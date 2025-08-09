@@ -33,9 +33,26 @@ if ((!file_exists('./installer.lock')) && (file_exists('installer.php'))) {
 }
 require("globals_nonauth.php");
 $last24hr=time()-86400;
-$totalplayers=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users`"));
-$playersonline=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users` WHERE `laston` > {$last24hr}"));
-$signups=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users` WHERE `registertime` > {$last24hr}"));
+
+// Use session caching for stats to reduce database load
+if (!isset($_SESSION['stats_cache']) || $_SESSION['stats_cache']['time'] < (time() - 300)) {
+    // Cache for 5 minutes
+    $totalplayers=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users`"));
+    $playersonline=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users` WHERE `laston` > {$last24hr}"));
+    $signups=$db->fetch_single($db->query("SELECT COUNT(`userid`) FROM `users` WHERE `registertime` > {$last24hr}"));
+    
+    $_SESSION['stats_cache'] = array(
+        'totalplayers' => $totalplayers,
+        'playersonline' => $playersonline,
+        'signups' => $signups,
+        'time' => time()
+    );
+} else {
+    // Use cached values
+    $totalplayers = $_SESSION['stats_cache']['totalplayers'];
+    $playersonline = $_SESSION['stats_cache']['playersonline'];
+    $signups = $_SESSION['stats_cache']['signups'];
+}
 $currentpage = $_SERVER['REQUEST_URI'];
 $cpage = strip_tags(stripslashes($currentpage));
 $domain = getGameURL();
@@ -77,17 +94,32 @@ echo "
             </div>
             <div class='card-body'>";
                 $Rank = 0;
-                $RankPlayerQuery =
-                    $db->query("SELECT u.`userid`, `level`, `username`,
-                                `strength`, `agility`, `guard`, `labor`, `IQ`
-                                FROM `users` AS `u`
-                                INNER JOIN `userstats` AS `us`
-                                 ON `u`.`userid` = `us`.`userid`
-                                WHERE `u`.`user_level` != 'Admin' AND `u`.`user_level` != 'NPC'
-                                ORDER BY (`strength` + `agility` + `guard` + `labor` + `IQ`)
-                                DESC, `u`.`userid` ASC
-                                LIMIT 10");
-                while ($pdata = $db->fetch_row($RankPlayerQuery)) {
+                
+                // Cache top players for 10 minutes
+                if (!isset($_SESSION['top_players_cache']) || $_SESSION['top_players_cache']['time'] < (time() - 600)) {
+                    $top_players = array();
+                    $RankPlayerQuery =
+                        $db->query("SELECT u.`userid`, `level`, `username`,
+                                    `strength`, `agility`, `guard`, `labor`, `IQ`
+                                    FROM `users` AS `u`
+                                    INNER JOIN `userstats` AS `us`
+                                     ON `u`.`userid` = `us`.`userid`
+                                    WHERE `u`.`user_level` != 'Admin' AND `u`.`user_level` != 'NPC'
+                                    ORDER BY (`strength` + `agility` + `guard` + `labor` + `IQ`)
+                                    DESC, `u`.`userid` ASC
+                                    LIMIT 10");
+                    while ($pdata = $db->fetch_row($RankPlayerQuery)) {
+                        $top_players[] = $pdata;
+                    }
+                    $_SESSION['top_players_cache'] = array(
+                        'players' => $top_players,
+                        'time' => time()
+                    );
+                } else {
+                    $top_players = $_SESSION['top_players_cache']['players'];
+                }
+                
+                foreach ($top_players as $pdata) {
                     $Rank = $Rank + 1;
                     echo "{$Rank}) {$pdata['username']} [{$pdata['userid']}] (Level {$pdata['level']})<br />";
                 }

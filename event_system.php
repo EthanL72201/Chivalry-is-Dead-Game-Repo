@@ -63,6 +63,12 @@ class EventSystem {
      * Energy regeneration - calculated based on time passed (percentage-based)
      */
     private function processEnergyRegeneration($userid) {
+        // Skip energy regeneration if we're processing a gym training form
+        if (isset($_POST['stat']) && isset($_POST['amnt']) && strpos($_SERVER['PHP_SELF'], 'gym.php') !== false) {
+            error_log("ENERGY REGEN: Skipping for gym.php training form submission");
+            return;
+        }
+        
         $user = $this->db->fetch_row($this->db->query(
             "SELECT energy, maxenergy, laston, vip_days FROM users WHERE userid = {$userid}"
         ));
@@ -88,6 +94,7 @@ class EventSystem {
                 
                 // Only update if there's actually a change
                 if ($new_energy > $user['energy']) {
+                    error_log("ENERGY REGEN: User {$userid} energy {$user['energy']} -> {$new_energy} (gained {$energy_gain})");
                     $this->db->query(
                         "UPDATE users SET energy = {$new_energy} WHERE userid = {$userid}"
                     );

@@ -204,8 +204,10 @@ function setPerformanceHeaders() {
             header('Cache-Control: public, max-age=31536000'); // 1 year
             header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
         } elseif (preg_match('/\.(html|php)$/i', $uri)) {
-            header('Cache-Control: public, max-age=3600'); // 1 hour
-            header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 3600) . ' GMT');
+            // Disable caching for PHP pages to prevent issues
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
         }
     }
     

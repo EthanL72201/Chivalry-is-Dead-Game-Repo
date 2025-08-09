@@ -306,10 +306,15 @@ class user
                     SET `{$stat}` = `{$stat}` + {$gain}
                     WHERE `userid` = {$userid}");
         //Update user's will and energy.
-        $db->query("UPDATE `users`
+        $energy_query = "UPDATE `users`
                     SET `will` = {$userdata['will']},
                     `energy` = `energy` - {$times}
-                    WHERE `userid` = {$userid}");
+                    WHERE `userid` = {$userid}";
+        $db->query($energy_query);
+        
+        // Log the query for debugging
+        error_log("Train energy deduction: userid={$userid}, times={$times}, query={$energy_query}");
+        
         return $gain;
     }
 	 /*

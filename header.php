@@ -72,20 +72,54 @@ class headers
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             
+            <!-- DNS Prefetch for additional domains -->
+            <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+            <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+            <link rel="dns-prefetch" href="//fonts.googleapis.com">
+            
             <!-- Critical CSS - Load immediately -->
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
             <link rel="stylesheet" href="css/master-combined.css">
             <link rel="stylesheet" href="css/themes.css">
             
-            <!-- Non-critical CSS - Load asynchronously -->
+            <!-- Font Awesome - Load with font-display swap for better performance -->
             <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
             <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
             
-            <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-            <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
+            <!-- Google Fonts - Optimized loading with subset and display swap -->
+            <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&subset=latin" as="style" onload="this.onload=null;this.rel='stylesheet'">
+            <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&subset=latin"></noscript>
             
+            <!-- Animate CSS - Load only if needed -->
             <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
             <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"></noscript>
+            
+            <!-- Inline critical font-face declarations for faster text rendering -->
+            <style>
+                /* Preload critical font weights to prevent FOIT */
+                @font-face {
+                    font-family: 'Inter';
+                    font-style: normal;
+                    font-weight: 400;
+                    font-display: swap;
+                    src: url('https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2') format('woff2');
+                    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+                }
+                
+                @font-face {
+                    font-family: 'Inter';
+                    font-style: normal;
+                    font-weight: 600;
+                    font-display: swap;
+                    src: url('https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYAZ9hiA.woff2') format('woff2');
+                    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+                }
+                
+                /* Fallback font stack while Inter loads */
+                body {
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                }
+            </style>
             
             <!-- Pass user theme preference to JavaScript -->
             <script>
@@ -112,8 +146,13 @@ class headers
                     if (state === 'open') {
                         document.documentElement.classList.add('sidebar-will-open');
                     }
+                    // Mark fonts as loading
+                    document.documentElement.classList.add('fonts-loading');
                 })();
             </script>
+            
+            <!-- Font optimization script - load early for better performance -->
+            <script src="js/font-optimizer.js" async></script>
         </head>
         <?php
         if (empty($menuhide))
@@ -205,11 +244,11 @@ class headers
                             <div class="currency-display" style="margin-top: 8px;">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span><i class="fas fa-coins text-warning"></i> <?php echo constant("primary_currency"); ?></span>
-                                    <span><?php echo number_format($ir['primary_currency']); ?></span>
+                                    <span id="sidebar-primary-currency"><?php echo number_format($ir['primary_currency']); ?></span>
                                 </div>
                                 <div class="d-flex justify-content-between">
                                     <span><i class="fas fa-gem text-info"></i> <?php echo constant("secondary_currency"); ?></span>
-                                    <span><?php echo number_format($ir['secondary_currency']); ?></span>
+                                    <span id="sidebar-secondary-currency"><?php echo number_format($ir['secondary_currency']); ?></span>
                                 </div>
                             </div>
                         </div>

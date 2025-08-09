@@ -28,7 +28,8 @@
 	SOFTWARE.
 */
 require_once('globals.php');
-$tresder = (randomNumber(100, 999));
+// Use more entropy for the anti-refresh token
+$tresder = random_int(1000, 9999);
 $maxbet = $ir['level'] * 250;
 $_GET['tresde'] = (isset($_GET['tresde']) && is_numeric($_GET['tresde'])) ? abs($_GET['tresde']) : 0;
 if (!isset($_SESSION['tresde'])) {
@@ -39,7 +40,11 @@ if (($_SESSION['tresde'] == $_GET['tresde']) || $_GET['tresde'] < 100) {
     die($h->endpage());
 }
 $_SESSION['tresde'] = $_GET['tresde'];
-echo "<h3>Roulette</h3><hr />";
+echo "<h3>🎰 Roulette Table</h3><hr />
+<div class='alert alert-info'>
+    <strong>Game Rules:</strong> Pick a number between 0-36. If the wheel lands on your number, you win 50x your bet!
+    <br><small>House edge: 2.7% (European style single-zero roulette)</small>
+</div>";
 if (isset($_POST['bet']) && is_numeric($_POST['bet'])) {
     $_POST['bet'] = abs($_POST['bet']);
     if (!isset($_POST['number'])) {
@@ -60,7 +65,8 @@ if (isset($_POST['bet']) && is_numeric($_POST['bet'])) {
         die($h->endpage());
     }
     $slot = array();
-    $slot[1] = randomNumber(0, 36);
+    // Use PHP's native random_int for truly random numbers
+    $slot[1] = random_int(0, 36);
     if ($slot[1] == $_POST['number']) {
         $gain = $_POST['bet'] * 50;
         $title = "Success!";
@@ -77,10 +83,20 @@ if (isset($_POST['bet']) && is_numeric($_POST['bet'])) {
         $phrase = ". You lose your bet. Sorry man.";
         $api->game->addLog($userid, 'gambling', "Lost {$_POST['bet']} in roulette.");
     }
-    alert($alerttype, $title, "You put in your bet and pull the handle down. Around and around the wheel spins. It stops
-	    and lands on {$slot[1]} {$phrase}", true, "roulette.php?tresde={$tresder}");
+    // Determine color of the number (for visual effect)
+    $color = 'green'; // 0 is green
+    if ($slot[1] > 0) {
+        $reds = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+        $color = in_array($slot[1], $reds) ? 'red' : 'black';
+    }
+    $colorEmoji = $color == 'red' ? '🔴' : ($color == 'black' ? '⚫' : '🟢');
+    
+    alert($alerttype, $title, "You bet on <strong>#{$_POST['number']}</strong> with " . number_format($_POST['bet']) . " " . constant("primary_currency") . ".<br><br>
+        The wheel spins... and lands on:<br>
+        <span style='font-size: 2em; font-weight: bold;'>{$colorEmoji} {$slot[1]}</span><br><br>
+        {$phrase}", true, "roulette.php?tresde={$tresder}");
     $db->query("UPDATE `users` SET `primary_currency` = `primary_currency` + ({$gain}) WHERE `userid` = {$userid}");
-    $tresder = randomNumber(100, 999);
+    $tresder = random_int(1000, 9999);
     echo "<br />
 	<form action='roulette.php?tresde={$tresder}' method='post'>
     	<input type='hidden' name='bet' value='{$_POST['bet']}' />
@@ -113,7 +129,7 @@ if (isset($_POST['bet']) && is_numeric($_POST['bet'])) {
 				Pick #
 			</th>
 			<td>
-				<input type='number' class='form-control' name='number' min='1' max='36' value='18' />
+				<input type='number' class='form-control' name='number' min='0' max='36' value='<?php echo random_int(0, 36); ?>' />
 			</td>
 		</tr>
 		<tr>

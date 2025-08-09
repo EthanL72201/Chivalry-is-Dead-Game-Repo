@@ -176,6 +176,13 @@ class VIPBenefits {
      */
     public function logBenefitUsage($benefit_type, $amount_saved = 0) {
         if ($this->isVIP()) {
+            // Check if table exists first
+            $tableCheck = $this->db->query("SHOW TABLES LIKE 'vip_benefit_log'");
+            if ($this->db->num_rows($tableCheck) == 0) {
+                // Create the table if it doesn't exist
+                $this->createBenefitLogTable();
+            }
+            
             $benefit_type = $this->db->escape($benefit_type);
             $this->db->query("
                 INSERT INTO vip_benefit_log (userid, benefit_type, amount_saved, used_at) 

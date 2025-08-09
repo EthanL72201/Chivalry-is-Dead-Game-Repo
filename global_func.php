@@ -579,7 +579,7 @@ function dropdownGuild(string $dropdownname = "guild", int $selected = -1)
  * Not specifying this or setting it to -1 makes the first bot alphabetically be selected.
  * @return string The HTML code for the listbox, to be inserted in a form.
  */
-function dropdownGuildUser(string $dropdownname = "user", int $guild_id, int $selected = -1)
+function dropdownGuildUser(int $guild_id, string $dropdownname = "user", int $selected = -1)
 {
     global $db;
     $ret = "<select name='{$dropdownname}' class='custom-select' type='dropdown'>";

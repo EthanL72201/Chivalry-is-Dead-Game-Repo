@@ -5,6 +5,12 @@
 	Info: 		Modern training interface with improved layout
 */
 $macropage = ('gym.php');
+
+// Prevent caching of this page
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 require("globals.php");
 require_once("includes/vip-benefits.php");
 
@@ -43,6 +49,10 @@ if (isset($_POST["stat"]) && isset($_POST["amnt"])) {
     if ($amnt > $ir['energy']) {
         alert("danger", "Not Enough Energy!", "You need more energy to train that much.", false);
     } else {
+        // Store energy before training
+        $energyBefore = $ir['energy'];
+        $dbEnergyBefore = $db->fetch_single($db->query("SELECT `energy` FROM `users` WHERE `userid` = {$userid}"));
+        
         $gain = $api->user->train($userid, $_POST['stat'], $amnt);
         
         // Apply VIP training bonus
@@ -50,26 +60,43 @@ if (isset($_POST["stat"]) && isset($_POST["amnt"])) {
         $gain = $vipBenefits->applyTrainingBonus($gain);
         $bonus = $gain - $originalGain;
         
-        $NewStatAmount = $ir[$stat] + $gain;
-        $EnergyLeft = $ir['energy'] - $amnt;
+        // Fetch the actual energy from database after train() function
+        $actualEnergy = $db->fetch_single($db->query("SELECT `energy` FROM `users` WHERE `userid` = {$userid}"));
         
-        $db->query("UPDATE users SET energy = energy - {$amnt} WHERE userid = {$userid}");
+        $NewStatAmount = $ir[$stat] + $gain;
+        $EnergyLeft = $actualEnergy; // Use the actual energy from database
+        
+        // Update local variable
         $ir['energy'] = $EnergyLeft;
         $ir[$stat] = $NewStatAmount;
         
-        // Log VIP benefit usage if bonus was applied
-        if ($bonus > 0) {
-            $vipBenefits->logBenefitUsage('training_bonus', $bonus);
-        }
+        // Debug logging
+        error_log("GYM DEBUG: Before training - Session energy: {$energyBefore}, DB energy: {$dbEnergyBefore}");
+        error_log("GYM DEBUG: After training - DB energy: {$actualEnergy}, Amount used: {$amnt}");
         
-        $message = "You gained <strong>{$gain}</strong> " . constant("stat_" . $stat) . "! Energy remaining: {$EnergyLeft}";
+        // Log VIP benefit usage if bonus was applied
+        // Commented out until table is created
+        // if ($bonus > 0) {
+        //     $vipBenefits->logBenefitUsage('training_bonus', $bonus);
+        // }
+        
+        $message = "You gained <strong>{$gain}</strong> " . constant("stat_" . $stat) . "! Energy: {$energyBefore} → {$EnergyLeft} (Used: {$amnt})";
         if ($bonus > 0) {
             $message .= " <span class='text-warning'><i class='fas fa-crown'></i> VIP Bonus: +{$bonus}</span>";
+        }
+        
+        // Debug: Check if energy was actually deducted
+        if ($energyBefore == $EnergyLeft) {
+            $message .= "<br><span class='text-danger'>Warning: Energy was not deducted!</span>";
         }
         
         alert('success', "Training Complete!", $message, false);
     }
 }
+
+// Debug: Check initial energy value
+$dbEnergy = $db->fetch_single($db->query("SELECT `energy` FROM `users` WHERE `userid` = {$userid}"));
+error_log("GYM PAGE LOAD: userid={$userid}, \$ir['energy']={$ir['energy']}, DB energy={$dbEnergy}, maxenergy={$ir['maxenergy']}");
 
 // Calculate percentages and stats
 $energyPercent = round($ir['energy'] / $ir['maxenergy'] * 100);
@@ -83,320 +110,8 @@ $agilityRank = getRank($ir['agility'], 'agility');
 $guardRank = getRank($ir['guard'], 'guard');
 $laborRank = getRank($ir['labor'], 'labor');
 ?>
-
-<style>
-/* Custom Gym Styles */
-.gym-hero {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 15px;
-    padding: 40px;
-    color: white;
-    margin-bottom: 30px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.gym-hero h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 10px;
-}
-
-.gym-hero p {
-    font-size: 1.2rem;
-    opacity: 0.95;
-}
-
-.resource-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-}
-
-.resource-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.resource-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-}
-
-.resource-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.resource-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-}
-
-.resource-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.resource-label {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.modern-progress {
-    height: 8px;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-top: 10px;
-}
-
-.modern-progress-bar {
-    height: 100%;
-    border-radius: 10px;
-    transition: width 0.6s ease;
-    position: relative;
-}
-
-.modern-progress-bar::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-
-.stats-showcase {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 25px;
-    margin-bottom: 30px;
-}
-
-.stat-showcase-card {
-    background: var(--bg-card);
-    border: 2px solid var(--border-color);
-    border-radius: 15px;
-    padding: 25px;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.3s ease;
-}
-
-.stat-showcase-card:hover {
-    border-color: var(--link-color);
-    transform: scale(1.02);
-}
-
-.stat-showcase-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-}
-
-.stat-showcase-card.strength::before {
-    background: linear-gradient(90deg, #dc3545, #ff6b6b);
-}
-
-.stat-showcase-card.agility::before {
-    background: linear-gradient(90deg, #28a745, #51cf66);
-}
-
-.stat-showcase-card.guard::before {
-    background: linear-gradient(90deg, #007bff, #339af0);
-}
-
-.stat-showcase-card.labor::before {
-    background: linear-gradient(90deg, #ffc107, #ffd43b);
-}
-
-.stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 20px;
-}
-
-.stat-info h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 10px 0;
-}
-
-.stat-rank {
-    display: inline-block;
-    background: rgba(94, 114, 228, 0.1);
-    color: var(--link-color);
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.stat-icon-large {
-    width: 60px;
-    height: 60px;
-    border-radius: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    color: white;
-}
-
-.training-section {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 15px;
-    padding: 30px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.training-section h2 {
-    margin-bottom: 25px;
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.quick-actions {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.quick-action-btn {
-    padding: 12px;
-    background: var(--bg-secondary);
-    border: 2px solid var(--border-color);
-    border-radius: 10px;
-    color: var(--text-primary);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.quick-action-btn:hover {
-    background: var(--link-color);
-    color: white;
-    border-color: var(--link-color);
-    transform: translateY(-2px);
-}
-
-.quick-action-btn.selected {
-    background: var(--link-color);
-    color: white;
-    border-color: var(--link-color);
-}
-
-.form-modern {
-    display: grid;
-    gap: 20px;
-}
-
-.form-group-modern {
-    display: grid;
-    gap: 8px;
-}
-
-.form-group-modern label {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.form-control-modern {
-    padding: 12px 16px;
-    background: var(--input-bg);
-    border: 2px solid var(--input-border);
-    border-radius: 10px;
-    color: var(--input-text);
-    font-size: 16px;
-    transition: all 0.3s ease;
-}
-
-.form-control-modern:focus {
-    outline: none;
-    border-color: var(--input-focus-border);
-    box-shadow: 0 0 0 4px rgba(94, 114, 228, 0.1);
-}
-
-.btn-train {
-    padding: 15px 30px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 1.125rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.btn-train:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-}
-
-.info-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-top: 30px;
-}
-
-.info-card {
-    background: var(--bg-secondary);
-    border-left: 4px solid var(--link-color);
-    border-radius: 10px;
-    padding: 20px;
-}
-
-.info-card h4 {
-    margin-bottom: 10px;
-    color: var(--text-primary);
-}
-
-.info-card p {
-    margin: 0;
-    color: var(--text-secondary);
-    line-height: 1.6;
-}
-</style>
+<!-- Load optimized gym styles -->
+<link rel="stylesheet" href="css/gym.css">
 
 <div class="gym-container">
     <!-- Hero Section -->
@@ -413,12 +128,12 @@ $laborRank = getRank($ir['labor'], 'labor');
                     <div class="resource-label">Energy Available</div>
                     <div class="resource-value"><?php echo number_format($ir['energy']); ?>/<?php echo number_format($ir['maxenergy']); ?></div>
                 </div>
-                <div class="resource-icon" style="background: linear-gradient(135deg, #ffc107, #ff9800); color: white;">
+                <div class="resource-icon energy">
                     <i class="fas fa-bolt"></i>
                 </div>
             </div>
             <div class="modern-progress">
-                <div class="modern-progress-bar" style="width: <?php echo $energyPercent; ?>%; background: linear-gradient(90deg, #ffc107, #ff9800);"></div>
+                <div class="modern-progress-bar energy" style="width: <?php echo $energyPercent; ?>%;"></div>
             </div>
         </div>
 
@@ -428,12 +143,12 @@ $laborRank = getRank($ir['labor'], 'labor');
                     <div class="resource-label">Health Points</div>
                     <div class="resource-value"><?php echo number_format($ir['hp']); ?>/<?php echo number_format($ir['maxhp']); ?></div>
                 </div>
-                <div class="resource-icon" style="background: linear-gradient(135deg, #dc3545, #ff6b6b); color: white;">
+                <div class="resource-icon health">
                     <i class="fas fa-heart"></i>
                 </div>
             </div>
             <div class="modern-progress">
-                <div class="modern-progress-bar" style="width: <?php echo $hpPercent; ?>%; background: linear-gradient(90deg, #dc3545, #ff6b6b);"></div>
+                <div class="modern-progress-bar health" style="width: <?php echo $hpPercent; ?>%;"></div>
             </div>
         </div>
 
@@ -443,12 +158,12 @@ $laborRank = getRank($ir['labor'], 'labor');
                     <div class="resource-label">Willpower</div>
                     <div class="resource-value"><?php echo number_format($ir['will']); ?>/<?php echo number_format($ir['maxwill']); ?></div>
                 </div>
-                <div class="resource-icon" style="background: linear-gradient(135deg, #6f42c1, #a855f7); color: white;">
+                <div class="resource-icon will">
                     <i class="fas fa-brain"></i>
                 </div>
             </div>
             <div class="modern-progress">
-                <div class="modern-progress-bar" style="width: <?php echo $willPercent; ?>%; background: linear-gradient(90deg, #6f42c1, #a855f7);"></div>
+                <div class="modern-progress-bar will" style="width: <?php echo $willPercent; ?>%;"></div>
             </div>
         </div>
 
@@ -458,12 +173,12 @@ $laborRank = getRank($ir['labor'], 'labor');
                     <div class="resource-label">Bravery</div>
                     <div class="resource-value"><?php echo number_format($ir['brave']); ?>/<?php echo number_format($ir['maxbrave']); ?></div>
                 </div>
-                <div class="resource-icon" style="background: linear-gradient(135deg, #20c997, #51cf66); color: white;">
+                <div class="resource-icon brave">
                     <i class="fas fa-shield-alt"></i>
                 </div>
             </div>
             <div class="modern-progress">
-                <div class="modern-progress-bar" style="width: <?php echo $bravePercent; ?>%; background: linear-gradient(90deg, #20c997, #51cf66);"></div>
+                <div class="modern-progress-bar brave" style="width: <?php echo $bravePercent; ?>%;"></div>
             </div>
         </div>
     </div>
@@ -477,12 +192,12 @@ $laborRank = getRank($ir['labor'], 'labor');
                     <div class="stat-value"><?php echo number_format($ir['strength']); ?></div>
                     <span class="stat-rank">Rank #<?php echo $strengthRank; ?></span>
                 </div>
-                <div class="stat-icon-large" style="background: linear-gradient(135deg, #dc3545, #ff6b6b);">
+                <div class="stat-icon-large strength">
                     <i class="fas fa-fist-raised"></i>
                 </div>
             </div>
             <div class="modern-progress">
-                <div class="modern-progress-bar" style="width: <?php echo min(100, $ir['strength'] / 1000 * 100); ?>%; background: linear-gradient(90deg, #dc3545, #ff6b6b);"></div>
+                <div class="modern-progress-bar strength" style="width: <?php echo min(100, $ir['strength'] / 1000 * 100); ?>%;"></div>
             </div>
         </div>
 
@@ -493,12 +208,12 @@ $laborRank = getRank($ir['labor'], 'labor');
                     <div class="stat-value"><?php echo number_format($ir['agility']); ?></div>
                     <span class="stat-rank">Rank #<?php echo $agilityRank; ?></span>
                 </div>
-                <div class="stat-icon-large" style="background: linear-gradient(135deg, #28a745, #51cf66);">
+                <div class="stat-icon-large agility">
                     <i class="fas fa-running"></i>
                 </div>
             </div>
             <div class="modern-progress">
-                <div class="modern-progress-bar" style="width: <?php echo min(100, $ir['agility'] / 1000 * 100); ?>%; background: linear-gradient(90deg, #28a745, #51cf66);"></div>
+                <div class="modern-progress-bar agility" style="width: <?php echo min(100, $ir['agility'] / 1000 * 100); ?>%;"></div>
             </div>
         </div>
 
@@ -509,12 +224,12 @@ $laborRank = getRank($ir['labor'], 'labor');
                     <div class="stat-value"><?php echo number_format($ir['guard']); ?></div>
                     <span class="stat-rank">Rank #<?php echo $guardRank; ?></span>
                 </div>
-                <div class="stat-icon-large" style="background: linear-gradient(135deg, #007bff, #339af0);">
+                <div class="stat-icon-large guard">
                     <i class="fas fa-shield-alt"></i>
                 </div>
             </div>
             <div class="modern-progress">
-                <div class="modern-progress-bar" style="width: <?php echo min(100, $ir['guard'] / 1000 * 100); ?>%; background: linear-gradient(90deg, #007bff, #339af0);"></div>
+                <div class="modern-progress-bar guard" style="width: <?php echo min(100, $ir['guard'] / 1000 * 100); ?>%;"></div>
             </div>
         </div>
 
@@ -525,12 +240,12 @@ $laborRank = getRank($ir['labor'], 'labor');
                     <div class="stat-value"><?php echo number_format($ir['labor']); ?></div>
                     <span class="stat-rank">Rank #<?php echo $laborRank; ?></span>
                 </div>
-                <div class="stat-icon-large" style="background: linear-gradient(135deg, #ffc107, #ffd43b);">
+                <div class="stat-icon-large labor">
                     <i class="fas fa-hammer"></i>
                 </div>
             </div>
             <div class="modern-progress">
-                <div class="modern-progress-bar" style="width: <?php echo min(100, $ir['labor'] / 1000 * 100); ?>%; background: linear-gradient(90deg, #ffc107, #ffd43b);"></div>
+                <div class="modern-progress-bar labor" style="width: <?php echo min(100, $ir['labor'] / 1000 * 100); ?>%;"></div>
             </div>
         </div>
     </div>
@@ -610,30 +325,26 @@ $laborRank = getRank($ir['labor'], 'labor');
     </div>
 </div>
 
-<script>
-// Quick action buttons
-document.querySelectorAll('.quick-action-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        // Remove selected class from all buttons
-        document.querySelectorAll('.quick-action-btn').forEach(b => b.classList.remove('selected'));
-        // Add selected class to clicked button
-        this.classList.add('selected');
-        // Set the amount
-        document.getElementById('amnt').value = this.dataset.amount;
-    });
-});
+<!-- Load gym optimizer for better performance -->
+<script src="js/gym-optimizer.js" defer></script>
 
-// Animate progress bars on load
+<?php if (isset($_POST["stat"]) && isset($_POST["amnt"]) && isset($EnergyLeft)): ?>
+<script>
+// Refresh stats after successful training
+// Use window.onload to ensure all scripts are loaded
 window.addEventListener('load', function() {
-    document.querySelectorAll('.modern-progress-bar').forEach(bar => {
-        const width = bar.style.width;
-        bar.style.width = '0%';
-        setTimeout(() => {
-            bar.style.width = width;
-        }, 100);
-    });
+    // Call refreshStats if it exists (from modern-enhancements.js)
+    if (typeof window.refreshStats === 'function') {
+        console.log('Refreshing stats after training...');
+        setTimeout(function() {
+            window.refreshStats();
+        }, 1000);
+    } else {
+        console.warn('refreshStats function not found');
+    }
 });
 </script>
+<?php endif; ?>
 
 <?php
 $h->endpage();

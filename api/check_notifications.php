@@ -4,7 +4,18 @@
 	Created: 	API endpoint for checking new notifications
 	Info: 		Returns notification count and recent notifications
 */
+
+// Suppress any HTML output from errors
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Start output buffering to catch any unwanted output
+ob_start();
+
 require_once('../globals.php');
+
+// Clean any output that might have been generated
+ob_clean();
 
 header('Content-Type: application/json');
 

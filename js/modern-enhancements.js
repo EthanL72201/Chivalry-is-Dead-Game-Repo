@@ -54,44 +54,77 @@ function initializeAjaxSystem() {
 async function refreshStats() {
     try {
         const response = await fetch('api/get_stats.php');
+        
+        // Check if response is OK and is JSON
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            throw new TypeError("Response was not JSON");
+        }
+        
         const data = await response.json();
         
         if (data.success) {
             updateStatDisplays(data.stats);
-            showToast('Stats refreshed', 'success');
+            console.log('Stats refreshed successfully', data.stats);
         }
     } catch (error) {
         console.error('Failed to refresh stats:', error);
     }
 }
 
+// Make refreshStats globally available
+window.refreshStats = refreshStats;
+
 // Update stat displays with animation
 function updateStatDisplays(stats) {
-    // Update progress bars with animation
+    // Update main progress bars with animation
     updateProgressBar('hp-bar', stats.hp_percent);
     updateProgressBar('energy-bar', stats.energy_percent);
     updateProgressBar('xp-bar', stats.xp_percent);
     updateProgressBar('will-bar', stats.will_percent);
     updateProgressBar('brave-bar', stats.brave_percent);
     
+    // Update sidebar progress bars
+    updateProgressBar('sidebar-hp-bar', stats.hp_percent);
+    updateProgressBar('sidebar-energy-bar', stats.energy_percent);
+    updateProgressBar('sidebar-xp-bar', stats.xp_percent);
+    
     // Update currency with counting animation
     animateValue('primary-currency', stats.primary_currency);
     animateValue('secondary-currency', stats.secondary_currency);
+    
+    // Update sidebar currency displays
+    animateValue('sidebar-primary-currency', stats.primary_currency);
+    animateValue('sidebar-secondary-currency', stats.secondary_currency);
 }
 
 // Animate progress bar updates
 function updateProgressBar(id, newValue) {
     const bar = document.getElementById(id);
     if (bar) {
+        // For debugging
+        console.log(`Updating ${id} to ${newValue}%`);
+        
         const currentWidth = parseInt(bar.style.width) || 0;
         bar.style.width = newValue + '%';
         bar.textContent = newValue + '%';
+        
+        // Also update aria-valuenow if it exists
+        if (bar.hasAttribute('aria-valuenow')) {
+            bar.setAttribute('aria-valuenow', newValue);
+        }
         
         // Add pulse animation if value increased
         if (newValue > currentWidth) {
             bar.classList.add('pulse-animation');
             setTimeout(() => bar.classList.remove('pulse-animation'), 600);
         }
+    } else {
+        console.warn(`Progress bar element with id '${id}' not found`);
     }
 }
 

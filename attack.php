@@ -55,6 +55,12 @@ function attacking()
     $menuhide = 1;                    //Hide the menu so players cannot load other pages,
     //and lessens the chance of a misclick and losing XP.
     $atkpage = 1;
+    
+    // Initialize session attacking if not set
+    if (!isset($_SESSION['attacking'])) {
+        $_SESSION['attacking'] = 0;
+    }
+    
     $tresder = randomNumber(100, 999);    //RNG to prevent refreshing while attacking, thus
 									//breaking progression of the attack system.
 	$attacked_user = filter_input(INPUT_GET, 'user', FILTER_SANITIZE_NUMBER_INT) ?: 0;
@@ -85,7 +91,7 @@ function attacking()
         alert("danger", "Uh Oh!", "Depressed or not, you cannot attack yourself.", true, 'index.php');
         die($h->endpage());
     } //If the user has no HP, and is not already attacking.
-    else if ($ir['hp'] <= 1 && $ir['attacking'] == 0) {
+    else if ($ir['hp'] <= 1 && (!isset($ir['attacking']) || $ir['attacking'] == 0)) {
         alert("danger", "Unconscious!", "You have no HP, so you cannot attack. Come back when your HP has refilled.", true, 'index.php');
         die($h->endpage());
     } //If the user has left a previous after losing.
@@ -116,7 +122,7 @@ function attacking()
     $odata = $db->fetch_row($q);
     $db->free_result($q);
     //Check current user's last attacked user, and see that its the specified user.
-    if ($ir['attacking'] && $ir['attacking'] != $attacked_user) {
+    if (isset($ir['attacking']) && $ir['attacking'] && $ir['attacking'] != $attacked_user) {
         $_SESSION['attacklost'] = 0;
         alert("danger", "Uh Oh!", "An unknown error has occurred. Please try again, or contact the admin team.", true, 'index.php');
         $api->user->setInfoStatic($userid, "attacking", 0);
@@ -125,42 +131,42 @@ function attacking()
     //Check that the opponent has 1 health point.
     if ($odata['hp'] == 1) {
         $_SESSION['attacking'] = 0;
-        $ir['attacking'] = 0;
+        $ir['attacking'] = isset($ir['attacking']) ? 0 : null;
         $api->user->setInfoStatic($userid, "attacking", 0);
         alert("danger", "Uh Oh!", "{$odata['username']} doesn't have health to be attacked.", true, 'index.php');
         die($h->endpage());
     } //Check if the opponent is currently in the infirmary.
     else if ($api->user->inInfirmary($attacked_user)) {
         $_SESSION['attacking'] = 0;
-        $ir['attacking'] = 0;
+        $ir['attacking'] = isset($ir['attacking']) ? 0 : null;
         $api->user->setInfoStatic($userid, "attacking", 0);
         alert("danger", "Unconscious!", "{$odata['username']} is currently in the infirmary. Try again later.", true, 'index.php');
         die($h->endpage());
     } //Check if the current user is in the infirmary.
     else if ($api->user->inInfirmary($ir['userid'])) {
         $_SESSION['attacking'] = 0;
-        $ir['attacking'] = 0;
+        $ir['attacking'] = isset($ir['attacking']) ? 0 : null;
         $api->user->setInfoStatic($userid, "attacking", 0);
         alert("danger", "Unconscious!", "You are currently in the infirmary. Try again after you heal out.", true, 'index.php');
         die($h->endpage());
     } //Check if the opponent is in the dungeon.
     else if ($api->user->inDungeon($attacked_user)) {
         $_SESSION['attacking'] = 0;
-        $ir['attacking'] = 0;
+        $ir['attacking'] = isset($ir['attacking']) ? 0 : null;
         $api->user->setInfoStatic($userid, "attacking", 0);
         alert("danger", "Locked Up!", "{$odata['username']} is currently in the dungeon. Try again later.", true, 'index.php');
         die($h->endpage());
     } //Check if the current user is in the dungeon.
     else if ($api->user->inDungeon($userid)) {
         $_SESSION['attacking'] = 0;
-        $ir['attacking'] = 0;
+        $ir['attacking'] = isset($ir['attacking']) ? 0 : null;
         $api->user->setInfoStatic($userid, "attacking", 0);
         alert("danger", "Locked Up!", "You are currently in the dungeon. Try again after you've paid your debt to society.", true, 'index.php');
         die($h->endpage());
     } //Check if the opponent is level 2 or lower, and has been on in the last 15 minutes.
     else if ($odata['level'] < 3 && $odata['laston'] > $laston) {
         $_SESSION['attacking'] = 0;
-        $ir['attacking'] = 0;
+        $ir['attacking'] = isset($ir['attacking']) ? 0 : null;
         $api->user->setInfoStatic($userid, "attacking", 0);
         alert("danger", "Uh Oh!", "You cannot attack online players who are level two or below.", true, 'index.php');
         die($h->endpage());
@@ -180,7 +186,7 @@ function attacking()
             die($h->endpage());
         }
         //Check if the attack is currently stored in session.
-        if ($_SESSION['attacking'] == 0 && $ir['attacking'] == 0) {
+        if ((!isset($_SESSION['attacking']) || $_SESSION['attacking'] == 0) && (!isset($ir['attacking']) || $ir['attacking'] == 0)) {
             //Check if the current user has enough energy for this attack.
             if ($youdata['energy'] >= $youdata['maxenergy'] / $set['AttackEnergyCost']) {
                 $youdata['energy'] -= floor($youdata['maxenergy'] / $set['AttackEnergyCost']);
@@ -197,7 +203,9 @@ function attacking()
             }
         }
         $_SESSION['attacking'] = $odata['userid'];
-        $ir['attacking'] = $odata['userid'];
+        if (isset($ir['attacking'])) {
+            $ir['attacking'] = $odata['userid'];
+        }
         $api->user->setInfoStatic($userid, "attacking", $ir['attacking']);
         $_GET['nextstep'] = (isset($_GET['nextstep']) && is_numeric($_GET['nextstep'])) ? abs($_GET['nextstep']) : '';
         //Check if the current user is attacking with a weapon that they have equipped.
